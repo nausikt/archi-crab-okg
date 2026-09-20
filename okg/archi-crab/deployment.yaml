@@ -8,16 +8,13 @@
 
 name: archi-crab
 description: >-
-  CRAB knowledge graph — CRABServer + CRABClient code graphs and the public
-  CMSSW release catalog. Minimal-workable MVP; every addition is a PR.
-
+  CRAB knowledge graph — CRABServer + CRABClient code graphs and the public CMSSW release catalog. Minimal-workable MVP; every addition is a PR.
 source_registry: source_registry.yaml
 schema_dir: schemas
-
 postgres:
   # Interpolated at command time from the environment; never written to disk.
   dsn: ${OKG_DSN}
-
+  database: okg
 # Release authority: the deployment dir MUST be a git checkout (repositorySync
 # provides one) and, because okg is pip-installed in the runtime image, the
 # code repository must be pinned here.
@@ -25,7 +22,6 @@ release:
   channel: dev
   pin:
     code_repository: https://github.com/nausikt/archi-crab-okg
-
 # Base five + ALL SEVEN code modules, together. Adding the seven incrementally
 # cascades (~618k transform_consistency_violations at publish, field guide §5).
 modules:
@@ -41,16 +37,13 @@ modules:
   - code_graph
   - forge
   - ci
-
 # Code graphs always emit unresolvable forward references (~100+ dangling
 # edges). Pruning them is safe: narrowing violations still block a publish.
 consistency:
   dangling_edges: prune
-
 # The Helm chart runs an always-on worker container — declare the truth.
 runtime:
   enabled: true
-
 # Nomos rollout audit requires owner.name + owner.contact + review_by.
 nomos:
   rollout:
@@ -59,10 +52,8 @@ nomos:
       name: archi-crab
       contact: krittin.phornsiricharoenphant@cern.ch
     review_by: "2027-03-01"
-
 skills_dir: skills
 skill_triggers: skills/skill-triggers.yaml
-
 # Search scope: only subtypes THIS registry produces. okg refuses a profile
 # naming a subtype the catalog lacks — do not add subtypes speculatively.
 search:
@@ -75,7 +66,6 @@ search:
         - source_file
         - code_symbol
         - cmssw_release
-
 # Chat is an Open WebUI Application in CMSKubernetes, fronted by the vMCP.
 # okg's own chat-instance machinery is not used on this deployment.
 chat:

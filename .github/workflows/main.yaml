@@ -170,6 +170,8 @@ jobs:
         run: okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee provision.json
       - name: "init runtime-bootstrap == okg runtime bootstrap"
         run: okg runtime bootstrap --deployment archi-crab --json
+      - name: "init mcp-role == ALTER ROLE okg_mcp LOGIN"
+        run: docker exec pg psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U postgres -d okg -c "ALTER ROLE okg_mcp LOGIN PASSWORD 'okg_mcp'"
       - name: "main container == okg runtime worker (background, named so we can read its logs)"
         run: |
           docker run -d --name worker --network host --user "$(id -u):$(id -g)" \
@@ -177,8 +179,6 @@ jobs:
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
             -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
-      - name: "init mcp-role == ALTER ROLE okg_mcp LOGIN"
-        run: docker exec pg psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U postgres -d okg -c "ALTER ROLE okg_mcp LOGIN PASSWORD 'okg_mcp'"
       - name: "init deployment-apply == okg deployment apply (source supervision + worker ack)"
         run: |
           # dry-run emits the plan id; --apply requires --confirm <plan-id>

@@ -108,7 +108,7 @@ tests:
 
 mirror:
   enabled: false
-  command: []
+  command: ["okg"]   # schema: minItems 1 even when disabled; inert unless mirror.enabled
   args: []
   resources: {}
 

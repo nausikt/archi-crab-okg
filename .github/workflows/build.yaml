@@ -8,7 +8,7 @@ name: build
 on:
   push:
     branches: [main]
-    paths: [docker/**, versions.lock, scripts/vendor-sync.sh]
+    paths: [docker/**, versions.lock, scripts/vendor-sync.sh, scripts/vendor-sync.sh]
   workflow_dispatch: {}
 permissions: {}
 concurrency: {group: build, cancel-in-progress: false}

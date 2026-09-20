@@ -34,7 +34,7 @@ jobs:
               --set repositorySync.revision=${{ github.sha }} \
               --set bootstrap.approvedRevision=${{ github.sha }} \
             | ./kubeconform -strict -summary -schema-location default \
-                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceVersion}}.json'
+                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
           done
 
   pins:

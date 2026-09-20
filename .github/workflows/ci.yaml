@@ -61,7 +61,7 @@ jobs:
     permissions: {contents: read}
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with: {registry: ghcr.io, username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
       - run: IMG="${{ needs.pins.outputs.okg }}" CONTAINER_RUNTIME=docker scripts/vendor-sync.sh --check
 

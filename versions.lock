@@ -14,12 +14,12 @@ images:
 archi:
   repository: https://github.com/archi-physics/archi
   branch: archi_v3_quickstart
-  commit: 6da0d66390091e174c9e805f64bc66588ff4aedc          # git ls-remote https://github.com/archi-physics/archi refs/heads/archi_v3_quickstart
+  commit: 6da0d66390091e174c9e805f64bc66588ff4aedc # git ls-remote https://github.com/archi-physics/archi refs/heads/archi_v3_quickstart
 runtime:
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: null                # <- build.yaml
-  built_from: null            # <- build.yaml (repo sha)
-  base_user: 10001:10001       # podman inspect <images.okg.ref> | jq -r '.[0].Config.User'  (use "0" if empty)
+  digest: null # <- build.yaml
+  built_from: null # <- build.yaml (repo sha)
+  base_user: "10001:10001" # podman inspect <images.okg.ref> | jq -r '.[0].Config.User'  (use "0" if empty)
 validated:
   local_e2e: null
   staging: null

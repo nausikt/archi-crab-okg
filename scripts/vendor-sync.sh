@@ -20,11 +20,26 @@ cleanup() { rm -rf "$SCRATCH"; [[ -n "$CID" ]] && "$RT" rm -f "$CID" >/dev/null 
 trap cleanup EXIT
 CID="$("$RT" create --entrypoint true "$IMG")"
 
-n="$(yq '.entries | length' "$MAN")"; drift=0
+# Bootstrap window: until the engine-bump PR lands, envs/staging still pins the
+# upstream okg image, which has no /opt/archi. Archi-sourced entries are then
+# SKIPPED LOUDLY (never silently); okg-sourced entries are still checked.
+# --apply refuses to run in this state (it would half-sync the vocabulary).
+HAS_ARCHI=1
+"$RT" cp "$CID:/opt/archi/bundles" "$SCRATCH/.probe" >/dev/null 2>&1 || HAS_ARCHI=0
+rm -rf "$SCRATCH/.probe"
+if (( ! HAS_ARCHI )); then
+  [[ "$MODE" == --apply ]] && { echo "refusing --apply: $IMG has no /opt/archi (use the derived image)" >&2; exit 2; }
+  echo "::warning::$IMG has no /opt/archi (pre engine-bump). Archi entries skipped; okg entries checked."
+fi
+
+n="$(yq '.entries | length' "$MAN")"; drift=0; skipped=0
 for ((i=0; i<n; i++)); do
   dest="$(yq -r ".entries[$i].dest" "$MAN")"
   src="$(yq -r ".entries[$i].src" "$MAN")"
   type="$(yq -r ".entries[$i].type" "$MAN")"
+  if (( ! HAS_ARCHI )) && [[ "$src" == /opt/archi/* ]]; then
+    echo "skip   $dest  (archi entry; no archi in pinned engine)"; skipped=$((skipped+1)); continue
+  fi
   out="$SCRATCH/$dest"; mkdir -p "$(dirname "$out")"
   if [[ "$type" == dir ]]; then mkdir -p "$out"; "$RT" cp "$CID:$src/." "$out"
   else "$RT" cp "$CID:$src" "$out"; fi
@@ -36,7 +51,7 @@ done
 
 case "$MODE" in
   --check) (( drift )) && { echo "vendored files drift from $IMG — run: IMG=$IMG scripts/vendor-sync.sh --apply" >&2; exit 1; }
-           echo "vendor in sync with $IMG" ;;
+           echo "vendor in sync with $IMG$( (( skipped )) && echo " ($skipped archi entries skipped)")" ;;
   --apply) for ((i=0; i<n; i++)); do
              dest="$(yq -r ".entries[$i].dest" "$MAN")"
              rm -rf "$DEP/$dest"; mkdir -p "$(dirname "$DEP/$dest")"; cp -R "$SCRATCH/$dest" "$DEP/$dest"

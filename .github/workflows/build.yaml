@@ -8,19 +8,18 @@ name: build
 on:
   push:
     branches: [main]
-    paths: [docker/**, versions.lock]
+    paths: [docker/**, versions.lock, scripts/vendor-sync.sh]
   workflow_dispatch: {}
 permissions: {}
 concurrency: {group: build, cancel-in-progress: false}
-
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions: {contents: write, pull-requests: write}
     steps:
-      - uses: step-security/harden-runner@v2            # v2
+      - uses: step-security/harden-runner@v2 # v2
         with: {egress-policy: audit}
-      - uses: actions/checkout@v7                       # v4
+      - uses: actions/checkout@v7 # v4
       - id: lock
         name: Read pins from versions.lock (fail on placeholders)
         run: |
@@ -34,7 +33,7 @@ jobs:
         with:
           registry: ghcr.io
           username: nausikt
-          password: ${{ secrets.GHCR_PAT }}              # read:packages (mitdbg base) + write:packages (own image)
+          password: ${{ secrets.GHCR_PAT }} # read:packages (mitdbg base) + write:packages (own image)
       - id: img
         uses: docker/build-push-action@v7
         with:
@@ -67,7 +66,7 @@ jobs:
                | .runtime.built_from = "${{ github.sha }}"' versions.lock
       - uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.STAGING_BUMP_TOKEN }}       # a PAT, not GITHUB_TOKEN: PRs made with GITHUB_TOKEN do not trigger CI
+          token: ${{ secrets.STAGING_BUMP_TOKEN }} # a PAT, not GITHUB_TOKEN: PRs made with GITHUB_TOKEN do not trigger CI
           branch: engine/archi-crab-okg-${{ github.run_number }}
           title: "engine: archi-crab-okg @ archi ${{ steps.lock.outputs.archi }}"
           body: |

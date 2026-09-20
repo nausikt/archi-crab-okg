@@ -4,5 +4,10 @@ rules:
   document-start: disable
   comments-indentation: disable
   truthy: {check-keys: false}
+  # Aligned tables (VENDOR.yaml, source registry, values.yaml) are intentional:
+  # allow one space inside flow braces and any padding after commas/colons.
+  braces: {min-spaces-inside: 0, max-spaces-inside: 1}
+  commas: {max-spaces-before: 0, max-spaces-after: -1}
+  colons: {max-spaces-before: 0, max-spaces-after: -1}
 ignore: |
   helm/okg/templates/

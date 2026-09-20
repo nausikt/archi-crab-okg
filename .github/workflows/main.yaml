@@ -84,8 +84,71 @@ jobs:
       - if: always()
         run: docker logs pg --tail 80
 
+  chart-path:
+    # THE CHART'S BOOTSTRAP, VERBATIM. The Argo CD path is: init `bootstrap` =
+    # `okg provision --publish-once --source-workers N --json`, then init
+    # `runtime-bootstrap` = `okg runtime bootstrap`, then the worker whose startup
+    # probe is `okg deployment ready`. This job runs exactly those commands on a
+    # PRISTINE database — no manual CREATE EXTENSION — i.e. the state a fresh PVC
+    # gives the cluster. Red here = the chart would be red in-cluster:
+    #   extension_missing  -> provision does not create extensions -> chart delta 6
+    #                         (initdb ConfigMap) is REQUIRED; mirror it in this job.
+    #   auth error         -> app_rw/app_ro NOLOGIN -> chart delta 4.
+    #   dbos enqueue error -> provision is not in-process on this deployment; the
+    #                         chart's init ordering is unsound -> upstream question.
+    needs: pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions: {contents: read}
+    env:
+      OKG_IMG: ${{ needs.pins.outputs.okg }}
+      PG_IMG: ${{ needs.pins.outputs.pg }}
+      OKG_DSN: postgresql://postgres:ci@127.0.0.1:5432/okg
+      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
+      OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      SOURCE_WORKERS: "2"                # == values.yaml bootstrap.sourceWorkers
+    steps:
+      - uses: actions/checkout@v7
+      - name: chart-path mirrors the chart (fail on drift)
+        run: |
+          t=helm/okg/templates/runtime-statefulset.yaml
+          grep -q -- '- provision' "$t" && grep -q -- '--publish-once' "$t" \
+            && grep -q -- '--source-workers' "$t" && grep -q -B1 -- '- bootstrap$' "$t" \
+            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs provision/--publish-once/runtime bootstrap — update chart-path"; exit 1; }
+      - name: ghcr login (CLI; no additional action)
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u nausikt --password-stdin
+      - name: "Postgres exactly as the chart runs it (pristine, NO manual extensions)"
+        run: |
+          docker run -d --name pg --network host --shm-size 2g \
+            -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=okg "$PG_IMG" \
+            postgres -c shared_preload_libraries=timescaledb,pg_textsearch -c max_locks_per_transaction=1024
+          for i in $(seq 1 60); do docker exec pg pg_isready -U postgres -d okg >/dev/null 2>&1 && break || sleep 2; done
+          docker exec pg psql -U postgres -d okg -c "SELECT extname FROM pg_extension ORDER BY 1"
+      - name: okg wrapper (runs as the runner uid so workspace files stay writable)
+        run: |
+          mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$ARCHI_DATA_ROOT/data/cmssw-releases" .okg-home .bin
+          cat > .bin/okg <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
+            -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            --entrypoint okg "$OKG_IMG" "$@"
+          EOF
+          chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
+      - name: "init bootstrap == okg provision --publish-once"
+        run: okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee provision.json
+      - name: "init runtime-bootstrap == okg runtime bootstrap"
+        run: okg runtime bootstrap --deployment archi-crab --json
+      - name: "worker startup probe == okg deployment ready (informational, no worker process here)"
+        run: okg deployment ready --deployment archi-crab --profile general --explain || echo "::warning::deployment ready not green without a running worker"
+      - name: "read-back proof (asserts STATUS; provision, like install, may exit 0 on a failed publish)"
+        run: bash scripts/smoke.sh
+      - if: always()
+        run: docker logs pg --tail 80
+
   bump-staging:
-    needs: e2e-smoke
+    needs: [e2e-smoke, chart-path]
     runs-on: ubuntu-latest
     environment: staging
     permissions: {contents: write}

@@ -57,7 +57,7 @@ nomos:
     status: deferred
     owner:
       name: archi-crab
-      contact: REPLACE_ME@cern.ch
+      contact: krittin.phornsiricharoenphant@cern.ch
     review_by: "2027-03-01"
 
 skills_dir: skills

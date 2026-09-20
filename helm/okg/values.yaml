@@ -59,7 +59,7 @@ postgresql:
   port: 5432
   storage:
     size: 30Gi
-    storageClassName: REPLACE_ME      # per env; CI fails while REPLACE_ME remains anywhere in envs/
+    storageClassName: cinder-standard # per env; CI fails while REPLACE_ME remains anywhere in envs/
   shmSizeLimit: 2Gi                   # /dev/shm Memory emptyDir (parallel workers)
   settings:
     maxConnections: 100
@@ -80,7 +80,7 @@ runtime:
     readiness: {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 3}
   storage:
     size: 20Gi                        # repo clones + caches + checkout
-    storageClassName: REPLACE_ME
+    storageClassName: cinder-standard
   resources:
     requests: {cpu: "1", memory: 2Gi}
     limits: {memory: 6Gi}

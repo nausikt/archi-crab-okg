@@ -22,12 +22,12 @@ postgresql:
     pullPolicy: IfNotPresent
   storage:
     size: 50Gi
-    storageClassName: REPLACE_ME      # real StorageClass on the target cluster (Runbook Phase 2)
+    storageClassName: cinder-standard      # real StorageClass on the target cluster (Runbook Phase 2)
 
 runtime:
   storage:
     size: 30Gi
-    storageClassName: REPLACE_ME
+    storageClassName: cinder-standard
 
 repositorySync:
   revision: ""                        # <- merge sha (staging: CI bot; prod: Promote PR)

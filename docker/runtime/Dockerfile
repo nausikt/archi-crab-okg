@@ -32,6 +32,40 @@ RUN set -eux; \
 
 ENV OKG_PROFILES_DIR=/opt/archi/bundles
 
+# ---------------------------------------------------------------------------
+# Framework release authority for an EXTERNAL deployment repo (repositorySync).
+#
+# okg's publish resolves its own ("framework") git revision by walking up from
+# its module path (deployment_upgrade.py: discover_framework_repository). The
+# upstream image drops .git (.dockerignore) and only works when the deployment
+# lives INSIDE /opt/okg/deployments (kubernetes-smoke). Ours is an external
+# checkout, so discovery fails and publish is refused.
+#
+# Fix: give /opt/okg its real .git at EXACTLY the baked revision, so
+# `git rev-parse HEAD` == OKG_CODE_REVISION (the identity gate stays truthful).
+# `reset --hard` makes the tree byte-identical to the commit (clean status).
+# The PAT is a BuildKit secret: one RUN, no layer, no build-arg, no env.
+# safe.directory: the runtime uid (10001 in-cluster, the runner uid in CI) never
+# owns /opt/okg; without it git refuses ("dubious ownership") and discovery fails.
+# ---------------------------------------------------------------------------
+RUN --mount=type=secret,id=okg_pat set -eux; \
+    test -n "$OKG_CODE_REVISION"; \
+    git config --system safe.directory '*'; \
+    cd /opt/okg; git init -q; \
+    git remote add origin https://github.com/mitdbg/okg.git; \
+    set +x; \
+    printf 'https://x-access-token:%s@github.com\n' "$(cat /run/secrets/okg_pat)" > /tmp/.gitcred; \
+    set -x; \
+    git config --system credential.helper 'store --file=/tmp/.gitcred'; \
+    git fetch -q --depth 1 origin "$OKG_CODE_REVISION" \
+      || { git fetch -q --depth 50 origin main && git checkout -q "$OKG_CODE_REVISION"; }; \
+    git config --system --unset credential.helper; rm -f /tmp/.gitcred; \
+    git reset -q --hard FETCH_HEAD; \
+    test "$(git rev-parse HEAD)" = "$OKG_CODE_REVISION"; \
+    test -z "$(git status --porcelain)"; \
+    python -c "import okg" ; \
+    echo "framework authority: $(git rev-parse --short HEAD)"
+
 LABEL org.opencontainers.image.source="https://github.com/nausikt/archi-crab-okg" \
       org.opencontainers.image.description="okg runtime + archi (cern-team bundle) for archi-crab" \
       io.archi-crab.archi.ref="${ARCHI_REF}"

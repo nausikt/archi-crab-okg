@@ -41,6 +41,8 @@ jobs:
           context: .
           file: docker/runtime/Dockerfile
           push: true
+          secrets: |
+            okg_pat=${{ secrets.OKG_PAT }}
           build-args: |
             BASE_IMAGE=${{ steps.lock.outputs.base }}
             ARCHI_REF=${{ steps.lock.outputs.archi }}

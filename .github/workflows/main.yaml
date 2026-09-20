@@ -157,7 +157,7 @@ jobs:
         run: |
           for i in $(seq 1 60); do
             if okg deployment ready archi-crab --profile general --json | tee ready.json | grep -q '"ok": *true'; then
-              echo "ready after $i probe(s)"; exit 0
+              echo "ready after $i probe(s)"; cat ready.json; exit 0
             fi
             [ "$(docker inspect -f '{{.State.Running}}' worker)" = "true" ] || { echo "::error::worker exited"; docker logs worker --tail 80; exit 1; }
             sleep 30

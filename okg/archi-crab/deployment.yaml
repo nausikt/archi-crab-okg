@@ -20,8 +20,6 @@ postgres:
 # code repository must be pinned here.
 release:
   channel: dev
-  pin:
-    code_repository: https://github.com/nausikt/archi-crab-okg
 # Base five + ALL SEVEN code modules, together. Adding the seven incrementally
 # cascades (~618k transform_consistency_violations at publish, field guide §5).
 modules:

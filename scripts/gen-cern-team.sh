@@ -25,7 +25,7 @@ echo "== 1/3 scaffold with the cern-team bundle installer (--no-publish: stop be
 "$RT" run --rm --network host -v "$REPO:$REPO" -w "$REPO" \
   -e OKG_DSN -e OKG_DEPLOYMENTS_DIR="$REPO/okg" -e OKG_PROFILES_DIR=/opt/archi/bundles \
   -e ARCHI_DATA_ROOT="$REPO/.okg-data" -e OKG_ENVIRONMENT_DATA_ROOT="$REPO/.okg-data" \
-  "$IMG" install --profile cern-team --deployment-name archi-crab \
+  --entrypoint okg "$IMG" install --profile cern-team --deployment-name archi-crab \
   --postgres-dsn '${OKG_DSN}' --non-interactive --no-publish
 test -f "$DEP/deployment.yaml" || { echo "scaffold produced no $DEP/deployment.yaml" >&2; exit 1; }
 echo "   installer wrote:"; find "$DEP" -type f | sed "s|$DEP/|     |" | sort

@@ -76,7 +76,7 @@ runtime:
     # Startup probe IS `okg deployment ready --profile <readinessProfile>`.
     # Cold bootstrap (clone + ingest + publish) happens in init containers,
     # so this budget only covers the worker coming up afterwards.
-    startup:   {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 60}
+    startup: {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 60}
     readiness: {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 3}
   storage:
     size: 20Gi                        # repo clones + caches + checkout

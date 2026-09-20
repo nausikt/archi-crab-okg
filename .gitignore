@@ -1,4 +1,6 @@
 .repos/
 .okg-data/
+.okg-home/
+.bin/
 *.tgz
 /tmp/

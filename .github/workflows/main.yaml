@@ -26,33 +26,52 @@ jobs:
           echo "pg=$(yq '.postgresql.image.repository + "@" + .postgresql.image.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
 
   e2e-smoke:
+    # Host-run, NOT a `container:` job: the okg image runs as uid 10001, which
+    # cannot write the runner's workspace (checkout EACCES -> every step skipped),
+    # and a `services:` Postgres cannot take the chart's command args
+    # (max_locks_per_transaction=1024, shared_preload_libraries).
     needs: pins
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions: {contents: read}
-    container:
-      image: ${{ needs.pins.outputs.okg }}
-      credentials: {username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
-    services:
-      pg:
-        image: ${{ needs.pins.outputs.pg }}
-        credentials: {username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
-        env: {POSTGRES_PASSWORD: ci, POSTGRES_DB: okg}
-        options: --shm-size=2g
     env:
-      OKG_DSN: postgresql://postgres:ci@pg:5432/okg
+      OKG_IMG: ${{ needs.pins.outputs.okg }}
+      PG_IMG: ${{ needs.pins.outputs.pg }}
+      OKG_DSN: postgresql://postgres:ci@127.0.0.1:5432/okg
       OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
     steps:
       - uses: actions/checkout@v7
-      - run: mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$ARCHI_DATA_ROOT/data/cmssw-releases"
+      - name: ghcr login (CLI; no additional action)
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u nausikt --password-stdin
+      - name: Postgres with the chart's exact args
+        run: |
+          docker run -d --name pg --network host --shm-size 2g \
+            -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=okg "$PG_IMG" \
+            postgres -c shared_preload_libraries=timescaledb,pg_textsearch -c max_locks_per_transaction=1024
+          for i in $(seq 1 60); do docker exec pg pg_isready -U postgres -d okg >/dev/null 2>&1 && break || sleep 2; done
+          docker exec pg psql -U postgres -d okg -c "SHOW max_locks_per_transaction" -c "SHOW shared_preload_libraries"
+      - name: okg wrapper (runs as the runner uid so workspace files stay writable)
+        run: |
+          mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$ARCHI_DATA_ROOT/data/cmssw-releases" .okg-home .bin
+          cat > .bin/okg <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
+            -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            "$OKG_IMG" "$@"
+          EOF
+          chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
+      - run: okg --help >/dev/null
       - run: okg migrate --deployment archi-crab --apply
       - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
       - run: okg catalog load --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --apply
       - run: okg deployment lint archi-crab
       - run: okg ingest --deployment archi-crab --progress
       - run: bash scripts/smoke.sh
+      - if: always()
+        run: docker logs pg --tail 80
 
   bump-staging:
     needs: e2e-smoke

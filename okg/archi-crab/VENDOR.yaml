@@ -14,14 +14,9 @@
 # `type: dir` entries are copied whole (added/removed files included).
 entries:
   # ---- cern-team bundle: the HEP vocabulary + narrowings (profile `schemas:` slot) ----
-  - {dest: schemas/operations.yaml,          type: file, src: /opt/archi/bundles/cern-team/schemas/operations.yaml}
-  - {dest: schemas/sources.yaml,             type: file, src: /opt/archi/bundles/cern-team/schemas/sources.yaml}
-  - {dest: schemas/bridges/operations.yaml,  type: file, src: /opt/archi/bundles/cern-team/schemas/bridges/operations.yaml}
-  - {dest: schemas/bridges/sources.yaml,     type: file, src: /opt/archi/bundles/cern-team/schemas/bridges/sources.yaml}
   # ---- cern-team bundle: playbooks (installer copies these; we keep them current) ----
   # VERIFY after the first scaffold: if the installer writes skill-triggers.yaml
   # elsewhere than skills/, adjust `dest` here so the manifest mirrors reality.
-  - {dest: skills,                           type: dir,  src: /opt/archi/bundles/cern-team/skills}
   # ---- okg codebase-index template: the code-graph pieces (not part of the bundle) ----
   - {dest: extractors.yaml,                              type: file, src: /opt/okg/src/okg/substrate/library/templates/codebase-index/extractors.yaml}
   - {dest: schemas/bridges/extraction_to_git_files.yaml, type: file, src: /opt/okg/src/okg/substrate/library/templates/codebase-index/schemas/bridges/extraction_to_git_files.yaml}
@@ -31,6 +26,25 @@ entries:
 # vendor-sync never touches them. Archi bumps that change the bundle's defaults
 # for these show up as a diff in the engine-bump PR body, for a human to judge.
 ours:
+  # schemas/ + schemas/bridges/: content from archi 6da0d66 (the bundle's own
+  # copies). The engine is pinned to 728739e6 for CMSSWReleaseSource, but its
+  # WHEEL copies are older and worse: bridges/operations.yaml drops 18 of 19
+  # optional_when_subtypes_missing flags, and bridges/sources.yaml has no LinkML
+  # header (no id/imports). Re-vendor when one archi commit has both.
+  - schemas/operations.yaml
+  - schemas/sources.yaml
+  - schemas/bridges/operations.yaml
+  - schemas/bridges/sources.yaml
+  # schemas/ + schemas/bridges/: content from archi 6da0d66 (the bundle's own
+  # copies). The engine is pinned to 728739e6 for CMSSWReleaseSource, but its
+  # WHEEL copies are older and worse: bridges/operations.yaml drops 18 of 19
+  # optional_when_subtypes_missing flags, and bridges/sources.yaml has no LinkML
+  # header (no id/imports). Re-vendor when one archi commit has both.
+  # skills/: taken from archi 6da0d66 (newer). The 728739e6 copies are worse for
+  # this deployment: indico.md documents live INDICO_* MCP tools we do not have,
+  # source_document_exploration.md has the `inspect, inspect` typo, and
+  # chat-system-prompt.md is absent. Re-vendor only when the pin moves forward.
+  - skills
   - deployment.yaml
   - source_registry.yaml
   - invariants.yaml

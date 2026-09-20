@@ -1,0 +1,82 @@
+# build — the ONE image build this repo admits: upstream okg + archi.
+# Trigger: docker/** or versions.lock changed on main, or manual dispatch.
+# Output: image pushed to ghcr.io/nausikt/archi-crab-okg and an ENGINE-BUMP PR
+# (never a direct commit) that (a) pins the new digest into envs/staging +
+# versions.lock and (b) resyncs the vendored vocabulary (VENDOR.yaml) from the
+# new image. Engine + vocabulary land together; CI validates the combination.
+name: build
+on:
+  push:
+    branches: [main]
+    paths: [docker/**, versions.lock]
+  workflow_dispatch: {}
+permissions: {}
+concurrency: {group: build, cancel-in-progress: false}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions: {contents: write, pull-requests: write}
+    steps:
+      - uses: step-security/harden-runner@PIN            # v2
+        with: {egress-policy: audit}
+      - uses: actions/checkout@PIN                       # v4
+      - id: lock
+        name: Read pins from versions.lock (fail on placeholders)
+        run: |
+          set -e
+          ! grep -n REPLACE_ME versions.lock || { echo "::error::versions.lock has REPLACE_ME (archi.commit / runtime.base_user)"; exit 1; }
+          echo "base=$(yq '.images.okg.ref' versions.lock)"        >> "$GITHUB_OUTPUT"
+          echo "archi=$(yq '.archi.commit' versions.lock)"         >> "$GITHUB_OUTPUT"
+          echo "base_user=$(yq '.runtime.base_user' versions.lock)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@PIN             # v3
+      - uses: docker/login-action@PIN                    # v3
+        with:
+          registry: ghcr.io
+          username: nausikt
+          password: ${{ secrets.GHCR_PAT }}              # read:packages (mitdbg base) + write:packages (own image)
+      - id: img
+        uses: docker/build-push-action@PIN               # v6
+        with:
+          context: .
+          file: docker/runtime/Dockerfile
+          push: true
+          build-args: |
+            BASE_IMAGE=${{ steps.lock.outputs.base }}
+            ARCHI_REF=${{ steps.lock.outputs.archi }}
+            BASE_USER=${{ steps.lock.outputs.base_user }}
+          tags: |
+            ghcr.io/nausikt/archi-crab-okg:${{ github.sha }}
+            ghcr.io/nausikt/archi-crab-okg:archi-${{ steps.lock.outputs.archi }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Resync vendored vocabulary from the NEW image
+        # An archi/okg bump arrives WITH its vocabulary resynced; the PR shows the diff.
+        run: |
+          IMG="ghcr.io/nausikt/archi-crab-okg@${{ steps.img.outputs.digest }}" CONTAINER_RUNTIME=docker \
+            scripts/vendor-sync.sh --apply
+          git status --short okg/ | tee vendor-changes.txt
+      - name: Write new engine pins
+        run: |
+          yq -i '.images.okg.repository = "ghcr.io/nausikt/archi-crab-okg"
+               | .images.okg.tag = ""
+               | .images.okg.digest = "${{ steps.img.outputs.digest }}"' envs/staging/values.yaml
+          yq -i '.runtime.digest = "${{ steps.img.outputs.digest }}"
+               | .runtime.built_from = "${{ github.sha }}"' versions.lock
+      - uses: peter-evans/create-pull-request@PIN        # v6
+        with:
+          token: ${{ secrets.STAGING_BUMP_TOKEN }}       # a PAT, not GITHUB_TOKEN: PRs made with GITHUB_TOKEN do not trigger CI
+          branch: engine/archi-crab-okg-${{ github.run_number }}
+          title: "engine: archi-crab-okg @ archi ${{ steps.lock.outputs.archi }}"
+          body: |
+            New runtime image `ghcr.io/nausikt/archi-crab-okg@${{ steps.img.outputs.digest }}`
+            (base `${{ steps.lock.outputs.base }}`, archi `${{ steps.lock.outputs.archi }}`).
+
+            Vendored vocabulary (VENDOR.yaml) was resynced from the new image in
+            this PR — review the `okg/archi-crab/schemas|skills|extractors` diff:
+            a subtype or narrowing change may require a rebuild (F4).
+            `ours` files (deployment.yaml, source registry, invariants) are untouched;
+            compare them against the bundle's current defaults if the diff above
+            touched the vocabulary they reference. CI's okg-validate judges engine +
+            knowledge together. First-ever scaffold: Runbook v0.7.1 Phase B on this branch.
+          labels: engine

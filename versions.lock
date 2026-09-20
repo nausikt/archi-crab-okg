@@ -1,22 +1,25 @@
-# Engine parity contract — ONE upstream commit, both images cut from it.
-# Change this file ONLY in an "engine bump" PR together with the digests in
-# envs/staging/values.yaml (Runbook Phase 5). Digests are the pins; tags are
-# human labels. `validated` dates are filled in by the Runbook's Verify steps.
+# Engine parity contract, v0.7.0 — THREE pins, ONE image.
+#   images.okg        upstream okg base (digest)      — engine bump = edit here
+#   archi.commit      archi checkout baked on top     — archi bump  = edit here
+#   runtime.digest    OUR derived image               — written by build.yaml's PR, never by hand
+# Any change to the first two -> build.yaml -> engine-bump PR -> Runbook Phase B on that branch.
 upstream:
   repository: https://github.com/mitdbg/okg
   commit: bed964f3fb89905e9d36abe46bdfbd8df5757132
-  published: 2026-09-20
 images:
   okg:
-    ref: ghcr.io/mitdbg/okg:sha-bed964f3fb89905e9d36abe46bdfbd8df5757132
-    digest: sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705
+    ref: ghcr.io/mitdbg/okg@sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705
   okg-postgres:
-    ref: ghcr.io/mitdbg/okg-postgres:sha-bed964f3fb89905e9d36abe46bdfbd8df5757132
-    digest: sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616
-fallback:
-  # Field-guide-validated pins, if bed964f misbehaves in Phase 2 local e2e.
-  okg_commit: f5ec3b58d
-  archi_commit: 728739e6
+    ref: ghcr.io/mitdbg/okg-postgres@sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616
+archi:
+  repository: https://github.com/archi-physics/archi
+  branch: archi_v3_quickstart
+  commit: 6da0d66390091e174c9e805f64bc66588ff4aedc          # git ls-remote https://github.com/archi-physics/archi refs/heads/archi_v3_quickstart
+runtime:
+  ref: ghcr.io/nausikt/archi-crab-okg
+  digest: null                # <- build.yaml
+  built_from: null            # <- build.yaml (repo sha)
+  base_user: 10001:10001       # podman inspect <images.okg.ref> | jq -r '.[0].Config.User'  (use "0" if empty)
 validated:
   local_e2e: null
   staging: null

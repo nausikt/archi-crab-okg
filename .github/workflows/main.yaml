@@ -1,13 +1,12 @@
-# main — after merge. Full knowledge e2e on a GitHub-hosted runner (possible
-# because the source set is 2 PUBLIC repos + a public releases.map: zero CERN
-# credentials), then the bot pins the merge sha into envs/staging. Argo CD
-# watches this repo and auto-syncs staging; the PostSync hook re-runs the same
-# smoke.sh in-cluster.
+# main — after merge. Full knowledge e2e on a GitHub-hosted runner (2 PUBLIC
+# repos + public releases.map: zero CERN credentials), then the bot pins the
+# merge sha into envs/staging. Argo CD auto-syncs staging; PostSync re-runs smoke.sh.
+# Engine changes never come through here: build.yaml -> engine-bump PR -> ci.
 name: main
 on:
   push:
     branches: [main]
-    paths: [okg/**, helm/**, scripts/**, envs/**, versions.lock]
+    paths: [okg/**, helm/**, scripts/**, envs/**]
 permissions: {}
 concurrency: {group: main, cancel-in-progress: false}
 
@@ -29,7 +28,7 @@ jobs:
   e2e-smoke:
     needs: pins
     runs-on: ubuntu-latest
-    timeout-minutes: 45                 # calibrate from Runbook Phase 2 timings
+    timeout-minutes: 45
     permissions: {contents: read}
     container:
       image: ${{ needs.pins.outputs.okg }}
@@ -44,14 +43,15 @@ jobs:
       OKG_DSN: postgresql://postgres:ci@pg:5432/okg
       OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
     steps:
       - uses: actions/checkout@PIN
-      - run: mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$OKG_ENVIRONMENT_DATA_ROOT/cmssw-releases"
+      - run: mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$ARCHI_DATA_ROOT/data/cmssw-releases"
       - run: okg migrate --deployment archi-crab --apply
       - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
       - run: okg catalog load --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --apply
       - run: okg deployment lint archi-crab
-      - run: okg ingest --deployment archi-crab --progress      # clones the 2 repos itself
+      - run: okg ingest --deployment archi-crab --progress
       - run: bash scripts/smoke.sh
 
   bump-staging:

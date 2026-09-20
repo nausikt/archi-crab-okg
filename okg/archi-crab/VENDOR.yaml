@@ -1,0 +1,36 @@
+# VENDOR.yaml — what in this deployment is COPIED VERBATIM from inside the
+# pinned runtime image, and from where. The image digest in versions.lock IS
+# the vocabulary version; this manifest makes the copy reproducible.
+#
+#   scripts/vendor-sync.sh --check   re-copies every entry into a scratch dir and
+#                                    diffs it against this tree (CI: every PR)
+#   scripts/vendor-sync.sh --apply   overwrites the entries below (build.yaml does
+#                                    this on every engine-bump PR, so an archi or
+#                                    okg bump ARRIVES with its vocabulary resynced)
+#
+# RULE: never hand-edit a file listed under `entries`. If you must deviate,
+# move the file to `ours`, own it fully, and say why in a comment.
+#
+# `type: dir` entries are copied whole (added/removed files included).
+entries:
+  # ---- cern-team bundle: the HEP vocabulary + narrowings (profile `schemas:` slot) ----
+  - {dest: schemas/operations.yaml,          type: file, src: /opt/archi/bundles/cern-team/schemas/operations.yaml}
+  - {dest: schemas/sources.yaml,             type: file, src: /opt/archi/bundles/cern-team/schemas/sources.yaml}
+  - {dest: schemas/bridges/operations.yaml,  type: file, src: /opt/archi/bundles/cern-team/schemas/bridges/operations.yaml}
+  - {dest: schemas/bridges/sources.yaml,     type: file, src: /opt/archi/bundles/cern-team/schemas/bridges/sources.yaml}
+  # ---- cern-team bundle: playbooks (installer copies these; we keep them current) ----
+  # VERIFY after the first scaffold: if the installer writes skill-triggers.yaml
+  # elsewhere than skills/, adjust `dest` here so the manifest mirrors reality.
+  - {dest: skills,                           type: dir,  src: /opt/archi/bundles/cern-team/skills}
+  # ---- okg codebase-index template: the code-graph pieces (not part of the bundle) ----
+  - {dest: extractors.yaml,                              type: file, src: /opt/okg/src/okg/substrate/library/templates/codebase-index/extractors.yaml}
+  - {dest: schemas/bridges/extraction_to_git_files.yaml, type: file, src: /opt/okg/src/okg/substrate/library/templates/codebase-index/schemas/bridges/extraction_to_git_files.yaml}
+
+# Files WE own. The installer writes first versions of some of them (deployment.yaml,
+# source registry, invariants.yaml); after the first scaffold they are ours and
+# vendor-sync never touches them. Archi bumps that change the bundle's defaults
+# for these show up as a diff in the engine-bump PR body, for a human to judge.
+ours:
+  - deployment.yaml
+  - source_registry.yaml
+  - invariants.yaml

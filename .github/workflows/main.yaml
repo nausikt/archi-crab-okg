@@ -78,7 +78,7 @@ jobs:
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
-            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
@@ -162,7 +162,7 @@ jobs:
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
-            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
@@ -175,7 +175,7 @@ jobs:
           docker run -d --name worker --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
-            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
       - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
         run: |

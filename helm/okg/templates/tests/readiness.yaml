@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "okg.fullname" . }}-readiness-test
+  labels:
+    {{- include "okg.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  containers:
+    - name: readiness
+      image: {{ include "okg.runtimeImage" . | quote }}
+      imagePullPolicy: {{ .Values.images.okg.pullPolicy }}
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          attempt=0
+          while [ "$attempt" -lt 30 ]; do
+            if okg deployment ready {{ .Values.okg.deployment | quote }} \
+              --profile {{ .Values.okg.readinessProfile | quote }} --json; then
+              exit 0
+            fi
+            attempt=$((attempt + 1))
+            sleep 10
+          done
+          exit 1
+      env:
+        {{- include "okg.commonEnv" . | nindent 8 }}
+        {{- include "okg.runtimeSubjectEnv" . | nindent 8 }}
+        {{- include "okg.writerDsnEnv" . | nindent 8 }}
+      securityContext:
+        {{- include "okg.containerSecurityContext" . | nindent 8 }}
+      resources:
+        {{- toYaml .Values.tests.readiness.resources | nindent 8 }}
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+    - name: mcp
+      image: {{ include "okg.runtimeImage" . | quote }}
+      imagePullPolicy: {{ .Values.images.okg.pullPolicy }}
+      command: ["python", "-c"]
+      args:
+        - |
+          import asyncio
+          import json
+
+          from mcp import ClientSession
+          from mcp.client.streamable_http import streamable_http_client
+
+          def payload(result):
+              structured = result.structuredContent
+              if isinstance(structured, dict):
+                  candidate = structured.get("result", structured)
+                  if isinstance(candidate, dict):
+                      return candidate
+              for item in result.content:
+                  text = getattr(item, "text", None)
+                  if isinstance(text, str):
+                      candidate = json.loads(text)
+                      if isinstance(candidate, dict):
+                          return candidate
+              raise RuntimeError("MCP inspect returned no JSON object")
+
+          async def call_json(session, name, arguments):
+              result = await session.call_tool(name, arguments)
+              if result.isError:
+                  raise RuntimeError(
+                      f"MCP {name} failed: {result.content!r}"
+                  )
+              return payload(result)
+
+          async def prove():
+              url = {{ printf "http://%s-mcp:%v/mcp" (include "okg.fullname" .) .Values.mcp.port | quote }}
+              async with streamable_http_client(url) as streams:
+                  read_stream, write_stream, _ = streams
+                  async with ClientSession(read_stream, write_stream) as session:
+                      await session.initialize()
+                      graph = await call_json(
+                          session,
+                          "inspect",
+                          {"target": {"kind": "graph"}},
+                      )
+                      nodes = await call_json(
+                          session,
+                          "filter",
+                          {
+                              "input": {"kind": "nodes"},
+                              "predicate": {
+                                  "op": "exists",
+                                  "field": "node_id",
+                              },
+                              "limit": 100,
+                              "select": ["node_id", "subtype"],
+                          },
+                      )
+                      edges = await call_json(
+                          session,
+                          "filter",
+                          {
+                              "input": {"kind": "edges"},
+                              "predicate": {
+                                  "op": "exists",
+                                  "field": "edge_id",
+                              },
+                              "limit": 100,
+                              "select": ["edge_id", "edge_type"],
+                          },
+                      )
+                      graph["visible_node_sample_count"] = len(
+                          nodes.get("rows") or []
+                      )
+                      graph["visible_edge_sample_count"] = len(
+                          edges.get("rows") or []
+                      )
+                      graph["node_sample_pinned_generation_id"] = (
+                          nodes.get("pinned_generation_id")
+                          or nodes.get("generation_id")
+                      )
+                      graph["edge_sample_pinned_generation_id"] = (
+                          edges.get("pinned_generation_id")
+                          or edges.get("generation_id")
+                      )
+                      print(
+                          "OKG_MCP_PROOF="
+                          + json.dumps(graph, sort_keys=True)
+                      )
+
+          asyncio.run(prove())
+      securityContext:
+        {{- include "okg.containerSecurityContext" . | nindent 8 }}
+      resources:
+        {{- toYaml .Values.tests.mcp.resources | nindent 8 }}
+      volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+  volumes:
+    - name: tmp
+      emptyDir: {}

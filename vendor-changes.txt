@@ -1,3 +1,0 @@
-?? okg/archi-crab/schemas/bridges/operations.yaml
-?? okg/archi-crab/schemas/bridges/sources.yaml
-?? okg/archi-crab/skills/README.md

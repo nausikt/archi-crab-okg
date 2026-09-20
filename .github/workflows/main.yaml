@@ -181,11 +181,23 @@ jobs:
             --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
       - name: "init deployment-apply == okg deployment apply (source supervision + worker ack)"
         run: |
-          # dry-run emits the plan id; --apply requires --confirm <plan-id>
-          okg deployment apply archi-crab --json > plan.json
-          PLAN=$(python3 -c "import json;print(json.load(open('plan.json'))['plan_id'])")
-          echo "plan: $PLAN"
-          okg deployment apply archi-crab --apply --confirm "$PLAN" --worker-ack-timeout-seconds 120 --json
+          # dry-run emits the plan id; --apply requires --confirm <plan-id>.
+          # The plan can change between the two calls (worker ack lands, state moves),
+          # so re-derive and retry rather than failing on a stale confirmation.
+          for attempt in 1 2 3 4 5; do
+            okg deployment apply archi-crab --json > plan.json
+            PLAN=$(python3 -c "import json;d=json.load(open('plan.json'));print(d.get('plan_id',''))")
+            if [ -z "$PLAN" ]; then echo "no plan_id in dry-run:"; cat plan.json; exit 1; fi
+            if python3 -c "import json,sys; d=json.load(open('plan.json')); sys.exit(0 if not [a for a in d.get('actions',[]) if a.get('needed')] else 1)"; then
+              echo "nothing to apply (plan converged)"; break
+            fi
+            echo "attempt $attempt plan: $PLAN"
+            if okg deployment apply archi-crab --apply --confirm "$PLAN" --worker-ack-timeout-seconds 120 --json; then
+              echo "applied"; break
+            fi
+            [ "$attempt" = 5 ] && { echo "::error::deployment apply never converged"; exit 1; }
+            sleep 10
+          done
       - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
         run: |
           for i in $(seq 1 60); do

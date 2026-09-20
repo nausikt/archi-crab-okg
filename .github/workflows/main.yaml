@@ -78,22 +78,30 @@ jobs:
       - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
       - run: okg catalog load --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --apply
       - run: okg deployment lint archi-crab
-      - run: okg ingest --deployment archi-crab --progress
+      # runtime.enabled: true (correct for the chart) makes plain `okg ingest` ENQUEUE to
+      # the runtime worker's DBOS queue, which does not exist here. --inline is the
+      # in-process path. The chart-path job below exercises the worker path instead.
+      - run: okg ingest --deployment archi-crab --progress --inline
+      - run: okg runtime bootstrap --deployment archi-crab --json
       - run: bash scripts/smoke.sh
       - if: always()
         run: docker logs pg --tail 80
   chart-path:
     # THE CHART'S BOOTSTRAP, VERBATIM. The Argo CD path is: init `bootstrap` =
     # `okg provision --publish-once --source-workers N --json`, then init
-    # `runtime-bootstrap` = `okg runtime bootstrap`, then the worker whose startup
-    # probe is `okg deployment ready`. This job runs exactly those commands on a
-    # PRISTINE database — no manual CREATE EXTENSION — i.e. the state a fresh PVC
-    # gives the cluster. Red here = the chart would be red in-cluster:
+    # `runtime-bootstrap` = `okg runtime bootstrap`, then the MAIN container
+    # `okg runtime worker` — which performs the publish — gated by its startup
+    # probe `okg deployment ready <dep> --profile <p> --json` (30s x 60). This job
+    # runs exactly that sequence on a PRISTINE database — no manual CREATE
+    # EXTENSION — i.e. the state a fresh PVC gives the cluster. Red here = the
+    # chart would be red in-cluster:
     #   extension_missing  -> provision does not create extensions -> chart delta 6
     #                         (initdb ConfigMap) is REQUIRED; mirror it in this job.
     #   auth error         -> app_rw/app_ro NOLOGIN -> chart delta 4.
     #   dbos enqueue error -> provision is not in-process on this deployment; the
     #                         chart's init ordering is unsound -> upstream question.
+    #   probe never green  -> the worker does not publish; kubelet would restart the
+    #                         pod forever -> read worker.log, then upstream question.
     needs: pins
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -113,7 +121,8 @@ jobs:
           t=helm/okg/templates/runtime-statefulset.yaml
           grep -q -- '- provision' "$t" && grep -q -- '--publish-once' "$t" \
             && grep -q -- '--source-workers' "$t" && grep -q -B1 -- '- bootstrap$' "$t" \
-            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs provision/--publish-once/runtime bootstrap — update chart-path"; exit 1; }
+            && grep -q -- '- worker$' "$t" && grep -q -- '- ready$' "$t" \
+            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs provision/--publish-once/runtime bootstrap/runtime worker/deployment ready — update chart-path"; exit 1; }
       - name: ghcr login (CLI; no additional action)
         run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u nausikt --password-stdin
       - name: "Postgres exactly as the chart runs it (pristine, NO manual extensions)"
@@ -138,12 +147,30 @@ jobs:
         run: okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee provision.json
       - name: "init runtime-bootstrap == okg runtime bootstrap"
         run: okg runtime bootstrap --deployment archi-crab --json
-      - name: "worker startup probe == okg deployment ready (informational, no worker process here)"
-        run: okg deployment ready --deployment archi-crab --profile general --explain || echo "::warning::deployment ready not green without a running worker"
+      - name: "main container == okg runtime worker (background, named so we can read its logs)"
+        run: |
+          docker run -d --name worker --network host --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
+            -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
+      - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
+        run: |
+          for i in $(seq 1 60); do
+            if okg deployment ready archi-crab --profile general --json | tee ready.json | grep -q '"ok": *true'; then
+              echo "ready after $i probe(s)"; exit 0
+            fi
+            [ "$(docker inspect -f '{{.State.Running}}' worker)" = "true" ] || { echo "::error::worker exited"; docker logs worker --tail 80; exit 1; }
+            sleep 30
+          done
+          echo "::error::worker never published within the startup budget (kubelet would restart the pod)"
+          cat ready.json; docker logs worker --tail 80; exit 1
       - name: "read-back proof (asserts STATUS; provision, like install, may exit 0 on a failed publish)"
         run: bash scripts/smoke.sh
       - if: always()
-        run: docker logs pg --tail 80
+        run: |
+          echo "== worker log"; docker logs worker --tail 80 2>/dev/null || true
+          docker stop worker >/dev/null 2>&1 || true
+          echo "== postgres log"; docker logs pg --tail 40
   bump-staging:
     needs: [e2e-smoke, chart-path]
     runs-on: ubuntu-latest

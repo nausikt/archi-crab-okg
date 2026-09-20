@@ -90,6 +90,17 @@ jobs:
             -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=okg "$PG_IMG" \
             postgres -c shared_preload_libraries=timescaledb,pg_textsearch -c max_locks_per_transaction=1024
           for i in $(seq 1 60); do docker exec pg pg_isready -U postgres -d okg >/dev/null 2>&1 && break || sleep 2; done
+          # Fresh database on the okg-postgres image: only timescaledb is installed by
+          # initdb. okg migrate CHECKS the rest and refuses (extension_missing) — same
+          # as bundle README step 4. Create them once, idempotently.
+          docker exec pg psql -v ON_ERROR_STOP=1 -U postgres -d okg \
+            -c "CREATE EXTENSION IF NOT EXISTS btree_gist" \
+            -c "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch" \
+            -c "CREATE EXTENSION IF NOT EXISTS pg_textsearch" \
+            -c "CREATE EXTENSION IF NOT EXISTS pg_trgm" \
+            -c "CREATE EXTENSION IF NOT EXISTS timescaledb" \
+            -c "CREATE EXTENSION IF NOT EXISTS vector"
+          docker exec pg psql -U postgres -d okg -c "SELECT extname, extversion FROM pg_extension ORDER BY 1"
       - name: okg wrapper (runs as the runner uid so workspace files stay writable)
         run: |
           mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT" .okg-home .bin

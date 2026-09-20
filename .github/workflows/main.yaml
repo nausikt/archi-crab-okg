@@ -40,6 +40,14 @@ jobs:
       OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      # The chart's commonEnv (helm/okg/templates/_helpers.tpl -> ConfigMap). The image has
+      # no okg git checkout; its release identity is the baked OKG_CODE_REVISION, and okg is
+      # forbidden from *inferring* it runs in a container -- the chart DECLARES it via these.
+      OKG_RUNTIME_ENVIRONMENT: kubernetes
+      OKG_RUNTIME_SUPERVISOR: container
+      OKG_DEPLOYMENT: archi-crab
+      OKG_NOMOS_SUBJECT: archi-crab-runtime
+      OKG_REPO_ROOT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v7
       - name: ghcr login (CLI; no additional action)
@@ -70,6 +78,7 @@ jobs:
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
@@ -113,6 +122,14 @@ jobs:
       OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      # The chart's commonEnv (helm/okg/templates/_helpers.tpl -> ConfigMap). The image has
+      # no okg git checkout; its release identity is the baked OKG_CODE_REVISION, and okg is
+      # forbidden from *inferring* it runs in a container -- the chart DECLARES it via these.
+      OKG_RUNTIME_ENVIRONMENT: kubernetes
+      OKG_RUNTIME_SUPERVISOR: container
+      OKG_DEPLOYMENT: archi-crab
+      OKG_NOMOS_SUBJECT: archi-crab-runtime
+      OKG_REPO_ROOT: ${{ github.workspace }}
       SOURCE_WORKERS: "2" # == values.yaml bootstrap.sourceWorkers
     steps:
       - uses: actions/checkout@v7
@@ -123,6 +140,11 @@ jobs:
             && grep -q -- '--source-workers' "$t" && grep -q -B1 -- '- bootstrap$' "$t" \
             && grep -q -- '- worker$' "$t" && grep -q -- '- ready$' "$t" \
             || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs provision/--publish-once/runtime bootstrap/runtime worker/deployment ready — update chart-path"; exit 1; }
+          # Every OKG_* env the chart's helpers inject must be one the wrapper passes (below).
+          want=$(grep -oE '^- name: OKG_[A-Z_]+' helm/okg/templates/_helpers.tpl | sed 's/- name: //' | sort -u)
+          have="OKG_DSN OKG_MCP_RO_DSN OKG_DEPLOYMENTS_DIR OKG_ENVIRONMENT_DATA_ROOT OKG_RUNTIME_ENVIRONMENT OKG_RUNTIME_SUPERVISOR OKG_DEPLOYMENT OKG_NOMOS_SUBJECT OKG_REPO_ROOT"
+          missing=$(comm -23 <(echo "$want") <(tr ' ' '\n' <<<"$have" | sort -u))
+          [ -z "$missing" ] || { echo "::error::_helpers.tpl injects env the CI wrapper does not pass: $missing"; exit 1; }
       - name: ghcr login (CLI; no additional action)
         run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u nausikt --password-stdin
       - name: "Postgres exactly as the chart runs it (pristine, NO manual extensions)"
@@ -140,6 +162,7 @@ jobs:
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
@@ -152,6 +175,7 @@ jobs:
           docker run -d --name worker --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
             --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
       - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
         run: |

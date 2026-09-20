@@ -80,6 +80,14 @@ jobs:
       OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data     # archi connectors resolve relative data/ here
+      # The chart's commonEnv (helm/okg/templates/_helpers.tpl -> ConfigMap). The image has
+      # no okg git checkout; its release identity is the baked OKG_CODE_REVISION, and okg is
+      # forbidden from *inferring* it runs in a container -- the chart DECLARES it via these.
+      OKG_RUNTIME_ENVIRONMENT: kubernetes
+      OKG_RUNTIME_SUPERVISOR: container
+      OKG_DEPLOYMENT: archi-crab
+      OKG_NOMOS_SUBJECT: archi-crab-runtime
+      OKG_REPO_ROOT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v7
       - name: ghcr login (CLI; no additional action)
@@ -109,6 +117,7 @@ jobs:
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"

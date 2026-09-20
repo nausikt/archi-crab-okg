@@ -177,10 +177,20 @@ jobs:
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
             -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
+      - name: "init mcp-role == ALTER ROLE okg_mcp LOGIN"
+        run: docker exec pg psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U postgres -d okg -c "ALTER ROLE okg_mcp LOGIN PASSWORD 'okg_mcp'"
+      - name: "init deployment-apply == okg deployment apply (source supervision + worker ack)"
+        run: |
+          # dry-run emits the plan id; --apply requires --confirm <plan-id>
+          okg deployment apply archi-crab --json > plan.json
+          PLAN=$(python3 -c "import json;print(json.load(open('plan.json'))['plan_id'])")
+          echo "plan: $PLAN"
+          okg deployment apply archi-crab --apply --confirm "$PLAN" --worker-ack-timeout-seconds 120 --json
       - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
         run: |
           for i in $(seq 1 60); do
-            if okg deployment ready archi-crab --profile general --json | tee ready.json | grep -q '"ok": *true'; then
+            if okg deployment ready archi-crab --profile general --json > ready.json \
+               && python3 -c "import json,sys; sys.exit(0 if json.load(open('ready.json')).get('ok') is True else 1)"; then
               echo "ready after $i probe(s)"; cat ready.json; exit 0
             fi
             [ "$(docker inspect -f '{{.State.Running}}' worker)" = "true" ] || { echo "::error::worker exited"; docker logs worker --tail 80; exit 1; }

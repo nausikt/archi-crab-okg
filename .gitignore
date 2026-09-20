@@ -7,3 +7,6 @@
 vendor-changes.txt
 profiles/
 .okg-data/
+plan.json
+ready.json
+lint.json

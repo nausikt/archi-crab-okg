@@ -19,7 +19,7 @@ jobs:
       okg: ${{ steps.p.outputs.okg }}
       pg: ${{ steps.p.outputs.pg }}
     steps:
-      - uses: actions/checkout@PIN
+      - uses: actions/checkout@v7
       - id: p
         run: |
           echo "okg=$(yq '.images.okg.repository + "@" + .images.okg.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
@@ -45,7 +45,7 @@ jobs:
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
     steps:
-      - uses: actions/checkout@PIN
+      - uses: actions/checkout@v7
       - run: mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$ARCHI_DATA_ROOT/data/cmssw-releases"
       - run: okg migrate --deployment archi-crab --apply
       - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
@@ -60,7 +60,7 @@ jobs:
     environment: staging
     permissions: {contents: write}
     steps:
-      - uses: actions/checkout@PIN
+      - uses: actions/checkout@v7
         with: {token: "${{ secrets.STAGING_BUMP_TOKEN }}"}
       - run: |
           yq -i '.repositorySync.revision = "${{ github.sha }}"

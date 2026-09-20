@@ -11,7 +11,7 @@ jobs:
     environment: prod
     permissions: {contents: write, pull-requests: write}
     steps:
-      - uses: actions/checkout@PIN
+      - uses: actions/checkout@v7
       - name: Copy pins staging -> prod, then drift-guard
         run: |
           set -e
@@ -25,7 +25,7 @@ jobs:
                     .postgresql.resources, .runtime.resources)'
           diff <(yq "$strip" envs/staging/values.yaml) <(yq "$strip" envs/prod/values.yaml) \
             || { echo "::error::structural drift between envs — someone hand-edited prod; reconcile first"; exit 1; }
-      - uses: peter-evans/create-pull-request@PIN         # v6
+      - uses: peter-evans/create-pull-request@v8
         with:
           branch: promote/prod-${{ github.run_number }}
           title: "Promote to prod: staging pins @ ${{ github.sha }}"

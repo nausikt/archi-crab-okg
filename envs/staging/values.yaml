@@ -1,0 +1,35 @@
+# envs/staging — overrides only. Namespace: archi-crab-staging (set on the Argo CD Application).
+#
+# Two kinds of pins:
+#   ENGINE    images.okg.digest / postgresql.image.digest
+#             -> human "engine bump" PR (edit here + versions.lock together;
+#                CI reads THIS file to pick its own container images)
+#   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
+#             -> auto-bumped by main.yaml on every green build
+
+images:
+  okg:
+    repository: ghcr.io/mitdbg/okg
+    tag: ""
+    digest: "sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705"
+    pullPolicy: IfNotPresent
+
+postgresql:
+  image:
+    repository: ghcr.io/mitdbg/okg-postgres
+    tag: ""
+    digest: "sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616"
+    pullPolicy: IfNotPresent
+  storage:
+    size: 30Gi
+    storageClassName: REPLACE_ME      # real StorageClass on the target cluster (Runbook Phase 2)
+
+runtime:
+  storage:
+    size: 20Gi
+    storageClassName: REPLACE_ME
+
+repositorySync:
+  revision: ""                        # <- merge sha (staging: CI bot; prod: Promote PR)
+bootstrap:
+  approvedRevision: ""                # <- MUST equal repositorySync.revision (chart enforces)

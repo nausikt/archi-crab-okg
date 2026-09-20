@@ -1,0 +1,11 @@
+extractors.yaml is REQUIRED beside deployment.yaml and must be copied VERBATIM
+from the pinned runtime image (Runbook Phase 2, step 3):
+
+  IMG=ghcr.io/mitdbg/okg@sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705
+  docker run --rm --entrypoint sh $IMG -c \
+    'cat $(find / -path "*/substrate/library/templates/codebase-index/extractors.yaml" 2>/dev/null | head -1)' \
+    > okg/archi-crab/extractors.yaml
+
+Without it every doc-corpus source dies with FileNotFoundError and the graph
+has zero document_chunk rows (invariant RED, smoke fails). Delete this .TODO
+once the real file is in place. CI's lint job fails while this .TODO exists.

@@ -1,0 +1,78 @@
+# archi-crab source registry — MINIMAL WORKABLE (v0.5.0)
+#
+# Philosophy: only register what works. There is no exclude list because the
+# k8s bootstrap runs `okg provision` non-interactively and has no --exclude;
+# anything not registered here was never invited.
+#
+# Every ${VAR} below is an ENVIRONMENT variable interpolated at command time.
+# OKG_ENVIRONMENT_DATA_ROOT is set by the Helm chart (the runtime-data PVC
+# mount); export it yourself for local/CI runs. Everything the connectors
+# write lands under it — see Runbook footnote F1 (persistence).
+
+# ---------------------------------------------------------------------------
+# Code repositories — codebase-index expansion (field guide §5).
+# Each repo expands into git-files / code-structure / interfaces / doc-corpus
+# sources. Requires the seven code modules in deployment.yaml and
+# extractors.yaml beside this file (missing extractors.yaml silently kills
+# every doc-corpus source -> zero document_chunk).
+#
+# git-history is DELIBERATELY absent: the git-files/git-history concurrency
+# bug makes a one-shot bootstrap nondeterministic (~4/15 repos fail at
+# random, one failure blocks the whole publish). Re-add ONLY as a manual
+# second pass (Runbook standing rules).
+# ---------------------------------------------------------------------------
+code_repos:
+  base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos
+  expand: [git-files, code-structure, interfaces, doc-corpus]
+  repos:
+    - { slug: crabserver, url: https://github.com/dmwm/CRABServer.git, dir: CRABServer }
+    - { slug: crabclient, url: https://github.com/dmwm/CRABClient.git, dir: CRABClient }
+  # Both PUBLIC: the whole pipeline ingests with zero CERN tokens. Every
+  # private repo added later must come with a per-project access check
+  # ("not found" == "no access" from outside the project).
+
+# ---------------------------------------------------------------------------
+# CMSSW release catalog — verbatim from the cern-team bundle connector, with
+# install-time template variables replaced by literals / env vars.
+# Public releases.map, no auth, small, fast; satisfies the release invariant.
+# ---------------------------------------------------------------------------
+cmssw_releases:
+  module: archi.sources.cmssw
+  class: CMSSWReleaseSource
+  ownership_id: archi-crab.cmssw-releases
+  admission_policy:
+    producer_id: archi-crab.cmssw-releases
+    producer_kind: source
+    trust_label: implicit_legacy_trusted
+    admission_mode: fast_track
+    authority_scope:
+      source_family: archi-crab
+      source_name: cmssw_releases
+    output_signature:
+      nodes:
+        - {subtype: cmssw_release}
+      edges:
+        - {src_subtype: cmssw_release, edge_type: supersedes, dst_subtype: cmssw_release}
+    output_scope_summary:
+      summary: CMSSW releases, release families, and supersedes chains
+      nodes: [cmssw_release]
+      edges:
+        - cmssw_release supersedes cmssw_release
+  source_class: reference_catalog
+  # reference_catalog admits ONLY domain_key (lint blocker otherwise).
+  record_identity_kind: domain_key
+  record_identity_fields: [release]
+  source_revision_kind: content_hash
+  deletion_semantics: missing_from_completed_scope
+  publication_mode: published_generation
+  required_for_baseline: true
+  params:
+    map_cache_path: ${OKG_ENVIRONMENT_DATA_ROOT}/cmssw-releases/releases.map
+    releases_map_url: https://raw.githubusercontent.com/cms-sw/cms-bot/master/releases.map
+    fetch: true
+    # NO `limit`: a truncating cap forfeits the completed-scope claim on
+    # every run and disables retraction forever. Debug-only.
+  sync:
+    triggers: [manual, reconcile]
+    default_event_mode: scope_complete
+    reconcile_mode: scope_complete

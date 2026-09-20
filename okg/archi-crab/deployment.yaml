@@ -1,0 +1,82 @@
+# archi-crab — OKG deployment manifest (MVP v0.5.0)
+#
+# Hand-authored from the cern-team bundle's deployment-defaults.yaml and the
+# CMS CompOps field guide. Key names for the scaffolder-owned block (name,
+# description, modules, source_registry, schema_dir, postgres) follow the
+# bundle's documented reserved keys; `okg deployment lint archi-crab` is the
+# arbiter — reconcile anything it flags (Runbook Phase 2, step 6).
+
+name: archi-crab
+description: >-
+  CRAB knowledge graph — CRABServer + CRABClient code graphs and the public
+  CMSSW release catalog. Minimal-workable MVP; every addition is a PR.
+
+source_registry: source_registry.yaml
+schema_dir: schemas
+
+postgres:
+  # Interpolated at command time from the environment; never written to disk.
+  dsn: ${OKG_DSN}
+
+# Release authority: the deployment dir MUST be a git checkout (repositorySync
+# provides one) and, because okg is pip-installed in the runtime image, the
+# code repository must be pinned here.
+release:
+  channel: dev
+  pin:
+    code_repository: https://github.com/nausikt/archi-crab-okg
+
+# Base five + ALL SEVEN code modules, together. Adding the seven incrementally
+# cascades (~618k transform_consistency_violations at publish, field guide §5).
+modules:
+  - document_starter
+  - person
+  - extraction
+  - dataset
+  - repo_starter
+  - git_graph
+  - openspec
+  - agent_sessions
+  - compute_env
+  - code_graph
+  - forge
+  - ci
+
+# Code graphs always emit unresolvable forward references (~100+ dangling
+# edges). Pruning them is safe: narrowing violations still block a publish.
+consistency:
+  dangling_edges: prune
+
+# The Helm chart runs an always-on worker container — declare the truth.
+runtime:
+  enabled: true
+
+# Nomos rollout audit requires owner.name + owner.contact + review_by.
+nomos:
+  rollout:
+    status: deferred
+    owner:
+      name: archi-crab
+      contact: REPLACE_ME@cern.ch
+    review_by: "2027-03-01"
+
+skills_dir: skills
+skill_triggers: skills/skill-triggers.yaml
+
+# Search scope: only subtypes THIS registry produces. okg refuses a profile
+# naming a subtype the catalog lacks — do not add subtypes speculatively.
+search:
+  default_profile: content
+  profiles:
+    content:
+      description: Code files, symbols, doc chunks and CMSSW releases — what a CRAB question is asked about.
+      subtypes:
+        - document_chunk
+        - source_file
+        - code_symbol
+        - cmssw_release
+
+# Chat is an Open WebUI Application in CMSKubernetes, fronted by the vMCP.
+# okg's own chat-instance machinery is not used on this deployment.
+chat:
+  enabled: false

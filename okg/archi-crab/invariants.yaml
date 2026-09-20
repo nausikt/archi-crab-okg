@@ -1,0 +1,34 @@
+# archi-crab invariants — CRAB-truthful core floor.
+#
+# Rewritten from cern-team's core_pages_floor: that one requires
+# documentation_page and jira_issue, which THIS registry never produces, so
+# it would be permanently RED. Only subtypes this registry emits are listed.
+# Cold start: fires until the first ingest has published (expected).
+
+invariants:
+  - name: archi_crab_core_floor
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      Core archi-crab subtypes must have at least one live row each:
+      source_file / code_symbol (code repos), document_chunk (doc-corpus),
+      cmssw_release (cmssw_releases). A missing entry is a connector-coverage
+      regression. Cold-start note: fires until the first ingest has published.
+    sql: |
+      WITH required(subtype) AS (
+        VALUES
+          ('source_file'),
+          ('code_symbol'),
+          ('document_chunk'),
+          ('cmssw_release')
+      ),
+      counts AS (
+        SELECT subtype, count(*) AS n
+          FROM okg.v_nodes
+         GROUP BY subtype
+      )
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r
+        LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0

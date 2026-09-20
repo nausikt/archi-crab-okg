@@ -1,0 +1,6 @@
+# Review required on every path that can change what runs where.
+/.github/workflows/  @nausikt
+/envs/               @nausikt
+/helm/               @nausikt
+/versions.lock       @nausikt
+/okg/                @nausikt

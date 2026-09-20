@@ -1,0 +1,4 @@
+.repos/
+.okg-data/
+*.tgz
+/tmp/

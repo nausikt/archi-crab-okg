@@ -1,0 +1,6 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: {interval: weekly}
+    # Actions are pinned to full commit SHAs; Dependabot bumps the pins via PR.

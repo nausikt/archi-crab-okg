@@ -1,0 +1,130 @@
+# okg chart defaults — archi-crab vendored revision (v0.5.0)
+#
+# RECONSTRUCTED from values.schema.json + every .Values reference in the
+# templates. Before the first `helm lint`, DIFF this against the original
+# working chart's values.yaml (CMSKubernetes@archi-crab-testbed) and prefer
+# the original for anything not deliberately changed here (VENDOR-TODO.md).
+# Environment files under envs/ override only pins, sizing and classes.
+
+nameOverride: ""
+fullnameOverride: ""
+
+okg:
+  deployment: archi-crab
+  # Env var name the deployment manifest's `postgres.dsn: ${OKG_DSN}` reads.
+  deploymentDsnEnv: OKG_DSN
+  readinessProfile: general          # general | dogfood | ci
+  runtimeNomosSubject: archi-crab-runtime
+  mcpNomosSubject: archi-crab-mcp
+  # Both roots live on the runtime-data PVC (see Runbook footnote F1).
+  # repoRoot MUST sit under environmentDataRoot so the repository-sync init
+  # container's checkout is visible to bootstrap/worker/mcp.
+  environmentDataRoot: /var/lib/okg
+  repoRoot: /var/lib/okg/repo
+
+images:
+  okg:
+    repository: ghcr.io/mitdbg/okg
+    tag: ""                           # tag XOR digest — we pin digest
+    digest: "sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705"
+    pullPolicy: IfNotPresent
+  pullSecrets:
+    - ghcr-mitdbg-pull                # TEMPORARY until upstream images are public
+
+secrets:
+  existingSecret: okg-archi-crab      # materialized by Vault Secrets Operator
+  postgresPasswordKey: postgres-password
+  externalDsnKey: okg-dsn
+  mcpDsnKey: mcp-dsn
+  mcpPasswordKey: mcp-password
+  extraEnv: []                        # {name, key, targets}; reserved names rejected
+
+bootstrap:
+  enabled: true                       # schema const
+  publishOnce: true                   # makes init-container re-runs safe
+  include: []
+  sourceWorkers: 2
+  requireApprovalRevision: true       # approvedRevision MUST equal repositorySync.revision
+  approvedRevision: ""                # set per env
+
+postgresql:
+  internal:
+    enabled: true
+  image:
+    repository: ghcr.io/mitdbg/okg-postgres
+    tag: ""
+    digest: "sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616"
+    pullPolicy: IfNotPresent
+  database: okg
+  port: 5432
+  storage:
+    size: 30Gi
+    storageClassName: REPLACE_ME      # per env; CI fails while REPLACE_ME remains anywhere in envs/
+  shmSizeLimit: 2Gi                   # /dev/shm Memory emptyDir (parallel workers)
+  settings:
+    maxConnections: 100
+    maxWorkerProcesses: 16
+    timescaledbMaxBackgroundWorkers: 8   # MUST be < maxWorkerProcesses (template fails otherwise)
+    maxLocksPerTransaction: 1024         # publish phase needs >= 1024 (field guide §2)
+  resources:
+    requests: {cpu: "1", memory: 4Gi}
+    limits: {memory: 8Gi}
+
+runtime:
+  terminationGracePeriodSeconds: 60
+  probes:
+    # Startup probe IS `okg deployment ready --profile <readinessProfile>`.
+    # Cold bootstrap (clone + ingest + publish) happens in init containers,
+    # so this budget only covers the worker coming up afterwards.
+    startup:   {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 60}
+    readiness: {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 3}
+  storage:
+    size: 20Gi                        # repo clones + caches + checkout
+    storageClassName: REPLACE_ME
+  resources:
+    requests: {cpu: "1", memory: 2Gi}
+    limits: {memory: 6Gi}
+
+worker:
+  secretMounts: []
+
+repositorySync:
+  enabled: true
+  url: https://github.com/nausikt/archi-crab-okg
+  revision: ""                        # set per env (== bootstrap.approvedRevision)
+  authSecretKey: git-token            # TEMPORARY while the repo is private; "" once public
+  authUsername: x-access-token
+
+mcp:
+  enabled: true                       # schema const
+  manageRole: true                    # mcp-role init container: ALTER ROLE okg_mcp LOGIN ...
+  port: 8765
+  allowedHosts: []                    # cluster-internal Service only; vMCP fronts it
+  resources: {}
+
+tests:
+  readiness: {resources: {}}
+  mcp: {resources: {}}
+
+mirror:
+  enabled: false
+  command: []
+  args: []
+  resources: {}
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+networkPolicy:
+  enabled: true                       # schema const
+
+podDisruptionBudget:
+  enabled: false                      # minAvailable:1 on a singleton blocks every node drain
+  minAvailable: 1

@@ -1,0 +1,23 @@
+# Engine parity contract — ONE upstream commit, both images cut from it.
+# Change this file ONLY in an "engine bump" PR together with the digests in
+# envs/staging/values.yaml (Runbook Phase 5). Digests are the pins; tags are
+# human labels. `validated` dates are filled in by the Runbook's Verify steps.
+upstream:
+  repository: https://github.com/mitdbg/okg
+  commit: bed964f3fb89905e9d36abe46bdfbd8df5757132
+  published: 2026-09-20
+images:
+  okg:
+    ref: ghcr.io/mitdbg/okg:sha-bed964f3fb89905e9d36abe46bdfbd8df5757132
+    digest: sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705
+  okg-postgres:
+    ref: ghcr.io/mitdbg/okg-postgres:sha-bed964f3fb89905e9d36abe46bdfbd8df5757132
+    digest: sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616
+fallback:
+  # Field-guide-validated pins, if bed964f misbehaves in Phase 2 local e2e.
+  okg_commit: f5ec3b58d
+  archi_commit: 728739e6
+validated:
+  local_e2e: null
+  staging: null
+  prod: null

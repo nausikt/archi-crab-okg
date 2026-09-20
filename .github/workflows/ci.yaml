@@ -1,0 +1,85 @@
+# ci — PRs and pushes. Fail-fast lint (zero secrets, fork-safe) then the real
+# knowledge check: claim -> load -> lint against a scratch Postgres, using the
+# EXACT engine pinned in envs/staging/values.yaml.
+#
+# PIN@sha: every action must be pinned to a full commit SHA before merge
+# (`pinact run` once; Dependabot bumps afterwards). The `@PIN` placeholders
+# below are intentionally invalid so the workflow refuses to run unpinned.
+name: ci
+on:
+  pull_request:
+  push: {branches: [main]}
+permissions: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    steps:
+      - uses: step-security/harden-runner@PIN            # v2
+        with: {egress-policy: audit}
+      - uses: actions/checkout@PIN                       # v4
+      - uses: azure/setup-helm@PIN                       # v4
+      - name: Placeholders and vendor guards
+        run: |
+          set -e
+          ! grep -rn "REPLACE_ME" envs/ okg/archi-crab/deployment.yaml || { echo "::error::REPLACE_ME placeholders remain"; exit 1; }
+          test ! -f okg/archi-crab/extractors.yaml.TODO  || { echo "::error::extractors.yaml not yet copied"; exit 1; }
+          test ! -f helm/okg/VENDOR-TODO.md              || { echo "::error::chart vendor copy incomplete"; exit 1; }
+          test ! -f okg/archi-crab/schemas/bridges/README.md || { echo "::error::bridges not yet copied+pruned"; exit 1; }
+      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml okg envs helm/okg/values.yaml
+      - run: helm lint helm/okg -f envs/staging/values.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
+      - run: helm lint helm/okg -f envs/prod/values.yaml    --set repositorySync.revision=x --set bootstrap.approvedRevision=x
+      - name: kubeconform (both envs)
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          for e in staging prod; do
+            helm template t helm/okg -f envs/$e/values.yaml \
+              --set repositorySync.revision=${{ github.sha }} \
+              --set bootstrap.approvedRevision=${{ github.sha }} \
+            | ./kubeconform -strict -summary -schema-location default \
+                -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceVersion}}.json'
+          done
+
+  pins:
+    # Single source of truth for CI's own images: the staging values file.
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    outputs:
+      okg: ${{ steps.p.outputs.okg }}
+      pg: ${{ steps.p.outputs.pg }}
+    steps:
+      - uses: actions/checkout@PIN
+      - id: p
+        run: |
+          echo "okg=$(yq '.images.okg.repository + "@" + .images.okg.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
+          echo "pg=$(yq '.postgresql.image.repository + "@" + .postgresql.image.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
+
+  okg-validate:
+    needs: pins
+    # Private images need GHCR_PAT; secrets never reach fork PRs -> same-repo only.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    container:
+      image: ${{ needs.pins.outputs.okg }}
+      credentials: {username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
+    services:
+      pg:
+        image: ${{ needs.pins.outputs.pg }}
+        credentials: {username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
+        env: {POSTGRES_PASSWORD: ci, POSTGRES_DB: okg}
+    env:
+      OKG_DSN: postgresql://postgres:ci@pg:5432/okg
+      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
+      OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
+    steps:
+      - uses: actions/checkout@PIN
+      - run: okg migrate --deployment archi-crab --apply
+      - run: okg migrate --deployment archi-crab --apply       # idempotent_second_run
+      - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
+      - run: okg catalog load --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --apply
+      - run: |
+          okg deployment lint archi-crab --json | tee lint.json
+          python3 -c "import json,sys; sys.exit(0 if json.load(open('lint.json'))['ok'] else 1)"

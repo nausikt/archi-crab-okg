@@ -1,0 +1,33 @@
+# promote — one-way staging -> prod, by copying ALL pins (engine + knowledge)
+# into envs/prod. Gated by the `prod` GitHub Environment (named reviewer).
+# Merging the resulting PR is the prod release.
+name: promote
+on: {workflow_dispatch: {}}
+permissions: {}
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions: {contents: write, pull-requests: write}
+    steps:
+      - uses: actions/checkout@PIN
+      - name: Copy pins staging -> prod, then drift-guard
+        run: |
+          set -e
+          for k in '.images.okg.digest' '.postgresql.image.digest' \
+                   '.repositorySync.revision' '.bootstrap.approvedRevision'; do
+            v=$(yq "$k" envs/staging/values.yaml); yq -i "$k = \"$v\"" envs/prod/values.yaml
+          done
+          # Beyond pins and sizing, the two envs must be structurally identical.
+          strip='del(.images.okg.digest, .postgresql.image.digest, .repositorySync.revision,
+                    .bootstrap.approvedRevision, .postgresql.storage, .runtime.storage,
+                    .postgresql.resources, .runtime.resources)'
+          diff <(yq "$strip" envs/staging/values.yaml) <(yq "$strip" envs/prod/values.yaml) \
+            || { echo "::error::structural drift between envs — someone hand-edited prod; reconcile first"; exit 1; }
+      - uses: peter-evans/create-pull-request@PIN         # v6
+        with:
+          branch: promote/prod-${{ github.run_number }}
+          title: "Promote to prod: staging pins @ ${{ github.sha }}"
+          body: "All pins copied from envs/staging (engine digests + knowledge revision). Merge = prod rollout."
+          labels: promotion

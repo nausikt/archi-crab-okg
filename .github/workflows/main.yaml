@@ -1,0 +1,70 @@
+# main — after merge. Full knowledge e2e on a GitHub-hosted runner (possible
+# because the source set is 2 PUBLIC repos + a public releases.map: zero CERN
+# credentials), then the bot pins the merge sha into envs/staging. Argo CD
+# watches this repo and auto-syncs staging; the PostSync hook re-runs the same
+# smoke.sh in-cluster.
+name: main
+on:
+  push:
+    branches: [main]
+    paths: [okg/**, helm/**, scripts/**, envs/**, versions.lock]
+permissions: {}
+concurrency: {group: main, cancel-in-progress: false}
+
+jobs:
+  pins:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    outputs:
+      okg: ${{ steps.p.outputs.okg }}
+      pg: ${{ steps.p.outputs.pg }}
+    steps:
+      - uses: actions/checkout@PIN
+      - id: p
+        run: |
+          echo "okg=$(yq '.images.okg.repository + "@" + .images.okg.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
+          echo "pg=$(yq '.postgresql.image.repository + "@" + .postgresql.image.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
+
+  e2e-smoke:
+    needs: pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 45                 # calibrate from Runbook Phase 2 timings
+    permissions: {contents: read}
+    container:
+      image: ${{ needs.pins.outputs.okg }}
+      credentials: {username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
+    services:
+      pg:
+        image: ${{ needs.pins.outputs.pg }}
+        credentials: {username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
+        env: {POSTGRES_PASSWORD: ci, POSTGRES_DB: okg}
+        options: --shm-size=2g
+    env:
+      OKG_DSN: postgresql://postgres:ci@pg:5432/okg
+      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
+      OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
+    steps:
+      - uses: actions/checkout@PIN
+      - run: mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT/repos" "$OKG_ENVIRONMENT_DATA_ROOT/cmssw-releases"
+      - run: okg migrate --deployment archi-crab --apply
+      - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
+      - run: okg catalog load --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --apply
+      - run: okg deployment lint archi-crab
+      - run: okg ingest --deployment archi-crab --progress      # clones the 2 repos itself
+      - run: bash scripts/smoke.sh
+
+  bump-staging:
+    needs: e2e-smoke
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions: {contents: write}
+    steps:
+      - uses: actions/checkout@PIN
+        with: {token: "${{ secrets.STAGING_BUMP_TOKEN }}"}
+      - run: |
+          yq -i '.repositorySync.revision = "${{ github.sha }}"
+               | .bootstrap.approvedRevision = "${{ github.sha }}"' envs/staging/values.yaml
+          git config user.name archi-crab-bot
+          git config user.email archi-crab-bot@users.noreply.github.com
+          git diff --quiet || { git commit -am "staging: pin ${GITHUB_SHA::9} [skip ci]"; git push; }

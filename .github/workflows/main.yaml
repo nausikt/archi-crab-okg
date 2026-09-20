@@ -6,10 +6,10 @@ name: main
 on:
   push:
     branches: [main]
-    paths: [okg/**, helm/**, scripts/**, envs/**]
+    paths: [okg/**, helm/**, scripts/**, envs/**, .github/workflows/main.yaml]
+  workflow_dispatch: {}
 permissions: {}
 concurrency: {group: main, cancel-in-progress: false}
-
 jobs:
   pins:
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
@@ -24,7 +24,6 @@ jobs:
         run: |
           echo "okg=$(yq '.images.okg.repository + "@" + .images.okg.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
           echo "pg=$(yq '.postgresql.image.repository + "@" + .postgresql.image.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
-
   e2e-smoke:
     # Host-run, NOT a `container:` job: the okg image runs as uid 10001, which
     # cannot write the runner's workspace (checkout EACCES -> every step skipped),
@@ -83,7 +82,6 @@ jobs:
       - run: bash scripts/smoke.sh
       - if: always()
         run: docker logs pg --tail 80
-
   chart-path:
     # THE CHART'S BOOTSTRAP, VERBATIM. The Argo CD path is: init `bootstrap` =
     # `okg provision --publish-once --source-workers N --json`, then init
@@ -107,7 +105,7 @@ jobs:
       OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
-      SOURCE_WORKERS: "2"                # == values.yaml bootstrap.sourceWorkers
+      SOURCE_WORKERS: "2" # == values.yaml bootstrap.sourceWorkers
     steps:
       - uses: actions/checkout@v7
       - name: chart-path mirrors the chart (fail on drift)
@@ -146,7 +144,6 @@ jobs:
         run: bash scripts/smoke.sh
       - if: always()
         run: docker logs pg --tail 80
-
   bump-staging:
     needs: [e2e-smoke, chart-path]
     runs-on: ubuntu-latest

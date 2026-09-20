@@ -41,7 +41,11 @@ for ((i=0; i<n; i++)); do
     echo "skip   $dest  (archi entry; no archi in pinned engine)"; skipped=$((skipped+1)); continue
   fi
   out="$SCRATCH/$dest"; mkdir -p "$(dirname "$out")"
-  if [[ "$type" == dir ]]; then mkdir -p "$out"; "$RT" cp "$CID:$src/." "$out"
+  if [[ "$type" == dir ]]; then
+    # -h dereferences: the cern-team bundle ships skills/ as symlinks into the
+    # archi repo, and `cp` from a container refuses to copy a dangling link.
+    mkdir -p "$out"
+    "$RT" run --rm --entrypoint tar "$IMG" -ch -C "$src" . | tar -x -C "$out"
   else "$RT" cp "$CID:$src" "$out"; fi
   if ! diff -ruN --exclude='.gitkeep' "$DEP/$dest" "$out" >"$SCRATCH/.diff.$i" 2>&1; then
     drift=1; echo "DRIFT  $dest  <-  $src"

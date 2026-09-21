@@ -27,6 +27,6 @@ runtime:
     size: 75Gi
     storageClassName: cinder-io1-delete
 repositorySync:
-  revision: "4c1931e3ec0525d06bbaa1abeb01248c803b6d6c" # <- merge sha (staging: CI bot; prod: Promote PR)
+  revision: "5a1103b6f337820e2c32f6e1fdcf00d9fb8d66f8" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
-  approvedRevision: "4c1931e3ec0525d06bbaa1abeb01248c803b6d6c" # <- MUST equal repositorySync.revision (chart enforces)
+  approvedRevision: "5a1103b6f337820e2c32f6e1fdcf00d9fb8d66f8" # <- MUST equal repositorySync.revision (chart enforces)

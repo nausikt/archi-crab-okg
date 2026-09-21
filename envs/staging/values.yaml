@@ -27,6 +27,6 @@ runtime:
     size: 20Gi
     storageClassName: cinder-standard
 repositorySync:
-  revision: "4f765e1548b17352ce2cffef6bfd513d2cd05a16" # <- merge sha (staging: CI bot; prod: Promote PR)
+  revision: "9a07d1d9b912b500662d2108690016bf08aa34bb" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
-  approvedRevision: "4f765e1548b17352ce2cffef6bfd513d2cd05a16" # <- MUST equal repositorySync.revision (chart enforces)
+  approvedRevision: "9a07d1d9b912b500662d2108690016bf08aa34bb" # <- MUST equal repositorySync.revision (chart enforces)

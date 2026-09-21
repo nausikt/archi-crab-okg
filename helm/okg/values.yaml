@@ -19,8 +19,11 @@ okg:
   # Both roots live on the runtime-data PVC (see Runbook footnote F1).
   # repoRoot MUST sit under environmentDataRoot so the repository-sync init
   # container's checkout is visible to bootstrap/worker/mcp.
+  # # Used ONLY when repositorySync.enabled=false. With repositorySync on, the chart
+  # derives repo-root = <environmentDataRoot>/repository and
+  # deployments-dir = <environmentDataRoot>/repository/deployments (configmap.yaml).
   environmentDataRoot: /var/lib/okg
-  repoRoot: /var/lib/okg/repo
+  repoRoot: /var/lib/okg/repository
 
 images:
   okg:

@@ -34,3 +34,4 @@ mcp:
   allowedHosts:
     - "archi-crab-okg.cern.ch"
     - "archi-crab-okg.cern.ch:*"
+    - "10.254.109.91:*"

@@ -20,12 +20,12 @@ postgresql:
     digest: "sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616"
     pullPolicy: IfNotPresent
   storage:
-    size: 50Gi
-    storageClassName: cinder-standard # real StorageClass on the target cluster (Runbook Phase 2)
+    size: 200Gi
+    storageClassName: cinder-io1 # real StorageClass on the target cluster (Runbook Phase 2)
 runtime:
   storage:
-    size: 30Gi
-    storageClassName: cinder-standard
+    size: 100Gi
+    storageClassName: cinder-io1
 repositorySync:
   revision: "" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:

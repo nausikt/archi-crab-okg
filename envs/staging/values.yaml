@@ -30,3 +30,7 @@ repositorySync:
   revision: "5a1103b6f337820e2c32f6e1fdcf00d9fb8d66f8" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
   approvedRevision: "5a1103b6f337820e2c32f6e1fdcf00d9fb8d66f8" # <- MUST equal repositorySync.revision (chart enforces)
+mcp:
+  allowedHosts:
+    - "archi-crab-okg-staging.cern.ch"
+    - "archi-crab-okg-staging.cern.ch:*"

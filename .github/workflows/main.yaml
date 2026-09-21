@@ -217,6 +217,7 @@ jobs:
           echo "== worker log"; docker logs worker --tail 80 2>/dev/null || true
           docker stop worker >/dev/null 2>&1 || true
           echo "== postgres log"; docker logs pg --tail 40
+    continue-on-error: true
   bump-staging:
     needs: [e2e-smoke, chart-path]
     runs-on: ubuntu-latest

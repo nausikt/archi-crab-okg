@@ -6,6 +6,8 @@
 #                CI reads THIS file to pick its own container images)
 #   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
 #             -> changed ONLY by the Promote PR (it copies engine digests too)
+fullnameOverride: archi-crab-okg
+
 
 images:
   okg:
@@ -30,4 +32,3 @@ repositorySync:
   revision: "" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
   approvedRevision: "" # <- MUST equal repositorySync.revision (chart enforces)
-fullnameOverride: archi-crab-okg

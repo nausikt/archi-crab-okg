@@ -6,6 +6,8 @@
 #                CI reads THIS file to pick its own container images)
 #   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
 #             -> auto-bumped by main.yaml on every green build
+fullnameOverride: archi-crab-okg
+
 
 images:
   okg:
@@ -30,4 +32,3 @@ repositorySync:
   revision: "c30880dafb596b19e5d7e61da8c2007c497c4733" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
   approvedRevision: "c30880dafb596b19e5d7e61da8c2007c497c4733" # <- MUST equal repositorySync.revision (chart enforces)
-fullnameOverride: archi-crab-okg

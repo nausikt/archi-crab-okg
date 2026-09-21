@@ -11,7 +11,7 @@ images:
   okg:
     repository: ghcr.io/nausikt/archi-crab-okg
     tag: ""
-    digest: "sha256:5922753c73f2e3873522260aa7d8c0458dd8adbdf6216fc6e13d7745a32d362c"
+    digest: "sha256:cc018d2163b6755c34c5b8882e7c20dbc8da02f9019f5d7398ed75b1b538b9ad"
     pullPolicy: IfNotPresent
 postgresql:
   image:

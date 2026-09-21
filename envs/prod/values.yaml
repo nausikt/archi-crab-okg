@@ -7,8 +7,6 @@
 #   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
 #             -> changed ONLY by the Promote PR (it copies engine digests too)
 fullnameOverride: archi-crab-okg
-
-
 images:
   okg:
     repository: ghcr.io/mitdbg/okg

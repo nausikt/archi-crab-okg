@@ -21,7 +21,7 @@ jobs:
           done
           # Beyond pins and sizing, the two envs must be structurally identical.
           strip='del(.images.okg.digest, .postgresql.image.digest, .repositorySync.revision,
-                    .bootstrap.approvedRevision, .postgresql.storage, .runtime.storage,
+                    .bootstrap.approvedRevision, .fullnameOverride, .postgresql.storage, .runtime.storage,
                     .postgresql.resources, .runtime.resources)'
           diff <(yq "$strip" envs/staging/values.yaml) <(yq "$strip" envs/prod/values.yaml) \
             || { echo "::error::structural drift between envs — someone hand-edited prod; reconcile first"; exit 1; }

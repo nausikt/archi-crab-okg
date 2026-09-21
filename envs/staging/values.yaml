@@ -6,7 +6,7 @@
 #                CI reads THIS file to pick its own container images)
 #   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
 #             -> auto-bumped by main.yaml on every green build
-fullnameOverride: archi-crab-okg
+fullnameOverride: archi-crab-okg-staging
 images:
   okg:
     repository: ghcr.io/nausikt/archi-crab-okg

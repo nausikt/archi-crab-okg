@@ -56,7 +56,7 @@ jobs:
         run: |
           IMG="ghcr.io/nausikt/archi-crab-okg@${{ steps.img.outputs.digest }}" CONTAINER_RUNTIME=docker \
             scripts/vendor-sync.sh --apply
-          git status --short okg/ | tee vendor-changes.txt
+          git status --short deployments/
       - name: Write new engine pins
         run: |
           yq -i '.images.okg.repository = "ghcr.io/nausikt/archi-crab-okg"

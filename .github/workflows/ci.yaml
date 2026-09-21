@@ -23,7 +23,7 @@ jobs:
           test -f deployments/archi-crab/extractors.yaml || { echo "::error::deployments/archi-crab/extractors.yaml missing (vendor-sync --apply)"; exit 1; }
           test -f deployments/archi-crab/schemas/bridges/extraction_to_git_files.yaml || { echo "::error::code-graph bridge missing (vendor-sync --apply)"; exit 1; }
           test -f deployments/archi-crab/VENDOR.yaml || { echo "::error::deployments/archi-crab/VENDOR.yaml missing"; exit 1; }
-      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml okg envs helm/okg/values.yaml
+      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml deployments envs helm/okg/values.yaml
       - run: helm lint helm/okg -f envs/staging/values.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - run: helm lint helm/okg -f envs/prod/values.yaml    --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - name: kubeconform (both envs)

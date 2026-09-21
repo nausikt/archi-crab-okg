@@ -20,6 +20,7 @@ metadata:
     app.kubernetes.io/component: mcp
 spec:
   type: ClusterIP
+  publishNotReadyAddresses: true   # interim: worker readiness blocked upstream
   selector:
     {{- include "okg.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: runtime

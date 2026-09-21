@@ -30,3 +30,4 @@ repositorySync:
   revision: "c30880dafb596b19e5d7e61da8c2007c497c4733" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
   approvedRevision: "c30880dafb596b19e5d7e61da8c2007c497c4733" # <- MUST equal repositorySync.revision (chart enforces)
+fullnameOverride: archi-crab-okg

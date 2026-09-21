@@ -13,7 +13,6 @@ images:
     tag: ""
     digest: "sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705"
     pullPolicy: IfNotPresent
-
 postgresql:
   image:
     repository: ghcr.io/mitdbg/okg-postgres
@@ -22,14 +21,13 @@ postgresql:
     pullPolicy: IfNotPresent
   storage:
     size: 50Gi
-    storageClassName: cinder-standard      # real StorageClass on the target cluster (Runbook Phase 2)
-
+    storageClassName: cinder-standard # real StorageClass on the target cluster (Runbook Phase 2)
 runtime:
   storage:
     size: 30Gi
     storageClassName: cinder-standard
-
 repositorySync:
-  revision: ""                        # <- merge sha (staging: CI bot; prod: Promote PR)
+  revision: "" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
-  approvedRevision: ""                # <- MUST equal repositorySync.revision (chart enforces)
+  approvedRevision: "" # <- MUST equal repositorySync.revision (chart enforces)
+fullnameOverride: archi-crab-okg

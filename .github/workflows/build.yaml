@@ -74,7 +74,7 @@ jobs:
             (base `${{ steps.lock.outputs.base }}`, archi `${{ steps.lock.outputs.archi }}`).
 
             Vendored vocabulary (VENDOR.yaml) was resynced from the new image in
-            this PR — review the `okg/archi-crab/schemas|skills|extractors` diff:
+            this PR — review the `deployments/archi-crab/schemas|skills|extractors` diff:
             a subtype or narrowing change may require a rebuild (F4).
             `ours` files (deployment.yaml, source registry, invariants) are untouched;
             compare them against the bundle's current defaults if the diff above

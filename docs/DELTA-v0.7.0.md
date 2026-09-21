@@ -9,7 +9,7 @@ Files in this tarball REPLACE or ADD (nothing else in the repo changes in PR1):
     versions.lock                                   REPL  archi + runtime pins (fill 2 REPLACE_ME before merge)
     scripts/gen-cern-team.sh                        ADD   the generator ritual
     scripts/smoke.sh                                REPL  CMSSW query restored
-    okg/archi-crab/invariants.yaml                  REPL  4-subtype floor (survives the generator)
+    deployments/archi-crab/invariants.yaml                  REPL  4-subtype floor (survives the generator)
     helm/okg/DELTA-5-archi-data-root.md             ADD   apply in Phase C, then delete
     docs/RUNBOOK-v0.7.0.md                          ADD
 

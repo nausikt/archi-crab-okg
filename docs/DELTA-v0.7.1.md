@@ -1,6 +1,6 @@
 # v0.7.1 delta — apply on top of the v0.7.0 delta (before PR1 merges)
 
-    okg/archi-crab/VENDOR.yaml            ADD   vendored-file manifest (verbatim entries + ours)
+    deployments/archi-crab/VENDOR.yaml            ADD   vendored-file manifest (verbatim entries + ours)
     scripts/vendor-sync.sh                ADD   --check (CI drift guard) / --apply (resync)
     scripts/gen-cern-team.sh              REPL  first-scaffold only; no manual schema copy (stale README step 2)
     .github/workflows/ci.yaml             REPL  + vendor-check job; guard for VENDOR.yaml

@@ -6,7 +6,7 @@ name: main
 on:
   push:
     branches: [main]
-    paths: [okg/**, helm/**, scripts/**, envs/**, .github/workflows/main.yaml]
+    paths: [deployments/**, helm/**, scripts/**, envs/**, .github/workflows/main.yaml]
   workflow_dispatch: {}
 permissions: {}
 concurrency: {group: main, cancel-in-progress: false}
@@ -37,7 +37,7 @@ jobs:
       OKG_IMG: ${{ needs.pins.outputs.okg }}
       PG_IMG: ${{ needs.pins.outputs.pg }}
       OKG_DSN: postgresql://postgres:ci@127.0.0.1:5432/okg
-      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
+      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/deployments
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
       # The chart's commonEnv (helm/okg/templates/_helpers.tpl -> ConfigMap). The image has
@@ -119,7 +119,7 @@ jobs:
       OKG_IMG: ${{ needs.pins.outputs.okg }}
       PG_IMG: ${{ needs.pins.outputs.pg }}
       OKG_DSN: postgresql://postgres:ci@127.0.0.1:5432/okg
-      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/okg
+      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/deployments
       OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
       ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
       # The chart's commonEnv (helm/okg/templates/_helpers.tpl -> ConfigMap). The image has

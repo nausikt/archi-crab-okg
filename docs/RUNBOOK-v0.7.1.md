@@ -48,7 +48,7 @@ merge** is the correct shape, and `build.yaml` now does exactly that.
 
 ## Phase A — unchanged (v0.7.0): derived image, PR1, `build.yaml` opens PR2
 
-PR1 now also carries `okg/archi-crab/VENDOR.yaml`, `scripts/vendor-sync.sh`,
+PR1 now also carries `deployments/archi-crab/VENDOR.yaml`, `scripts/vendor-sync.sh`,
 the revised `scripts/gen-cern-team.sh`, and the patched `ci.yaml` /
 `build.yaml`. `yq` v4 is required locally (`brew install yq` / distro pkg).
 
@@ -71,7 +71,7 @@ export OKG_DSN=postgresql://postgres:dev@127.0.0.1:5435/okg
 IMG="$IMG" scripts/gen-cern-team.sh
 ```
 
-The script: moves `okg/archi-crab` → `okg/archi-crab.prev`; runs `okg install
+The script: moves `deployments/archi-crab` → `deployments/archi-crab.prev`; runs `okg install
 --profile cern-team --deployment-name archi-crab --postgres-dsn '${OKG_DSN}'
 --non-interactive --no-publish` (`--no-publish` = stop before first load so
 our edits land first; harmless if redundant); restores `VENDOR.yaml` and our
@@ -89,10 +89,10 @@ wrote a separate `source_registry.yaml` or inline `sources:`. Adjust `dest`
 `gitlab_repo` (file blobs; the code graph supersedes them). The k8s bootstrap
 has no `--exclude`; unregistered is the only exclusion.
 
-**B.3 Code graph** (field guide §5, cherry-picked from `okg/archi-crab.prev`):
+**B.3 Code graph** (field guide §5, cherry-picked from `deployments/archi-crab.prev`):
 `code_repos{crabserver, crabclient}` with `expand` **without** git-history and
 `base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos`, placed where
-`okg/archi-crab.prev`'s `source_registry.yaml` had it — confirm against the
+`deployments/archi-crab.prev`'s `source_registry.yaml` had it — confirm against the
 template dump (`vendor-sync` sources live at
 `/opt/okg/src/okg/substrate/library/templates/codebase-index/`; `podman run
 --rm --entrypoint sh $IMG -c 'cat …/codebase-index/deployment.yaml*'`); the
@@ -126,7 +126,7 @@ IMG="$IMG" scripts/vendor-sync.sh --check                        # must print "v
 ```
 
 ✓ `SMOKE OK`; four invariant subtypes live; `vendor-sync --check` green;
-`rm -rf okg/archi-crab.prev`; set `validated.local_e2e`; commit on PR2's
+`rm -rf deployments/archi-crab.prev`; set `validated.local_e2e`; commit on PR2's
 branch; push. CI: `lint`, `vendor-check`, `okg-validate` green. Merge PR2.
 
 ---

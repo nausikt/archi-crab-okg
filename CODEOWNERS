@@ -3,4 +3,4 @@
 /envs/               @nausikt
 /helm/               @nausikt
 /versions.lock       @nausikt
-/okg/                @nausikt
+/deployments/                @nausikt

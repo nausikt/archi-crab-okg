@@ -15,7 +15,7 @@ original working chart in CMSKubernetes@archi-crab-testbed:
                                   #   defaults except the deliberate deltas listed below
 
 Check in `_helpers.tpl` how `okg.commonEnv` derives OKG_DEPLOYMENTS_DIR from
-`okg.repoRoot`. This repo puts the deployment at `okg/archi-crab/`; if the
+`okg.repoRoot`. This repo puts the deployment at `deployments/archi-crab/`; if the
 helper expects `<repoRoot>/<deployment>` directly, either set repoRoot to
 `/var/lib/okg/repo/okg` in values or move the directory. Resolve once, then
 `okg deployment lint` in CI keeps it honest.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# vendor-sync.sh — keep okg/archi-crab's vendored vocabulary in step with the
-# pinned runtime image, per okg/archi-crab/VENDOR.yaml.
+# vendor-sync.sh — keep deployments/archi-crab's vendored vocabulary in step with the
+# pinned runtime image, per deployments/archi-crab/VENDOR.yaml.
 #
 #   IMG=<ref@digest> scripts/vendor-sync.sh --check    # exit 1 + diff on drift (CI)
 #   IMG=<ref@digest> scripts/vendor-sync.sh --apply    # overwrite verbatim entries
@@ -11,7 +11,7 @@ set -euo pipefail
 MODE="${1:?usage: vendor-sync.sh --check|--apply}"
 RT="${CONTAINER_RUNTIME:-podman}"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-DEP="$REPO/okg/archi-crab"; MAN="$DEP/VENDOR.yaml"
+DEP="$REPO/deployments/archi-crab"; MAN="$DEP/VENDOR.yaml"
 IMG="${IMG:-$(yq -r '.runtime.ref + "@" + .runtime.digest' "$REPO/versions.lock")}"
 [[ "$IMG" == *null* || -z "$IMG" ]] && { echo "no runtime digest in versions.lock; pass IMG=" >&2; exit 2; }
 

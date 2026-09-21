@@ -78,7 +78,7 @@ podman run --rm --entrypoint sh archi-crab-okg:dev -c 'ls /opt/archi/bundles; ls
 - PR1 = this tarball's delta: `docker/`, `.github/workflows/build.yaml`,
   patched `ci.yaml` / `main.yaml` (ARCHI_DATA_ROOT; `versions.lock` moved to
   build.yaml's paths), `versions.lock`, `scripts/*`,
-  `okg/archi-crab/invariants.yaml`, `helm/okg/DELTA-5-archi-data-root.md`.
+  `deployments/archi-crab/invariants.yaml`, `helm/okg/DELTA-5-archi-data-root.md`.
   `envs/*` untouched in PR1 (still the upstream image → lint stays green).
 - `pinact run` on the new workflow; CODEOWNERS already covers workflows.
 
@@ -101,7 +101,7 @@ export OKG_DSN=postgresql://postgres:dev@127.0.0.1:5435/okg
 IMG="$IMG" scripts/gen-cern-team.sh
 ```
 
-The script moves your v0.5.0 `okg/archi-crab` to `okg/archi-crab.prev`
+The script moves your v0.5.0 `deployments/archi-crab` to `deployments/archi-crab.prev`
 (cherry-pick source), scaffolds with `okg install --profile cern-team
 --deployment-name archi-crab --postgres-dsn '${OKG_DSN}' --non-interactive
 --no-publish`, copies the archi schema slices + `bridges/sources.yaml`, dumps
@@ -117,7 +117,7 @@ fails `bridge_subtype_unknown`. Also drop any `bridges/sources.yaml`
 narrowing that names jira / docsite / twiki / monit connectors.
 
 **B.2 Registry: only what has data on a fresh instance.** Inspect what the
-installer registered (`grep -n '^[a-z_]*:' okg/archi-crab/source_registry.yaml`
+installer registered (`grep -n '^[a-z_]*:' deployments/archi-crab/source_registry.yaml`
 or the inline `sources:`). Keep `cmssw_releases`. Delete every connector
 needing a cache file or an SSO cookie (docsite, twiki_*, jira, indico) and the
 bundle's `github_repo` / `gitlab_repo` (file blobs only — the code graph below
@@ -125,7 +125,7 @@ supersedes them). Nothing excluded is registered; the k8s bootstrap has no
 `--exclude`.
 
 **B.3 Add the code graph** (field guide §5, on top of the bundle, exactly as
-cms-compops did). Copy from `okg/archi-crab.prev/`:
+cms-compops did). Copy from `deployments/archi-crab.prev/`:
 - the `code_repos` block (CRABServer + CRABClient, `expand` **without**
   git-history, `base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos`) — placed where
   `.okg-data/codebase-index.deployment.yaml` shows okg's template puts it
@@ -182,7 +182,7 @@ incrementally; wipe pg (`podman rm -f pg`, recreate) and rerun from migrate
 with the full list.
 
 ✓ `SMOKE OK`; four invariant subtypes have live rows; `\dx` shows the six
-extensions. `rm -rf okg/archi-crab.prev`; set `validated.local_e2e`; commit
+extensions. `rm -rf deployments/archi-crab.prev`; set `validated.local_e2e`; commit
 **on PR2's branch**; push. CI: `lint` + `okg-validate` green *on the new
 engine with the new knowledge*. Merge PR2.
 
@@ -222,7 +222,7 @@ prod-env approval → PR diff = the pin lines only → merge → prod smoke → 
   build.yaml → engine-bump PR → Phase B on its branch → merge.** Never edit
   `images.okg.digest` by hand.
 - **Archi bumps re-run the generator into a scratch dir and *diff* against
-  `okg/archi-crab/` — never overwrite the reviewed instance.** The bundle's
+  `deployments/archi-crab/` — never overwrite the reviewed instance.** The bundle's
   `source-defaults` and schema slices move with archi; your B.1–B.5 edits are
   the delta you carry.
 - **The derived image stays private while the base is.** Publication day

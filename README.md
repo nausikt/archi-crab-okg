@@ -13,7 +13,7 @@ Engine: upstream `mitdbg/okg@bed964f` images, pinned by digest in
 
 ## Layout
 
-    okg/archi-crab/      the deployment (deployment.yaml, source_registry.yaml, schemas/, skills/)
+    deployments/archi-crab/      the deployment (deployment.yaml, source_registry.yaml, schemas/, skills/)
     helm/okg/            vendored okg chart + archi-crab deltas
     envs/{staging,prod}  overrides: engine digests, storage, knowledge pins
     scripts/smoke.sh     the one judge: CI e2e step == Argo CD PostSync hook
@@ -21,8 +21,8 @@ Engine: upstream `mitdbg/okg@bed964f` images, pinned by digest in
 
 ## Until the tarball is completed, CI is red on purpose
 
-`ci.yaml` fails while any of these exist: `okg/archi-crab/extractors.yaml.TODO`,
-`okg/archi-crab/schemas/bridges/README.md`, `helm/okg/VENDOR-TODO.md`,
+`ci.yaml` fails while any of these exist: `deployments/archi-crab/extractors.yaml.TODO`,
+`deployments/archi-crab/schemas/bridges/README.md`, `helm/okg/VENDOR-TODO.md`,
 `REPLACE_ME` in `envs/` or `deployment.yaml`, or an unpinned `@PIN` action.
 Runbook Phase 2–3 clears them in order.
 

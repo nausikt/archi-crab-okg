@@ -67,7 +67,7 @@ archi-crab-okg/
 │       ├── ci.yaml                    # PR+main: guards → lint → kubeconform → okg-validate
 │       ├── main.yaml                  # main: e2e-smoke → bot bumps envs/staging pins
 │       └── promote.yaml               # manual, prod-env gated, pins-only PR
-├── okg/archi-crab/                    # THE INSTANCE
+├── deployments/archi-crab/                    # THE INSTANCE
 │   ├── deployment.yaml                # 12 modules · dangling prune · runtime on · chat off
 │   ├── source_registry.yaml           # code_repos{crabserver,crabclient} + cmssw_releases
 │   ├── invariants.yaml                # floor: source_file, code_symbol, document_chunk, cmssw_release
@@ -149,7 +149,7 @@ Do these in order; each clears a CI guard.
    `networkpolicy.yaml`, `tests/`, and diff the reconstructed `values.yaml`
    against the original working chart's — keep upstream defaults except the
    four deliberate deltas. Resolve how `okg.commonEnv` derives
-   `OKG_DEPLOYMENTS_DIR` from `repoRoot` (this repo uses `okg/archi-crab/`).
+   `OKG_DEPLOYMENTS_DIR` from `repoRoot` (this repo uses `deployments/archi-crab/`).
    Apply deltas as separate commits. Delete `VENDOR-TODO.md`.
 3. **extractors.yaml**: run the command in `extractors.yaml.TODO`; delete the `.TODO`.
 4. **Bridges**: follow `schemas/bridges/README.md`; keep only

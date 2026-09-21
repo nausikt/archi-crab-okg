@@ -17,8 +17,8 @@ archi:
   commit: "728739e6" # git ls-remote https://github.com/archi-physics/archi refs/heads/archi_v3_quickstart
 runtime:
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: sha256:5922753c73f2e3873522260aa7d8c0458dd8adbdf6216fc6e13d7745a32d362c # <- build.yaml
-  built_from: b90d1c98cf4e5a1dcee24905ae69628a3e737085 # <- build.yaml (repo sha)
+  digest: sha256:4e39d264e91fea77df8705c00267bd46f719a23f835a311568862303bed9e17d # <- build.yaml
+  built_from: 9a07d1d9b912b500662d2108690016bf08aa34bb # <- build.yaml (repo sha)
   base_user: "10001:10001" # podman inspect <images.okg.ref> | jq -r '.[0].Config.User'  (use "0" if empty)
 validated:
   local_e2e: null

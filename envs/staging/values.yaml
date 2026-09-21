@@ -21,11 +21,11 @@ postgresql:
     pullPolicy: IfNotPresent
   storage:
     size: 30Gi
-    storageClassName: cinder-standard # real StorageClass on the target cluster (Runbook Phase 2)
+    storageClassName: cinder-standard-delete # real StorageClass on the target cluster (Runbook Phase 2)
 runtime:
   storage:
     size: 20Gi
-    storageClassName: cinder-standard
+    storageClassName: cinder-standard-delete
 repositorySync:
   revision: "c2955ca52832371ebf901e9cfdceff78b6e9d561" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:

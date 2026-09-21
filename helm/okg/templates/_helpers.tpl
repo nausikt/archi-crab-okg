@@ -83,6 +83,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
       name: {{ include "okg.fullname" . }}
       key: deployments-dir
 {{- end }}
+{{- /* archi-crab delta 5: archi connectors resolve relative data/ paths against
+       ARCHI_DATA_ROOT (else cwd). Same value as OKG_ENVIRONMENT_DATA_ROOT by
+       design — both read the one ConfigMap key so they cannot diverge. */}}
+- name: ARCHI_DATA_ROOT
+  valueFrom:
+    configMapKeyRef:
+      name: {{ include "okg.fullname" . }}
+      key: environment-data-root
 - name: OKG_ENVIRONMENT_DATA_ROOT
   valueFrom:
     configMapKeyRef:

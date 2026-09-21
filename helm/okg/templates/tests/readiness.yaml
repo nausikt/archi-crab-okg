@@ -11,6 +11,12 @@ metadata:
 spec:
   restartPolicy: Never
   automountServiceAccountToken: false
+  {{- with .Values.images.pullSecrets }}
+  imagePullSecrets:
+    {{- range . }}
+    - name: {{ . }}
+    {{- end }}
+  {{- end }}
   containers:
     - name: readiness
       image: {{ include "okg.runtimeImage" . | quote }}

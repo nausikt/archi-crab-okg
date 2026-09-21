@@ -7,8 +7,6 @@
 #   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
 #             -> auto-bumped by main.yaml on every green build
 fullnameOverride: archi-crab-okg
-
-
 images:
   okg:
     repository: ghcr.io/nausikt/archi-crab-okg
@@ -29,6 +27,6 @@ runtime:
     size: 20Gi
     storageClassName: cinder-standard-delete
 repositorySync:
-  revision: "c30880dafb596b19e5d7e61da8c2007c497c4733" # <- merge sha (staging: CI bot; prod: Promote PR)
+  revision: "c68e7ea1ebd3bd33510abdf01e18cfe4a77c9cf8" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
-  approvedRevision: "c30880dafb596b19e5d7e61da8c2007c497c4733" # <- MUST equal repositorySync.revision (chart enforces)
+  approvedRevision: "c68e7ea1ebd3bd33510abdf01e18cfe4a77c9cf8" # <- MUST equal repositorySync.revision (chart enforces)

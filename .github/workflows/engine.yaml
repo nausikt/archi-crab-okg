@@ -1,0 +1,274 @@
+# engine — follows the two upstreams (okg `dev`, archi-okg `main`) and keeps ONE rolling
+# pull request, branch engine/upstream, that moves this repo to their newest commits.
+#
+#   resolve -> build image -> resync vendored files -> contract check (+ mechanical fixes)
+#           -> summary -> push branch -> open or update the pull request
+#
+# The pull request's own CI (ci.yaml: lint, vendor-check, okg-validate, e2e) proves the
+# bump BEFORE merge. Nothing here merges, and nothing here touches envs/: staging moves
+# only after main's e2e is green (main.yaml). While the pull request is open, human
+# commits on engine/upstream are kept: the branch is merged forward, never reset.
+#
+# Secrets: GHCR_PAT (pull okg images, push ours) · OKG_PAT (read mitdbg/okg)
+#          STAGING_BUMP_TOKEN (push the branch + open the PR; a PAT so that CI runs on it)
+# Upstream code runs only inside the image build and inside `docker run --network none`
+# containers that see deployments/ and scripts/ read-only. No token is on disk in .git.
+name: engine
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily, 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even when no pin moved
+        type: boolean
+        default: false
+      okg_commit:
+        description: Hold okg at this full sha (empty = newest dev image)
+        type: string
+        default: ""
+      archi_commit:
+        description: Hold archi-okg at this full sha (empty = newest main)
+        type: string
+        default: ""
+  push:
+    branches: [main]
+    paths: [docker/**] # a merged Dockerfile change needs a rebuild: same rolling PR
+permissions: {}
+concurrency: {group: engine, cancel-in-progress: false}
+defaults:
+  run:
+    shell: bash # explicit: GitHub then runs bash with -eo pipefail
+env:
+  BRANCH: engine/upstream
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions: {contents: read, pull-requests: read}
+    steps:
+      - uses: step-security/harden-runner@v2
+        with: {egress-policy: audit}
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+
+      - id: gate
+        name: Hold? (label `hold` on the open pull request stops the daily run)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr="$(gh pr list --head "$BRANCH" --state open --json number,labels,isCrossRepository \
+                  --jq '[.[] | select(.isCrossRepository | not)][0] // empty')"
+          pr="${pr:-null}"
+          go=true
+          if jq -e '.labels[]? | select(.name == "hold")' <<<"$pr" >/dev/null; then
+            echo "::notice::the engine pull request is labelled 'hold' - nothing moved"
+            go=false
+          fi
+          {
+            echo "pr=$(jq -r '.number // empty' <<<"$pr")"
+            echo "go=$go"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: branch
+        name: Branch (open pull request = merge forward, human commits survive; none = start from main)
+        if: steps.gate.outputs.go == 'true'
+        env:
+          PR: ${{ steps.gate.outputs.pr }}
+        run: |
+          git config user.name archi-crab-bot
+          git config user.email archi-crab-bot@users.noreply.github.com
+          if [ -n "$PR" ] && git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
+            git checkout -q -B "$BRANCH" "origin/$BRANCH"
+            if ! git merge -q --no-edit origin/main; then
+              git merge --abort
+              echo "::error::$BRANCH conflicts with main. Merge main into the branch by hand (pull request #$PR), or close the pull request and the next run starts again from main."
+              exit 1
+            fi
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          else
+            # No open pull request: a branch left over from a merged or closed one has no
+            # purpose. Start from main (the closed pull request keeps its own commits).
+            git checkout -q -B "$BRANCH" origin/main
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: ghcr login
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }} # read:packages (mitdbg images) + write:packages (ours)
+        run: echo "$GHCR_PAT" | docker login ghcr.io -u nausikt --password-stdin
+      - uses: docker/setup-buildx-action@v3
+        if: steps.gate.outputs.go == 'true'
+
+      - id: pins
+        name: Resolve the newest upstream pins
+        if: steps.gate.outputs.go == 'true'
+        env:
+          OKG_COMMIT: ${{ inputs.okg_commit }}
+          ARCHI_COMMIT: ${{ inputs.archi_commit }}
+        run: scripts/upstream-resolve.sh
+
+      - id: decide
+        name: Rebuild? (a pin or the Dockerfile moved, or forced)
+        if: steps.gate.outputs.go == 'true'
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          if scripts/engine-lock.sh stale || [ "$FORCE" = "true" ]; then build=true; else build=false; fi
+          {
+            echo "build=$build"
+            echo "base=$(yq -r '.images.okg.ref' versions.lock)"
+            echo "base_user=$(yq -r '.runtime.base_user' versions.lock)"
+            echo "okg_repo=$(yq -r '.upstream.repository' versions.lock)"
+            echo "okg_track=$(yq -r '.upstream.track' versions.lock)"
+            echo "okg=$(yq -r '.upstream.commit' versions.lock)"
+            echo "archi_repo=$(yq -r '.archi.repository' versions.lock)"
+            echo "archi_branch=$(yq -r '.archi.branch' versions.lock)"
+            echo "archi=$(yq -r '.archi.commit' versions.lock)"
+            echo "image=$(yq -r '.runtime.ref' versions.lock)"
+            echo "tag=okg-$(yq -r '.upstream.commit' versions.lock | cut -c1-9)-archi-$(yq -r '.archi.commit' versions.lock | cut -c1-9)"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: img
+        name: Build and push the runtime image
+        if: steps.decide.outputs.build == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/runtime/Dockerfile
+          push: true
+          secrets: |
+            okg_pat=${{ secrets.OKG_PAT }}
+          build-args: |
+            BASE_IMAGE=${{ steps.decide.outputs.base }}
+            BASE_USER=${{ steps.decide.outputs.base_user }}
+            OKG_REPO=${{ steps.decide.outputs.okg_repo }}
+            OKG_BRANCH=${{ steps.decide.outputs.okg_track }}
+            ARCHI_REPO=${{ steps.decide.outputs.archi_repo }}
+            ARCHI_REF=${{ steps.decide.outputs.archi }}
+          tags: |
+            ${{ steps.decide.outputs.image }}:${{ steps.decide.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Pin the new image; resync vendored files from it
+        if: steps.decide.outputs.build == 'true'
+        env:
+          DIGEST: ${{ steps.img.outputs.digest }}
+          IMAGE: ${{ steps.decide.outputs.image }}
+          OKG: ${{ steps.decide.outputs.okg }}
+          ARCHI: ${{ steps.decide.outputs.archi }}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::build produced no digest"; exit 1; }
+          BUILT_FROM="$(git rev-parse HEAD)" yq -i '.runtime.digest = strenv(DIGEST) | .runtime.built_from = strenv(BUILT_FROM)' versions.lock
+          scripts/engine-lock.sh write
+          mkdir -p "$RUNNER_TEMP/report"
+          if IMG="$IMAGE@$DIGEST" CONTAINER_RUNTIME=docker scripts/vendor-sync.sh --apply; then
+            echo "Vendored files resynced from the new image." > "$RUNNER_TEMP/report/vendor.md"
+          else
+            # Keep going: the pull request must exist to show WHY (contract report, section 4).
+            git checkout -q -- deployments
+            echo "**vendor-sync failed**: a path in VENDOR.yaml is gone from the image. Vendored files were left as they are." > "$RUNNER_TEMP/report/vendor.md"
+          fi
+          git add -A versions.lock deployments
+          git commit -q -m "engine: okg $OKG + archi-okg $ARCHI" || echo "nothing to commit"
+
+      - name: Contract check in the new image; apply mechanical fixes
+        if: steps.decide.outputs.build == 'true'
+        env:
+          IMG: ${{ steps.decide.outputs.image }}@${{ steps.img.outputs.digest }}
+        run: |
+          out="$RUNNER_TEMP/report"; mkdir -p "$out/c"; chmod 777 "$out/c"
+          # The container runs as the image's user and owns what it writes in /out. The
+          # report is taken from its stdout, so the file the host appends to is the host's.
+          check() {
+            docker run --rm --network none \
+              -v "$PWD/deployments:/w/deployments:ro" -v "$PWD/scripts:/w/scripts:ro" -v "$out/c:/out" \
+              --entrypoint python "$IMG" /w/scripts/contract-check.py \
+              --deployment /w/deployments/archi-crab --fixes /out/fixes.json > "$out/contract.md"
+          }
+          check || true
+          cp "$out/c/fixes.json" "$out/fixes.json" 2>/dev/null || echo "[]" > "$out/fixes.json"
+          if [ -s "$out/fixes.json" ] && [ "$(jq length "$out/fixes.json")" -gt 0 ]; then
+            python3 scripts/contract-check.py --apply-fixes "$out/fixes.json" --deployment deployments/archi-crab
+            if ! git diff --quiet -- deployments; then
+              git add -A deployments
+              git commit -q -m "converge: registry classes the new engine runs (mechanical, from contract-check)"
+              cp "$out/fixes.json" "$out/applied.json"
+              check || true # the report in the pull request describes the tree AFTER the fixes
+              {
+                echo
+                echo "**Applied in this pull request** (its own commit, review it like any other):"
+                jq -r '.[] | "- `\(.source)`: `class: \(.old)` → `class: \(.new)`"' "$out/applied.json"
+              } >> "$out/contract.md"
+            fi
+          fi
+          test -s "$out/contract.md" || echo "### Contract report: did not run (see the workflow log)" > "$out/contract.md"
+          { echo; cat "$out/vendor.md"; } >> "$out/contract.md"
+
+      - name: Summary (what moved upstream, in what we use)
+        if: steps.decide.outputs.build == 'true'
+        env:
+          OKG_PAT: ${{ secrets.OKG_PAT }}
+          OKG_REPO: ${{ steps.decide.outputs.okg_repo }}
+          OKG_TRACK: ${{ steps.decide.outputs.okg_track }}
+          OKG_TO: ${{ steps.decide.outputs.okg }}
+          ARCHI_REPO: ${{ steps.decide.outputs.archi_repo }}
+          ARCHI_BRANCH: ${{ steps.decide.outputs.archi_branch }}
+          ARCHI_TO: ${{ steps.decide.outputs.archi }}
+        run: |
+          out="$RUNNER_TEMP/report"
+          # "from" is what MAIN is pinned to: the pull request is read against main.
+          okg_from="$(git show origin/main:versions.lock | yq -r '.upstream.commit')"
+          archi_from="$(git show origin/main:versions.lock | yq -r '.archi.commit')"
+          summarize() {
+            git clone -q --filter=blob:none --no-checkout --single-branch --branch "$ARCHI_BRANCH" "$ARCHI_REPO" "$RUNNER_TEMP/archi" || return 1
+            args=(--archi-git "$RUNNER_TEMP/archi" --archi-from "$archi_from" --archi-to "$ARCHI_TO" --archi-track "$ARCHI_BRANCH" --archi-url "$ARCHI_REPO"
+                  --okg-from "$okg_from" --okg-to "$OKG_TO" --okg-track "$OKG_TRACK" --okg-url "$OKG_REPO"
+                  --contract "$out/contract.md" --deployment deployments/archi-crab)
+            # okg is private: the token travels as a header, for the okg repository ONLY, in
+            # this step's environment only (never in .git/config, never in a URL).
+            basic="$(printf 'x-access-token:%s' "$OKG_PAT" | base64 -w0)"; echo "::add-mask::$basic"
+            export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.${OKG_REPO}.extraheader" GIT_CONFIG_VALUE_0="Authorization: Basic $basic"
+            if git clone -q --filter=blob:none --no-checkout --single-branch --branch "$OKG_TRACK" "$OKG_REPO" "$RUNNER_TEMP/okg"; then
+              args+=(--okg-git "$RUNNER_TEMP/okg")
+            else
+              echo "::warning::could not clone okg with OKG_PAT; the okg section of the summary is skipped"
+            fi
+            python3 scripts/upstream-summary.py "${args[@]}" > "$out/body.md"
+          }
+          # The image is already pushed: a failed summary must not cost the pull request.
+          if ! summarize; then
+            echo "::warning::the upstream summary could not be generated; the pull request carries the contract report only"
+            { echo "## Engine bump"; echo; echo "The upstream summary could not be generated (see the engine workflow log)."; echo; cat "$out/contract.md"; } > "$out/body.md"
+          fi
+          cat "$out/body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Push the branch; open or update the pull request
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.STAGING_BUMP_TOKEN }} # a PAT, not GITHUB_TOKEN: CI must run on what it pushes
+          PR: ${{ steps.gate.outputs.pr }}
+          FRESH: ${{ steps.branch.outputs.fresh }}
+          BUILT: ${{ steps.decide.outputs.build }}
+          TITLE: "engine: okg ${{ steps.decide.outputs.okg }} + archi-okg ${{ steps.decide.outputs.archi }}"
+        run: |
+          if git diff --quiet origin/main HEAD; then
+            echo "::notice::up to date: main already runs the newest okg and archi-okg"; exit 0
+          fi
+          if [ -z "$PR" ] && [ "$BUILT" != "true" ]; then
+            echo "::notice::no open pull request and nothing new upstream"; exit 0
+          fi
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"; echo "::add-mask::$basic"
+          ref="HEAD:refs/heads/$BRANCH"; [ "$FRESH" = "true" ] && ref="+$ref" # replace a leftover branch
+          git -c "http.https://github.com/.extraheader=Authorization: Basic $basic" \
+            push -q "https://github.com/${GITHUB_REPOSITORY}.git" "$ref"
+          body="$RUNNER_TEMP/report/body.md"
+          short="$(sed -E 's/([0-9a-f]{9})[0-9a-f]{31}/\1/g' <<<"$TITLE")"
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head "$BRANCH" --title "$short" --body-file "$body"
+            gh pr edit "$BRANCH" --add-label engine || echo "::warning::label 'engine' missing: create it once (gh label create engine)"
+          elif [ -s "$body" ]; then
+            gh pr edit "$PR" --title "$short" --body-file "$body"
+          fi

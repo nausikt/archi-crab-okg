@@ -4,3 +4,6 @@
 /helm/               @nausikt
 /versions.lock       @nausikt
 /deployments/                @nausikt
+# Both run inside workflows that hold the registry and repository tokens.
+/docker/             @nausikt
+/scripts/            @nausikt

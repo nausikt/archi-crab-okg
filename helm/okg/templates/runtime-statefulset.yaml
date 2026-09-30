@@ -211,6 +211,9 @@ spec:
             {{- include "okg.runtimeSubjectEnv" . | nindent 12 }}
             {{- include "okg.extraSecretEnvFor" (list . "bootstrap") | nindent 12 }}
             {{- include "okg.writerDsnEnv" . | nindent 12 }}
+            {{- if .Values.gitCredentials.hosts }}
+            {{- include "okg.gitCredentialsEnv" . | nindent 12 }}
+            {{- end }}
           securityContext:
             {{- include "okg.containerSecurityContext" . | nindent 12 }}
           resources:
@@ -296,6 +299,9 @@ spec:
             {{- include "okg.runtimeSubjectEnv" . | nindent 12 }}
             {{- include "okg.extraSecretEnvFor" (list . "worker") | nindent 12 }}
             {{- include "okg.writerDsnEnv" . | nindent 12 }}
+            {{- if .Values.gitCredentials.hosts }}
+            {{- include "okg.gitCredentialsEnv" . | nindent 12 }}
+            {{- end }}
           securityContext:
             {{- include "okg.containerSecurityContext" . | nindent 12 }}
           startupProbe:

@@ -179,3 +179,29 @@ runAsGroup: 10001
 seccompProfile:
   type: RuntimeDefault
 {{- end }}
+
+{{- /* archi-crab delta 8: git credentials for private code sources. One
+       credential.https://<host>.helper per host via GIT_CONFIG_COUNT/KEY/VALUE
+       (git >= 2.31); the helper prints the token from an env var fed by a
+       secretKeyRef, so the token is never on disk or in the command line.
+       Env names avoid the OKG_ prefix on purpose (main.yaml's chart-path guard
+       requires every OKG_* env here to be passed by the CI wrapper). */}}
+{{- define "okg.gitCredentialsEnv" -}}
+{{- with .Values.gitCredentials.hosts }}
+- name: GIT_TERMINAL_PROMPT
+  value: "0"
+- name: GIT_CONFIG_COUNT
+  value: {{ len . | quote }}
+{{- range $i, $h := . }}
+- name: GIT_CONFIG_KEY_{{ $i }}
+  value: {{ printf "credential.https://%s.helper" $h.host | quote }}
+- name: GIT_CONFIG_VALUE_{{ $i }}
+  value: {{ printf "!f() { test \"$1\" = get || exit 0; echo username=%s; echo \"password=$GIT_CRED_TOKEN_%d\"; }; f" $h.username $i | quote }}
+- name: GIT_CRED_TOKEN_{{ $i }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $.Values.secrets.existingSecret }}
+      key: {{ $h.secretKey }}
+{{- end }}
+{{- end }}
+{{- end }}

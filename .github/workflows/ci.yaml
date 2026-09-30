@@ -32,6 +32,7 @@ jobs:
         run: scripts/engine-lock.sh check
       - run: helm lint helm/okg -f envs/staging/values.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - run: helm lint helm/okg -f envs/prod/values.yaml    --set repositorySync.revision=x --set bootstrap.approvedRevision=x
+      - run: helm lint helm/okg -f envs/staging/values.yaml -f helm/okg/ci/git-credentials-on.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - name: kubeconform (both envs)
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
@@ -42,6 +43,9 @@ jobs:
             | ./kubeconform -strict -summary -schema-location default \
                 -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
           done
+          helm template t helm/okg -f envs/staging/values.yaml -f helm/okg/ci/git-credentials-on.yaml \
+            --set repositorySync.revision=${{ github.sha }} --set bootstrap.approvedRevision=${{ github.sha }} \
+          | ./kubeconform -strict -summary -schema-location default
 
   pins:
     needs: lint

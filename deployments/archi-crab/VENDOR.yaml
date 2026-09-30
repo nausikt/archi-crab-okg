@@ -4,8 +4,8 @@
 #
 #   scripts/vendor-sync.sh --check   re-copies every entry into a scratch dir and
 #                                    diffs it against this tree (CI: every PR)
-#   scripts/vendor-sync.sh --apply   overwrites the entries below (build.yaml does
-#                                    this on every engine-bump PR, so an archi or
+#   scripts/vendor-sync.sh --apply   overwrites the entries below (engine.yaml does
+#                                    this on the engine pull request, so an archi or
 #                                    okg bump ARRIVES with its vocabulary resynced)
 #
 # RULE: never hand-edit a file listed under `entries`. If you must deviate,
@@ -24,7 +24,7 @@ entries:
 # Files WE own. The installer writes first versions of some of them (deployment.yaml,
 # source registry, invariants.yaml); after the first scaffold they are ours and
 # vendor-sync never touches them. Archi bumps that change the bundle's defaults
-# for these show up as a diff in the engine-bump PR body, for a human to judge.
+# for these are listed in the engine pull request's summary, for a human to judge.
 ours:
   # schemas/ + schemas/bridges/: content from archi 6da0d66 (the bundle's own
   # copies). The engine is pinned to 728739e6 for CMSSWReleaseSource, but its

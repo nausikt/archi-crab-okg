@@ -1,11 +1,8 @@
 # envs/prod — overrides only. Namespace: archi-crab (set on the Argo CD Application).
 #
-# Two kinds of pins:
-#   ENGINE    images.okg.digest / postgresql.image.digest
-#             -> human "engine bump" PR (edit here + versions.lock together;
-#                CI reads THIS file to pick its own container images)
-#   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
-#             -> changed ONLY by the Promote PR (it copies engine digests too)
+# This file says what prod RUNS. The pin lines change ONLY through the Promote pull
+# request, which copies staging's image (repository + digest), postgres image and
+# knowledge revision together.
 fullnameOverride: archi-crab-okg
 images:
   okg:

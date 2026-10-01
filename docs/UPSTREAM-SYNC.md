@@ -260,6 +260,47 @@ surprising: merge. That is the whole job.
   (archi-okg repository, adapter class, Promote fix). Their curated-TWiki and private-repo
   parts are not in this series.
 
+## 8. What the first catch-up needed (2026-10-01, okg `0a8e0cd43`)
+
+The first engine pull request was red on `e2e`. Each cause was reproduced locally (okg at
+the pinned commit laid out as in the image, against a Postgres 17 with the same
+extensions) and fixed on the branch:
+
+| Check | Cause | Fix |
+|---|---|---|
+| `e2e-smoke` | okg now refuses to start `mcp-serve` while the read role `okg_mcp` has no login. Migration creates it without one. | The job passes `OKG_MCP_RO_DSN` to `okg runtime bootstrap`, which grants the login and proves it. In the cluster the chart's `mcp-role` init container already does this. |
+| `chart-path`, step `deployment apply` | That step is not in the chart. Under `supervisor=container` okg has nothing to reload, and the command it tried does not exist for containers. | Step removed. The worker acknowledges the desired state by itself at boot. |
+| `chart-path`, readiness | The job ran the worker from the workspace directory. okg compares where the worker runs with the image's layout (`/opt/okg`), so the acknowledgment never matched. | The worker runs from the image's working directory and the probe runs inside it (`docker exec`), as the kubelet does. |
+| `chart-path`, readiness | `nomos.deployment_policy`: the manifest has a `nomos:` block but no posture and no policy for `cmssw_releases`. | `deployment.yaml` declares the posture (below). The contract check now runs the same audit in a second. |
+
+Two things came with it:
+
+- **`chart-path` is a real gate now.** `continue-on-error` is gone: upstream fixed
+  readiness for container runtimes, so a red `chart-path` means a worker that would not
+  become Ready in the cluster.
+- **The chart's bootstrap maps `okg provision` exit 8 to success**, as upstream's chart
+  does since 2026-09-30 (published, with a capacity warning).
+
+### The posture is a gate for the sources to come
+
+`deployment.yaml` declares `deployment_class: public_reference_demo`: public material
+only, no source secrets. That is what the graph holds today, and it is the only class okg
+accepts without Nomos runtime enforcement.
+
+- **Public sources** (more public repositories, public TWiki pages) need one policy per
+  new source class under `nomos.source_policy_defaults.by_source_class`. The contract
+  check names the missing class.
+- **The first non-public source** (CMS-internal TWiki, a private repository, anything read
+  with a token or an SSO cookie) fails the audit. The class then has to become
+  `org_operational_private`, and okg accepts that class only with runtime enforcement on:
+  policies for every source, and lineage. That is a rollout of its own, and the point at
+  which the CMS data-governance question has to be answered. Do not widen the public
+  posture to get such a source through.
+- **The audit only sees `sources:`.** Repositories under `code_repos:` are not checked.
+  A private repository cloned with a token would pass the audit while making
+  `secret_handling: no_secrets` and `public` untrue. The class has to change with the
+  first private repository too, even though nothing will stop you.
+
 ## 7. Next
 
 1. Graph view in the cluster: serve the operator console from the chart (after the catch-up).

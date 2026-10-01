@@ -6,8 +6,8 @@
 # Enabled tiers: [10]. Kinds reviewed against archi 1bb7e703, okg 0a8e0cd4.
 # Not rendered (`python3 scripts/sources.py status` says why):
 #   cms-analysis-docs (enabled: false), cms-crab-docs (enabled: false)
-#   cmscrab-userguide (enabled: false), twiki-sanitized (enabled: false), twiki (enabled: false)
-#   crab-mcp (tier 20 not enabled), dbs-mcp (tier 20 not enabled), htcondor-mcp (tier 20 not enabled)
+#   cmscrab-userguide (enabled: false), twiki (enabled: false), crab-mcp (tier 20 not enabled)
+#   dbs-mcp (tier 20 not enabled), htcondor-mcp (tier 20 not enabled)
 #   rucio-mcp (tier 20 not enabled), site-status-mcp (tier 20 not enabled)
 #   das2go (tier 20 not enabled), dasgoclient (tier 20 not enabled), dbsclient (tier 20 not enabled)
 #   rucio (tier 20 not enabled), cmssw (tier 30 not enabled), cms-sw-github-io (tier 30 not enabled)
@@ -25,6 +25,49 @@ code_repos:
     - {slug: crabclient, url: 'https://github.com/dmwm/CRABClient.git', dir: CRABClient}
 
 sources:
+  # ---- twiki-sanitized -- tier 10 -- kind docs-files -- Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file)
+  # Built by scripts/docs-build.py from a folder of files; committed, and
+  # delivered to the pod by repositorySync with the rest of the deployment.
+  # Node ids are documentation_page:<sha256(url)[:16]>: a page keeps its id
+  # as long as its URL does. No reference params (releases_map_path, ...):
+  # a configured reference file that is missing at run time raises, and
+  # cmssw-releases writes its map during the same bootstrap.
+  twiki_sanitized:
+    module: archi.sources.docs
+    class: DocumentationAdapter
+    ownership_id: archi-crab.twiki-sanitized
+    admission_policy:
+      producer_id: archi-crab.twiki-sanitized
+      producer_kind: source
+      trust_label: implicit_legacy_trusted
+      admission_mode: fast_track
+      authority_scope: {source_family: archi-crab, source_name: twiki_sanitized}
+      output_signature:
+        nodes:
+          - {subtype: documentation_page}
+          - {subtype: document_chunk}
+        edges:
+          - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+      output_scope_summary:
+        summary: pages of twiki-sanitized (records.json built from files) and their text chunks
+        nodes: [documentation_page, document_chunk]
+        edges: [documentation_page contains document_chunk]
+    source_class: discovery_crawl
+    record_identity_kind: scoped_locator
+    record_identity_fields: [url]
+    source_revision_kind: content_hash
+    deletion_semantics: missing_from_completed_scope
+    publication_mode: published_generation
+    required_for_baseline: false
+    params:
+      source_name: twiki_sanitized
+      required: true
+      records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/twiki-sanitized/records.json
+    sync:
+      triggers: [manual, reconcile]
+      default_event_mode: scope_complete
+      reconcile_mode: scope_complete
+
   # ---- cmssw-releases -- tier 10 -- kind cmssw-releases -- CMSSW release catalog (cms-bot releases.map, public)
   # The ADAPTER, not the bare reader (a bare reader crashes okg's runner:
   # 'ConnectorRun' has no 'next_cursor'). reference_catalog admits only

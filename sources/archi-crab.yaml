@@ -119,11 +119,10 @@ sources:
     tier: 10
     group: 10_sanitized_twikis
     kind: docs-files
-    # No `sensitivity:` yet, on purpose: lint asks for it when this is enabled.
-    # `public` only if every page is from a public web (docs-build --webs CMSPublic);
-    # pages from the CMS web are CMS-internal however sanitized (docs/ADDING-SOURCES.md 3).
+    # Built with `docs-build.py --webs CMSPublic`: every page is from a public web.
+    # CMS-web pages go into a separate, internal source once the posture allows it.
+    sensitivity: public
     data: data/docs/twiki-sanitized   # records.json, built by scripts/docs-build.py
-    enabled: false           # until records.json is built and committed (docs/SOURCES.md §3)
     about: Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file)
 
   twiki:

@@ -19,22 +19,16 @@ invariants:
       SELECT r.subtype, coalesce(c.n, 0) AS live_count
         FROM required r LEFT JOIN counts c USING (subtype)
        WHERE coalesce(c.n, 0) = 0
-# A floor may only name subtypes a RENDERED source produces (`scripts/sources.py
-# lint` enforces it): a floor nobody can satisfy is a permanent error after every
-# publish. No documentation source is rendered yet, so the documentation floor is
-# parked here. Paste it back under `invariants:` in the same PR that enables the
-# first docs-files or twiki-raw source (lint warns until you do):
-#
-#  - name: archi_crab_docs_floor
-#    severity: error
-#    scope: cross
-#    timeout_ms: 5000
-#    description: >-
-#      The documentation sources (twiki-sanitized, twiki, ...) must have at least
-#      one live documentation_page. Its own floor, so a docs failure names itself.
-#    sql: |
-#      WITH required(subtype) AS (VALUES ('documentation_page')),
-#      counts AS (SELECT subtype, count(*) AS n FROM okg.v_nodes GROUP BY subtype)
-#      SELECT r.subtype, coalesce(c.n, 0) AS live_count
-#        FROM required r LEFT JOIN counts c USING (subtype)
-#       WHERE coalesce(c.n, 0) = 0
+  - name: archi_crab_docs_floor
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      The documentation sources (twiki-sanitized, ...) must have at least one live
+      documentation_page. Its own floor, so a docs failure names itself.
+    sql: |
+      WITH required(subtype) AS (VALUES ('documentation_page')),
+      counts AS (SELECT subtype, count(*) AS n FROM okg.v_nodes GROUP BY subtype)
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0

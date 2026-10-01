@@ -1,6 +1,9 @@
-# ci — PRs and pushes. Fail-fast lint (zero secrets, fork-safe) then the real
-# knowledge check: claim -> load -> lint on the EXACT engine pinned in
-# envs/staging/values.yaml (now ghcr.io/nausikt/archi-crab-okg = okg + archi).
+# ci — PRs and pushes. Fail-fast lint (zero secrets, fork-safe), then the knowledge
+# checks on the EXACT engine pinned in versions.lock (runtime.ref@runtime.digest):
+#   vendor-check  vendored files equal the image's
+#   okg-validate  claim -> load -> lint, then the contract check (registry classes and
+#                 params, bundle drift, okg CLI, vendored paths)
+#   e2e           full ingest + smoke (e2e.yaml), on pull requests that touch what it proves
 name: ci
 on:
   pull_request:
@@ -15,6 +18,7 @@ jobs:
       - uses: step-security/harden-runner@v2
         with: {egress-policy: audit}
       - uses: actions/checkout@v7
+        with: {persist-credentials: false} # the workspace is mounted into containers that run upstream code
       - uses: azure/setup-helm@v5
       - name: Placeholder guards
         run: |
@@ -23,7 +27,9 @@ jobs:
           test -f deployments/archi-crab/extractors.yaml || { echo "::error::deployments/archi-crab/extractors.yaml missing (vendor-sync --apply)"; exit 1; }
           test -f deployments/archi-crab/schemas/bridges/extraction_to_git_files.yaml || { echo "::error::code-graph bridge missing (vendor-sync --apply)"; exit 1; }
           test -f deployments/archi-crab/VENDOR.yaml || { echo "::error::deployments/archi-crab/VENDOR.yaml missing"; exit 1; }
-      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml deployments envs helm/okg/values.yaml
+      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml deployments envs helm/okg/values.yaml versions.lock
+      - name: Engine pins match the image they claim (no pin moved without a rebuild)
+        run: scripts/engine-lock.sh check
       - run: helm lint helm/okg -f envs/staging/values.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - run: helm lint helm/okg -f envs/prod/values.yaml    --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - name: kubeconform (both envs)
@@ -46,10 +52,13 @@ jobs:
       pg: ${{ steps.p.outputs.pg }}
     steps:
       - uses: actions/checkout@v7
+        with: {persist-credentials: false} # the workspace is mounted into containers that run upstream code
       - id: p
         run: |
-          echo "okg=$(yq '.images.okg.repository + "@" + .images.okg.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
-          echo "pg=$(yq '.postgresql.image.repository + "@" + .postgresql.image.digest' envs/staging/values.yaml)" >> "$GITHUB_OUTPUT"
+          {
+            echo "okg=$(yq -r '.runtime.ref + "@" + .runtime.digest' versions.lock)"
+            echo "pg=$(yq -r '.images["okg-postgres"].ref' versions.lock)"
+          } >> "$GITHUB_OUTPUT"
 
   vendor-check:
     # Vendored vocabulary must be byte-identical to the PINNED image's sources
@@ -61,6 +70,7 @@ jobs:
     permissions: {contents: read}
     steps:
       - uses: actions/checkout@v7
+        with: {persist-credentials: false} # the workspace is mounted into containers that run upstream code
       - uses: docker/login-action@v3
         with: {registry: ghcr.io, username: nausikt, password: "${{ secrets.GHCR_PAT }}"}
       - run: IMG="${{ needs.pins.outputs.okg }}" CONTAINER_RUNTIME=docker scripts/vendor-sync.sh --check
@@ -90,6 +100,7 @@ jobs:
       OKG_REPO_ROOT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v7
+        with: {persist-credentials: false} # the workspace is mounted into containers that run upstream code
       - name: ghcr login (CLI; no additional action)
         run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u nausikt --password-stdin
       - name: Postgres with the chart's exact args
@@ -128,5 +139,43 @@ jobs:
       - run: |
           okg deployment lint archi-crab --json | tee lint.json
           python3 -c "import json,sys; sys.exit(0 if json.load(open('lint.json'))['ok'] else 1)"
+      - name: Contract check (registry, bundle, okg CLI, vendored paths) inside the pinned image
+        run: |
+          out="$RUNNER_TEMP/contract"; mkdir -p "$out"; chmod 777 "$out"
+          rc=0
+          docker run --rm --network none \
+            -v "$PWD/deployments:/w/deployments:ro" -v "$PWD/scripts:/w/scripts:ro" -v "$out:/out" \
+            --entrypoint python "$OKG_IMG" /w/scripts/contract-check.py \
+            --deployment /w/deployments/archi-crab --markdown /out/contract.md || rc=$?
+          cat "$out/contract.md" >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$rc"
       - if: always()
         run: docker logs pg --tail 40
+
+  changes:
+    # e2e costs runner minutes: run it only when the pull request touches what it proves.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    outputs:
+      e2e: ${{ steps.f.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - id: f
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --name-only "$BASE"...HEAD | grep -qE '^(deployments/|helm/|scripts/|docker/|versions\.lock$|\.github/workflows/(ci|e2e)\.yaml$)'; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "e2e=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  e2e:
+    needs: [lint, changes]
+    if: needs.changes.outputs.e2e == 'true'
+    permissions: {contents: read}
+    uses: ./.github/workflows/e2e.yaml
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}

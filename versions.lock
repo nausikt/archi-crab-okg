@@ -1,26 +1,39 @@
-# Engine parity contract, v0.7.0 — THREE pins, ONE image.
-#   images.okg        upstream okg base (digest)      — engine bump = edit here
-#   archi.commit      archi checkout baked on top     — archi bump  = edit here
-#   runtime.digest    OUR derived image               — written by build.yaml's PR, never by hand
-# Any change to the first two -> build.yaml -> engine-bump PR -> Runbook Phase B on that branch.
-upstream:
+# versions.lock — the ONE file that says which engine this repo is validated with.
+#
+#   WRITTEN BY  the `engine` workflow (daily), on branch engine/upstream. By hand you
+#               edit only WHAT IS FOLLOWED: upstream.track, archi.repository, archi.branch.
+#   READ BY     ci.yaml + e2e.yaml  which image a PR is tested with   (runtime.ref@digest)
+#               main.yaml           what gets pinned into envs/staging after a green e2e
+#               engine.yaml         build args for docker/runtime/Dockerfile
+#
+# envs/staging/values.yaml is NOT an input any more: it is what staging RUNS, written by
+# the bot in one commit (image + knowledge revision together) after main's e2e is green.
+#
+# Two upstreams are followed. Everything else is derived from them.
+upstream: # okg — the engine (private repository, private images)
   repository: https://github.com/mitdbg/okg
+  image: ghcr.io/mitdbg/okg
+  postgres_image: ghcr.io/mitdbg/okg-postgres
+  # The branch AND the image tag that is followed. okg publishes <image>:dev and
+  # <image>:sha-<commit> for the tip of `dev` after every merge.
+  track: dev
+  # Read from the image (label org.opencontainers.image.revision), never chosen by hand.
   commit: bed964f3fb89905e9d36abe46bdfbd8df5757132
 images:
   okg:
     ref: ghcr.io/mitdbg/okg@sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705
   okg-postgres:
     ref: ghcr.io/mitdbg/okg-postgres@sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616
-archi:
-  repository: https://github.com/archi-physics/archi
-  branch: archi_v3_quickstart
-  commit: "728739e6" # git ls-remote https://github.com/archi-physics/archi refs/heads/archi_v3_quickstart
-runtime:
+archi: # archi-okg — the HEP distribution (public): connectors, bundle, schemas, skills
+  repository: https://github.com/archi-physics/archi-okg
+  branch: main # archi-okg has no `dev`; merges land on main
+  commit: 728739e64763aa897b2f264259a3d9a6c46e9bd8
+runtime: # OUR image = okg base + archi. Every line below is written by engine.yaml.
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: sha256:5922753c73f2e3873522260aa7d8c0458dd8adbdf6216fc6e13d7745a32d362c # <- build.yaml
-  built_from: b90d1c98cf4e5a1dcee24905ae69628a3e737085 # <- build.yaml (repo sha)
-  base_user: "10001:10001" # podman inspect <images.okg.ref> | jq -r '.[0].Config.User'  (use "0" if empty)
-validated:
-  local_e2e: null
-  staging: null
-  prod: null
+  digest: sha256:5922753c73f2e3873522260aa7d8c0458dd8adbdf6216fc6e13d7745a32d362c
+  built_from: b90d1c98cf4e5a1dcee24905ae69628a3e737085
+  base_user: "10001:10001" # the base image's USER, read from its config
+  # Fingerprints of what `digest` was built from (scripts/engine-lock.sh). CI fails when
+  # `inputs` no longer matches the pins above: someone moved a pin without rebuilding.
+  inputs: bb7ce6bf9a39b81846b80d7f70401a9e00bcb4b847fc168326450f6ca27a7b76
+  dockerfile: 9c1e5f81ff793c4e1fff2c674528628541cd18993d7f80ca3542ffe947122f36

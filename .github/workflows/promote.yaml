@@ -15,7 +15,10 @@ jobs:
       - name: Copy pins staging -> prod, then drift-guard
         run: |
           set -e
-          for k in '.images.okg.digest' '.postgresql.image.digest' \
+          # The repository travels WITH the digest: a digest of ghcr.io/nausikt/archi-crab-okg
+          # does not exist under ghcr.io/mitdbg/okg.
+          for k in '.images.okg.repository' '.images.okg.digest' \
+                   '.postgresql.image.repository' '.postgresql.image.digest' \
                    '.repositorySync.revision' '.bootstrap.approvedRevision'; do
             v=$(yq "$k" envs/staging/values.yaml); yq -i "$k = \"$v\"" envs/prod/values.yaml
           done

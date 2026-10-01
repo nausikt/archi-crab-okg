@@ -1,11 +1,11 @@
 # envs/staging — overrides only. Namespace: archi-crab-staging (set on the Argo CD Application).
 #
-# Two kinds of pins:
-#   ENGINE    images.okg.digest / postgresql.image.digest
-#             -> human "engine bump" PR (edit here + versions.lock together;
-#                CI reads THIS file to pick its own container images)
-#   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision
-#             -> auto-bumped by main.yaml on every green build
+# This file says what staging RUNS. The four pin lines are written by the bot, never by
+# hand, in ONE commit after main's e2e is green (main.yaml, "staging: pin <sha>"):
+#   ENGINE    images.okg.* / postgresql.image.*      <- copied from versions.lock
+#   KNOWLEDGE repositorySync.revision / bootstrap.approvedRevision   <- the tested sha
+# To change the engine, merge the `engine` workflow's pull request; CI reads
+# versions.lock (not this file) to pick the image it tests.
 fullnameOverride: archi-crab-okg-staging
 images:
   okg:

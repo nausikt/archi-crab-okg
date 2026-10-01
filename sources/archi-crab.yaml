@@ -95,24 +95,26 @@ sources:
     tier: 10
     group: gitlab
     kind: git
-    git: https://gitlab.cern.ch/FILL-ME/cms-analysis-docs.git
-    enabled: false           # GitLab path unknown here; fill it, probe, then drop this line
+    git: https://gitlab.cern.ch/cms-analysis/docs.git
+    # 2026-10-01: anonymous ls-remote asks for a login -> not Public (or wrong path).
+    # Needs the token wiring + the governance decision (docs/ADDING-SOURCES.md example 4).
+    enabled: false
     about: CMS analysis documentation (docs site sources)
 
   cms-crab-docs:
     tier: 10
     group: gitlab
     kind: git
-    git: https://gitlab.cern.ch/FILL-ME/cms-crab-docs.git
-    enabled: false           # GitLab path unknown here
+    git: https://gitlab.cern.ch/crab3/cms-crab-docs.git
+    auth: none               # project visibility Public: cloned WITHOUT a token (probe proves it)
     about: CRAB documentation site sources
 
   cmscrab-userguide:
     tier: 10
     group: gitlab
     kind: git
-    git: https://gitlab.cern.ch/FILL-ME/cmscrab-userguide.git
-    enabled: false           # GitLab path unknown here
+    git: https://gitlab.cern.ch/crab3/cmscrab-userguide.git
+    auth: none               # project visibility Public: cloned WITHOUT a token (probe proves it)
     about: CRAB user guide
 
   twiki-sanitized:

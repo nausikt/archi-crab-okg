@@ -71,10 +71,21 @@ REPO = _HERE.resolve().parent.parent if _HERE else Path(os.environ.get("OKG_REPO
 ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
 PLACEHOLDER_RE = re.compile(r"FILL-ME|REPLACE_ME|TODO|<[^>]*>")
 SOURCE_KEYS = {"tier", "group", "kind", "git", "branch", "dir", "about", "enabled", "scope", "data", "max_files",
-               "sensitivity", "auth"}
+               "sensitivity", "auth", "params"}
 # The kind NAMES are the contract between the list and kinds.yaml; what each kind
 # renders to lives in kinds.yaml. A new kind = a new name here + its template there.
 KIND_REQUIRED = {"git": ("git",), "docs-files": ("data",), "twiki-raw": ("data",), "cmssw-releases": ()}
+
+
+def kind_names(ctx):
+    """Kinds are whatever sources/kinds.yaml defines (a new connector = a new kind
+    there, no code change); the built-in four when kinds.yaml is not at hand."""
+    return list(((ctx.kinds or {}).get("kinds") or {}) or KIND_REQUIRED)
+
+
+def kind_requires(ctx, name):
+    k = ((ctx.kinds or {}).get("kinds") or {}).get(name) or {}
+    return tuple(k.get("requires") or KIND_REQUIRED.get(name, ()))
 NODES_PER_FILE = 40  # staging: crabserver 414 files -> 15,572 code-structure nodes
 LOGIN_RE = re.compile(r"auth\.cern\.ch/auth/realms|Sign in with your CERN|CERN Single Sign-On|login\.cern\.ch", re.I)
 EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
@@ -253,7 +264,12 @@ def render(ctx):
             name = env["name"]
             if name in sources:
                 raise RenderError("%s: registry key %r collides with another source" % (sid, name))
-            sources[name] = _subst(copy.deepcopy(k["entry"]), env)
+            entry = _subst(copy.deepcopy(k["entry"]), env)
+            if s.get("params"):
+                # per-source parameters the kind leaves open (e.g. which OAI sets, which
+                # categories); `contract` binds them to the connector's signature
+                entry["params"] = dict(entry.get("params") or {}, **s["params"])
+            sources[name] = entry
             meta.append(("source", sid))
         else:
             raise RenderError("%s: kind %r has unknown render %r" % (sid, s.get("kind"), k.get("render")))
@@ -680,10 +696,12 @@ def cmd_lint(ctx, args):
         if s.get("max_files") is not None and not (isinstance(s["max_files"], int) and s["max_files"] > 0):
             f.error("%s: max_files must be a positive integer" % sid)
         kind = s.get("kind")
-        if kind not in KIND_REQUIRED:
-            f.error("%s: kind must be one of %s" % (sid, ", ".join(KIND_REQUIRED)))
+        if kind not in kind_names(ctx):
+            f.error("%s: kind must be one of %s (sources/kinds.yaml)" % (sid, ", ".join(kind_names(ctx))))
             continue
-        for req in KIND_REQUIRED[kind]:
+        if s.get("params") is not None and (not isinstance(s["params"], dict) or kind == "git"):
+            f.error("%s: params must be a mapping, on a kind rendered as a source (not git)" % sid)
+        for req in kind_requires(ctx, kind):
             if not s.get(req):
                 f.error("%s: kind %s needs `%s`" % (sid, kind, req))
         if "scope" in s:
@@ -729,14 +747,14 @@ def cmd_lint(ctx, args):
             if s.get("scope") and ctx.kinds and not (ctx.kinds["kinds"]["git"].get("scope_fields")):
                 f.error("%s: has `scope` but scoping is not verified for the pinned okg "
                         "(sources/kinds.yaml git.scope_fields is null) -- keep it disabled (docs/SOURCES.md §5)" % sid)
-        elif kind == "docs-files":
+        elif (ctx.kinds and (ctx.kind(sid).get("data_check") == "records-json")) or kind == "docs-files":
             urls = check_records_json(ctx.dep_dir / s["data"] / "records.json", f, sid)
             for other, ou in doc_urls.items():
                 both = urls & ou
                 if both:
                     f.error("%s and %s share %d url(s), e.g. %s: same node id, two owners" % (sid, other, len(both), sorted(both)[0]))
             doc_urls[sid] = urls
-        elif kind == "twiki-raw":
+        elif (ctx.kinds and (ctx.kind(sid).get("data_check") == "twiki-tree")) or kind == "twiki-raw":
             check_twiki_tree(ctx.dep_dir / s["data"], f, sid)
 
     # ---- credentials wired where the clones happen ----
@@ -1059,13 +1077,18 @@ def cmd_probe(ctx, args):
             elif kind == "cmssw-releases":
                 res = probe_catalog(ctx, sid) if ctx.kinds else ("skip", "needs sources/kinds.yaml (pass --repo)", {})
             else:
-                f = Findings()
-                data = ctx.dep_dir / ctx.sources[sid]["data"]
-                if kind == "docs-files":
-                    check_records_json(data / "records.json", f, sid)
+                check = ((ctx.kinds or {}).get("kinds", {}).get(kind) or {}).get("data_check") or (
+                    "records-json" if kind == "docs-files" else "twiki-tree" if kind == "twiki-raw" else None)
+                if check and ctx.sources[sid].get("data"):
+                    f = Findings()
+                    data = ctx.dep_dir / ctx.sources[sid]["data"]
+                    if check == "records-json":
+                        check_records_json(data / "records.json", f, sid)
+                    else:
+                        check_twiki_tree(data, f, sid)
+                    res = ("FAIL" if f.errors else "ok"), "; ".join(f.errors + f.warnings + f.notes), {}
                 else:
-                    check_twiki_tree(data, f, sid)
-                res = ("FAIL" if f.errors else "ok"), "; ".join(f.errors + f.warnings + f.notes), {}
+                    res = "skip", "no network probe for kind %s (contract binds it; the e2e ingests it)" % kind, {}
         except subprocess.TimeoutExpired as exc:
             res = "FAIL", "timed out: %s" % exc, {}
         rows.append((sid, str(ctx.sources[sid].get("tier")), res[0], res[1]))

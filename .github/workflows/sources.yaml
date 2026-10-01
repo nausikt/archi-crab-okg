@@ -1,0 +1,107 @@
+# sources — gates for the source list (docs/SOURCES.md). Its own workflow so the
+# engine catch-up work (ci.yaml, main.yaml, build.yaml) and the source work never
+# edit the same file. Make sources-lint and sources-contract REQUIRED checks
+# (Settings -> Branches -> main), next to ci's lint and okg-validate.
+#
+#   sources-lint      offline, zero secrets: list shape, credentials wired, data
+#                     present and sane, registry == render, invariants covered,
+#                     and nothing PUBLISHED (the revisions staging and prod ingest)
+#                     vanished or was renamed -- okg never retracts those facts, so
+#                     that is a rebuild. List a planned removal under `retired:` in
+#                     sources/archi-crab.yaml (durable); the PR label
+#                     `rebuild-planned` downgrades every identity error for one PR.
+#   sources-probe     network: every rendered source is reachable with CI's
+#                     credentials, on the declared branch, within its file budget.
+#                     gitlab.cern.ch only when the GITLAB_TOKEN secret exists
+#                     (skipped otherwise; the in-pod probe is the authoritative one).
+#                     Weekly and strict too: a token that expired, a project that
+#                     moved, a repo that outgrew its budget fail here, not at the
+#                     next reconcile that would block every source's publish.
+#   sources-contract  inside the PINNED image: every kind's class imports, is an
+#                     adapter, binds its params, and (data kinds) ingests a one-page
+#                     fixture emitting only what its output_signature declares
+#
+# Manual run: Actions -> sources -> Run workflow, `tier: 20` probes a tier that is
+# not enabled yet (do this before widening rollout.enabled_tiers).
+name: sources
+on:
+  pull_request:
+    # labeled/unlabeled: adding `rebuild-planned` re-runs the lint with it
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push: {branches: [main]}
+  schedule:
+    - cron: "17 5 * * 1"   # Mondays 05:17 UTC
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: probe this tier instead of the rendered sources (e.g. 20)
+        required: false
+        default: ""
+permissions: {}
+
+jobs:
+  sources-lint:
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    steps:
+      - uses: step-security/harden-runner@v2
+        with: {egress-policy: audit}
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0}   # --base published reads the pinned revisions' registry
+      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml sources deployments/archi-crab
+      - name: sources lint (identity checked against what staging and prod ingest)
+        env:
+          REBUILD: ${{ contains(github.event.pull_request.labels.*.name, 'rebuild-planned') }}
+        run: |
+          FLAG=; [ "$REBUILD" = true ] && FLAG=--allow-identity-change
+          python3 scripts/sources.py lint --base published $FLAG
+      - run: python3 scripts/sources.py status
+
+  sources-probe:
+    needs: sources-lint
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v7
+      - run: pip install --quiet pyyaml
+      - name: probe (same credential helper as the chart, when the secret exists)
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          TIER: ${{ github.event.inputs.tier }}
+          STRICT: ${{ github.event_name == 'schedule' && '--strict' || '' }}
+        run: |
+          if [ -n "$GITLAB_TOKEN" ]; then
+            export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=credential.https://gitlab.cern.ch.helper
+            export GIT_CONFIG_VALUE_0='!f() { test "$1" = get || exit 0; echo username=oauth2; echo "password=$GITLAB_TOKEN"; }; f'
+          fi
+          python3 scripts/sources.py probe ${TIER:+--tier "$TIER"} $STRICT --json probe.json
+
+  sources-contract:
+    needs: sources-lint
+    # the pinned image is private: same-repo events only (as ci.yaml okg-validate)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v7
+      - name: ghcr login (CLI; no additional action)
+        env: {GHCR_PAT: "${{ secrets.GHCR_PAT }}"}
+        run: printf '%s' "$GHCR_PAT" | docker login ghcr.io -u nausikt --password-stdin
+      - name: contract inside the image this commit pins (versions.lock; envs/staging as fallback)
+        run: |
+          # versions.lock names the image CI tests (on an engine PR: the NEW one);
+          # envs/staging lags it until main's e2e passes.
+          IMG="$(yq -r '.runtime.ref + "@" + .runtime.digest' versions.lock)"
+          if [ "$(yq -r 'has("runtime")' versions.lock)" != true ]; then
+            IMG="$(yq -r '.images.okg.repository + "@" + .images.okg.digest' envs/staging/values.yaml)"
+            echo "::warning::versions.lock has no runtime: block; testing the STAGING image $IMG, not the one this commit pins"
+          fi
+          case "$IMG" in *@sha256:*) ;; *) echo "::error::no image digest to test ($IMG)"; exit 1 ;; esac
+          echo "image: $IMG"; echo "IMG=$IMG" >> "$GITHUB_ENV"
+          docker run --rm -v "$GITHUB_WORKSPACE:/w:ro" -e GITHUB_ACTIONS --entrypoint python "$IMG" \
+            /w/scripts/sources.py --repo /w contract
+      - name: engine inventory (modules, templates, Nomos vocabulary) -> job summary
+        if: always() && env.IMG != ''
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/w:ro" --entrypoint python "$IMG" \
+            /w/scripts/sources.py --repo /w inventory >> "$GITHUB_STEP_SUMMARY" || true

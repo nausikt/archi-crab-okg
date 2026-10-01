@@ -302,7 +302,11 @@ accepts without Nomos runtime enforcement.
 - **The audit only sees `sources:`.** Repositories under `code_repos:` are not checked.
   A private repository cloned with a token would pass the audit while making
   `secret_handling: no_secrets` and `public` untrue. The class has to change with the
-  first private repository too, even though nothing will stop you.
+  first private repository too. okg will not stop you; `scripts/sources.py lint` does:
+  under this posture it refuses any enabled source whose sensitivity is not in
+  `allowed_source_sensitivities`, and any credential the deployment holds
+  (`gitCredentials`, or a credential helper in the e2e jobs) while
+  `secret_handling: no_secrets`, code_repos included ([SOURCES.md](SOURCES.md) §4).
 
 ### Rolling out onto an existing database (chart delta 9)
 

@@ -21,11 +21,15 @@ wrote against something UPSTREAM owns:
                policy: the audit each readiness probe runs, here in one second instead
                of as a worker that never becomes Ready
 
-Applying the mechanical fixes (on the host, no imports needed):
+Applying the mechanical fixes (on the host):
 
     python3 scripts/contract-check.py --apply-fixes fixes.json --deployment deployments/archi-crab
 
-Standard library + PyYAML (present in the image; not needed for --apply-fixes).
+With sources/kinds.yaml present the registry is generated, so a rename goes into the
+kind and the registry is re-rendered (scripts/sources.py: needs PyYAML on the host).
+Without it, the old in-place registry edit (standard library only).
+
+Standard library + PyYAML (present in the image).
 """
 from __future__ import annotations
 
@@ -271,8 +275,32 @@ def check_policy(report: Report, deployment: Path, registry: dict) -> None:
 
 
 def apply_fixes(fixes_path: Path, deployment: Path) -> int:
-    """Rewrite `class:` lines in source_registry.yaml. Text edit on purpose: comments stay."""
+    """Rewrite `class:` lines in source_registry.yaml. Text edit on purpose: comments stay.
+
+    When the registry is GENERATED (sources/kinds.yaml exists, docs/SOURCES.md), the
+    class lives in the kind template: rename it there and re-render, through
+    scripts/sources.py rename-class. Editing the generated file alone would make
+    sources-lint fail (registry != render) and be undone by the next render."""
     fixes = json.loads(fixes_path.read_text())
+    repo = deployment.resolve().parent.parent
+    if (repo / "sources" / "kinds.yaml").is_file():
+        ident = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+        done: set[tuple[str, str]] = set()
+        for fix in fixes if isinstance(fixes, list) else []:
+            if not (isinstance(fix, dict) and all(isinstance(fix.get(k), str) for k in ("old", "new"))
+                    and ident.fullmatch(fix["old"]) and ident.fullmatch(fix["new"])):
+                print(f"refused a malformed fix: {str(fix)[:120]!r}", file=sys.stderr)
+                continue
+            if (fix["old"], fix["new"]) in done:
+                continue
+            done.add((fix["old"], fix["new"]))
+            proc = subprocess.run([sys.executable, str(repo / "scripts" / "sources.py"), "--repo", str(repo),
+                                   "rename-class", fix["old"], fix["new"]])
+            if proc.returncode:
+                # skip it, as the in-place path does: the engine PR must still open, and its
+                # contract report (and sources-lint) say what is left to do
+                print(f"skip {fix['old']} -> {fix['new']}: rename-class failed (exit {proc.returncode})", file=sys.stderr)
+        return 0
     registry = deployment / "source_registry.yaml"
     lines = registry.read_text().splitlines(keepends=True)
     applied = 0

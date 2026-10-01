@@ -8,7 +8,7 @@
 
 name: archi-crab
 description: >-
-  CRAB knowledge graph — CRABServer + CRABClient code graphs and the public CMSSW release catalog. Minimal-workable MVP; every addition is a PR.
+  CRAB knowledge graph — CRABServer + CRABClient code graphs, the public CMSSW release catalog, and public CRAB TWiki pages. Every addition is a PR.
 source_registry: source_registry.yaml
 schema_dir: schemas
 postgres:
@@ -79,6 +79,17 @@ nomos:
     by_source_class:
       # cmssw_releases: the public releases.map, downloaded at ingest and cached. It is
       # not a live-overlay or mutable-API source, which is what okg means by a live call.
+      # twiki-sanitized: public CMSPublic pages, converted once and committed under
+      # data/docs/; read from the repository checkout at ingest, no network, no secret.
+      discovery_crawl:
+        sensitivity: public
+        data_classification: public
+        credential_ref_policy: none
+        live_call_allowed: false
+        exportability: public
+        retention: normal
+        provenance: remote_api  # CONFIRM against `sources.py inventory` (Nomos vocabulary); okg's audit runs on the PR
+        privacy_obligations: [audit]
       reference_catalog:
         sensitivity: public
         data_classification: public
@@ -103,8 +114,9 @@ search:
   default_profile: content
   profiles:
     content:
-      description: Code files, symbols, doc chunks and CMSSW releases — what a CRAB question is asked about.
+      description: Code files, symbols, TWiki pages, doc chunks and CMSSW releases — what a CRAB question is asked about.
       subtypes:
+        - documentation_page
         - document_chunk
         - source_file
         - code_symbol

@@ -37,17 +37,28 @@ for ((i=0; i<n; i++)); do
   dest="$(yq -r ".entries[$i].dest" "$MAN")"
   src="$(yq -r ".entries[$i].src" "$MAN")"
   type="$(yq -r ".entries[$i].type" "$MAN")"
+  # root: repo -> dest is relative to the repo root (reference copies under vendor/),
+  # default -> relative to deployments/archi-crab. optional: true -> --check only
+  # warns while the dest does not exist yet (the first --apply creates it).
+  base="$DEP"; [[ "$(yq -r ".entries[$i].root // \"deployment\"" "$MAN")" == repo ]] && base="$REPO"
+  # --apply rm -rf's "$base/$dest": refuse anything that could reach outside it,
+  # and keep repo-rooted entries inside vendor/.
+  case "$dest" in ""|.|./*|/*|*..*) echo "VENDOR.yaml entry $i: refusing dest '$dest'" >&2; exit 2 ;; esac
+  [[ "$base" == "$REPO" && "$dest" != vendor/?* ]] && { echo "VENDOR.yaml entry $i: root: repo dest must be under vendor/ (got '$dest')" >&2; exit 2; }
   if (( ! HAS_ARCHI )) && [[ "$src" == /opt/archi/* ]]; then
     echo "skip   $dest  (archi entry; no archi in pinned engine)"; skipped=$((skipped+1)); continue
   fi
-  out="$SCRATCH/$dest"; mkdir -p "$(dirname "$out")"
+  if [[ "$MODE" == --check && "$(yq -r ".entries[$i].optional // false" "$MAN")" == true && ! -e "$base/$dest" ]]; then
+    echo "::warning::new    $dest  (optional, not vendored yet: run --apply to create it)"; continue
+  fi
+  out="$SCRATCH/e$i"
   if [[ "$type" == dir ]]; then
     # -h dereferences: the cern-team bundle ships skills/ as symlinks into the
     # archi repo, and `cp` from a container refuses to copy a dangling link.
     mkdir -p "$out"
     "$RT" run --rm --entrypoint tar "$IMG" -ch -C "$src" . | tar -x -C "$out"
   else "$RT" cp "$CID:$src" "$out"; fi
-  if ! diff -ruN --exclude='.gitkeep' "$DEP/$dest" "$out" >"$SCRATCH/.diff.$i" 2>&1; then
+  if ! diff -ruN --exclude='.gitkeep' "$base/$dest" "$out" >"$SCRATCH/.diff.$i" 2>&1; then
     drift=1; echo "DRIFT  $dest  <-  $src"
     [[ "$MODE" == --check ]] && sed 's/^/    /' "$SCRATCH/.diff.$i" | head -200
   else echo "ok     $dest"; fi
@@ -58,7 +69,8 @@ case "$MODE" in
            echo "vendor in sync with $IMG$( (( skipped )) && echo " ($skipped archi entries skipped)")" ;;
   --apply) for ((i=0; i<n; i++)); do
              dest="$(yq -r ".entries[$i].dest" "$MAN")"
-             rm -rf "$DEP/$dest"; mkdir -p "$(dirname "$DEP/$dest")"; cp -R "$SCRATCH/$dest" "$DEP/$dest"
+             base="$DEP"; [[ "$(yq -r ".entries[$i].root // \"deployment\"" "$MAN")" == repo ]] && base="$REPO"
+             rm -rf "$base/$dest"; mkdir -p "$(dirname "$base/$dest")"; cp -R "$SCRATCH/e$i" "$base/$dest"
            done
            echo "applied from $IMG. untouched (ours): $(yq -r '.ours[]' "$MAN" | tr '\n' ' ')" ;;
   *) echo "unknown mode $MODE" >&2; exit 2 ;;

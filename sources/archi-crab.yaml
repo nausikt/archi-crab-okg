@@ -1,0 +1,262 @@
+# sources/archi-crab.yaml — WHAT the archi-crab graph ingests. Edit this file.
+#
+# It names no okg or archi class, module or parameter on purpose: those change
+# with the engine. sources/kinds.yaml (all the engine-specific data) says how
+# each `kind` below becomes okg registry YAML, and
+#
+#   python3 scripts/sources.py render --write
+#
+# regenerates deployments/archi-crab/source_registry.yaml from the two. Never
+# edit the registry by hand; CI fails when it differs from the render.
+#
+#   python3 scripts/sources.py lint             # offline gates, seconds (CI: every PR)
+#   python3 scripts/sources.py probe --tier 20  # network: reachable? right branch? how big?
+#   python3 scripts/sources.py status           # what is enabled, pending, and why
+#
+# docs/SOURCES.md is the walkthrough. The short version:
+#
+# TIERS are rollout waves (the 10_/20_/30_ prefixes of the source tree). okg
+# publishes all sources or none: ONE source that cannot read its input fails the
+# completeness gate and blocks the publish for every other source. So widen
+# `rollout.enabled_tiers` one tier per PR, and only after `probe` is green for
+# that tier.
+#
+# SENSITIVITY decides which access posture may hold a source (deployment.yaml
+# `nomos:`; today public_reference_demo = public only). Git repos default by host
+# (public without a token, internal with one); documents must say. lint refuses a
+# source the posture does not allow -- including private repos, which okg's own
+# audit cannot see (docs/ADDING-SOURCES.md 4).
+#
+# A source is rendered when its tier is enabled AND it is not `enabled: false`.
+# `enabled: false` is for a source whose input is not ready yet (unknown GitLab
+# path, data not built). It is NOT a way to remove a source that was already
+# published: okg does not retract the facts of a source that disappears
+# (archi-okg bundles/cern-team/README.md). Removing or renaming one = rebuild.
+#
+# IDs are identity. A git source's id is its code_repos slug, and every node it
+# produces is keyed by it (file:<id>:<path>, symbol:<id>:...). Renaming an id
+# re-keys every node = rebuild. `lint --base published` refuses a published id
+# that vanished, unless it is listed under `retired:` with the reason and date
+# (the rebuild is then planned, and later PRs are not blocked by it).
+
+version: 1
+
+rollout:
+  enabled_tiers: [10]
+
+# Git hosts. A source may override its host with `auth: none` (a GitLab project whose
+# visibility is Public: cloned without a token, sensitivity defaults to public).
+# A `token` host needs three things before any of its sources can be
+# enabled, and lint checks the first two:
+#   1. envs/staging + envs/prod values.yaml: gitCredentials.hosts has the host
+#      with this username/secret_key (chart delta 8; docs/ONBOARDING.md §4 B3)
+#   2. .github/workflows/e2e.yaml gives both ingest jobs the same helper, and its
+#      callers ci.yaml + main.yaml pass the GITLAB_TOKEN secret (§4 B5)
+#   3. the token itself in the okg Secret and the GITLAB_TOKEN repo secret (§4 B2)
+hosts:
+  github.com:
+    auth: none
+  gitlab.cern.ch:
+    auth: token
+    username: oauth2
+    secret_key: gitlab-token
+
+# Sources removed on purpose after they were published: {id: "<date> <reason>"}.
+# Their facts stay live until the next rebuild (okg does not retract them).
+retired: {}
+
+defaults:
+  # Tracked files after scope. Staging measured ~38 code nodes per file
+  # (crabserver: 414 files -> 15,572 code-structure nodes), so 1,500 files is
+  # roughly 60k nodes for one repo. Above it, a source must say so itself.
+  max_files: 1500
+
+sources:
+  # ==== 10: CRAB itself ======================================================
+  crabserver:
+    tier: 10
+    group: github
+    kind: git
+    git: https://github.com/dmwm/CRABServer.git
+    branch: master
+    dir: CRABServer
+    about: CRAB REST interface, TaskWorker, Publisher, CI/CD scripts
+
+  crabclient:
+    tier: 10
+    group: github
+    kind: git
+    git: https://github.com/dmwm/CRABClient.git
+    branch: master
+    dir: CRABClient          # clone dir under the repos base; kept from v0.5
+    about: CRAB command-line client (crab submit/status/resubmit/getoutput ...)
+
+  cms-analysis-docs:
+    tier: 10
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/cms-analysis-docs.git
+    enabled: false           # GitLab path unknown here; fill it, probe, then drop this line
+    about: CMS analysis documentation (docs site sources)
+
+  cms-crab-docs:
+    tier: 10
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/cms-crab-docs.git
+    enabled: false           # GitLab path unknown here
+    about: CRAB documentation site sources
+
+  cmscrab-userguide:
+    tier: 10
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/cmscrab-userguide.git
+    enabled: false           # GitLab path unknown here
+    about: CRAB user guide
+
+  twiki-sanitized:
+    tier: 10
+    group: 10_sanitized_twikis
+    kind: docs-files
+    # Built with `docs-build.py --webs CMSPublic`: every page is from a public web.
+    # CMS-web pages go into a separate, internal source once the posture allows it.
+    sensitivity: public
+    data: data/docs/twiki-sanitized   # records.json, built by scripts/docs-build.py
+    about: Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file)
+
+  twiki:
+    tier: 10
+    group: eos-curated
+    kind: twiki-raw
+    sensitivity: internal    # the CMS web is CMS-internal: needs the governed posture
+    data: data/twiki         # <Web>/<Topic>.txt, built by scripts/twiki-curate.py
+    enabled: false           # until curated topics are committed (docs/ONBOARDING.md §3)
+    about: Curated raw CMS TWiki topics from the EOS snapshot
+
+  cmssw-releases:
+    tier: 10
+    group: catalog
+    kind: cmssw-releases
+    about: CMSSW release catalog (cms-bot releases.map, public)
+
+  # ==== 20: the services CRAB talks to, and their MCP servers ================
+  # The MCP repos ground the tools the vMCP exposes (coverage: TOOL_UNGROUNDED).
+  # Container images live in Harbor project cmscrab; the GitLab group is not
+  # known here, hence FILL-ME.
+  crab-mcp:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/crab-mcp.git
+    enabled: false
+    about: MCP server for CRAB (registry.cern.ch/cmscrab/crab-mcp)
+
+  dbs-mcp:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/dbs-mcp.git
+    enabled: false
+    about: MCP server for DBS
+
+  htcondor-mcp:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/htcondor-mcp.git
+    enabled: false
+    about: MCP server for HTCondor (registry.cern.ch/cmscrab/htcondor-mcp)
+
+  rucio-mcp:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/rucio-mcp.git
+    enabled: false
+    about: MCP server for Rucio
+
+  site-status-mcp:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/FILL-ME/site-status-mcp.git
+    enabled: false
+    about: MCP server for CMS site status (registry.cern.ch/cmscrab/site-status-mcp)
+
+  das2go:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/dmwm/das2go.git
+    branch: master
+    about: DAS server (Go)
+
+  dasgoclient:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/dmwm/dasgoclient.git
+    branch: master
+    about: dasgoclient, the DAS command-line client
+
+  dbsclient:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/dmwm/DBSClient.git
+    branch: main
+    dir: DBSClient
+    about: DBS3 Python client
+
+  rucio:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/rucio/rucio.git
+    branch: master
+    about: Rucio (server, client, daemons); 952 files unscoped
+    # 952 files is under the default budget, so no scope is needed and this
+    # source does not depend on scope support (see tier 30).
+
+  # ==== 30: large upstreams, ingested only in part ===========================
+  # Each needs `scope`: whole, they are 5k-80k files. Scope needs an engine that
+  # can restrict a repo to globs, and that is not verified for the pinned okg
+  # yet (sources/kinds.yaml `git.scope_fields`). Until it is, lint refuses to
+  # enable them rather than ingesting the whole repo.
+  cmssw:
+    tier: 30
+    group: extras/cms_analysis_sw
+    kind: git
+    git: https://github.com/cms-sw/cmssw.git
+    branch: master
+    about: CMSSW framework parts behind CRAB job failures (exit codes, file open/read, storage, site-local config)
+    scope:
+      include:
+        - FWCore/Utilities/**        # EDMException: the cmsRun exit codes (8021, 8028, ...)
+        - FWCore/Services/**         # SiteLocalConfig, job report, timing/memory services
+        - FWCore/PythonUtilities/**  # edmDumpEventContent
+        - IOPool/Input/**            # FileOpenError / FallbackFileOpenError, input source
+        - IOPool/Common/**           # edmFileUtil
+        - FWStorage/**               # StorageFactory, XrdAdaptor, DavixAdaptor, Catalog (TFC)
+    # 623 of 62,655 files at d89ca492a6 (2026-09-30)
+
+  cms-sw-github-io:
+    tier: 30
+    group: extras/cms_analysis_sw
+    kind: git
+    git: https://github.com/cms-sw/cms-sw.github.io.git
+    branch: master
+    about: cms-sw documentation site (git/cmssw workflow, FAQ, troubleshooting)
+    scope:
+      include: ["*.md"]              # top-level pages only; the rest is 81k dashboard data files
+
+  htcondor:
+    tier: 30
+    group: extras/grid_computing
+    kind: git
+    git: https://github.com/htcondor/htcondor.git
+    branch: main
+    about: HTCondor manual (job ClassAd attributes, hold reasons, submit commands)
+    scope:
+      include: ["docs/**"]           # 352 of 4,954 files

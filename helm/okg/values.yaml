@@ -91,6 +91,20 @@ runtime:
 worker:
   secretMounts: []
 
+# Private git hosts for the code sources (code_repos / git sources) -- archi-crab
+# delta 8. Off while empty. Each host gets a git credential helper that reads its
+# token from secrets.existingSecret at clone time: the token never appears in the
+# registry, a URL, this repo or a log. Only `bootstrap` and `worker` (the
+# containers that clone and fast-forward) get it. docs/ONBOARDING.md §4.
+gitCredentials:
+  hosts: []
+  # - host: gitlab.cern.ch
+  #   username: oauth2             # GitLab: any non-empty name + a token with read_repository
+  #   secretKey: gitlab-token      # key in secrets.existingSecret
+  # - host: github.com
+  #   username: x-access-token     # GitHub: fine-grained PAT, Contents: read, on the listed repos
+  #   secretKey: github-token
+
 repositorySync:
   enabled: true
   url: https://github.com/nausikt/archi-crab-okg

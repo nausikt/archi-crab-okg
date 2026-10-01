@@ -1,0 +1,211 @@
+# sources/kinds.yaml — HOW each source `kind` becomes okg registry YAML, for the
+# engine pinned in versions.lock. All engine-specific data of the source pipeline
+# lives here (scripts/sources.py only knows the kind names and okg's adapter base);
+# sources/archi-crab.yaml stays the same across engine bumps.
+#
+# On an engine bump (the engine/upstream PR; build.yaml's engine-bump PR before
+# the upstream-sync series):
+#   1. vendor-sync refreshes vendor/reference/ (the upstream templates these
+#      kinds were written from). Read its diff first: it is the upstream change.
+#   2. The `sources` workflow runs `scripts/sources.py contract` inside the new
+#      image: every kind's class imports, is an adapter and binds its params;
+#      the data kinds ingest a one-page fixture and emit only what their
+#      output_signature declares; the code_repos keys we write appear in okg's
+#      code_repos code. `verify` after the e2e ingest proves scopes.
+#   3. If either moved, edit the kind here, re-render, and update
+#      `reviewed_against` below. Nothing in sources/archi-crab.yaml changes.
+#      A class rename: `python3 scripts/sources.py rename-class OLD NEW` (edits
+#      this file and re-renders; an automated fix must do the same, never edit
+#      the generated registry).
+#
+# Template strings: {{id}} source id (dashes), {{name}} id with underscores (the
+# registry key), {{deployment}} deployment name, {{data}} the source's data dir,
+# {{git}} clone URL, {{dir}} clone dir. ${VAR} is okg's own environment
+# interpolation and passes through untouched.
+
+reviewed_against:
+  archi: 1bb7e703   # archi-physics/archi-okg main, 2026-09-29
+  okg: 0a8e0cd4     # mitdbg/okg dev, the engine in versions.lock (catch-up, 2026-09-30)
+
+kinds:
+  # --------------------------------------------------------------------------
+  git:
+    about: a git repository, ingested as a code graph (files, symbols, interfaces, doc chunks)
+    render: code_repos
+    proven: staging since v0.5 (crabserver, crabclient), public GitHub only
+    # okg's codebase-index expansion: each repo becomes four sources
+    # (<slug>.git-files, .code-structure, .interfaces, .doc-corpus).
+    # git-history stays out: its concurrency bug with git-files makes a one-shot
+    # bootstrap nondeterministic (~4/15 repos fail at random, one blocks all).
+    code_repos:
+      base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos
+      expand: [git-files, code-structure, interfaces, doc-corpus]
+    repo_entry:
+      slug: '{{id}}'
+      url: '{{git}}'
+      dir: '{{dir}}'
+    # How a repo is restricted to globs, as {include: <key>, exclude: <key>}
+    # under its repo entry. null = NOT VERIFIED for the pinned okg: lint then
+    # refuses to enable any source with `scope` (the whole repo would be
+    # ingested if okg ignored an unknown key). Fill it only after reading
+    # vendor/reference/okg-codebase-index/ and `sources.py contract` output.
+    scope_fields: null
+    produces: [source_file, code_symbol, code_import, code_reference, interface_endpoint, document_chunk, entity_mention]
+
+  # --------------------------------------------------------------------------
+  docs-files:
+    about: pages from files (Markdown/HTML/PDF), converted once into a records.json
+    render: source
+    proven: archi DocumentationSource, INGEST-PROVEN 2026-08-11 (archi-okg docs.py)
+    data_check: records-json
+    comment: |
+      Built by scripts/docs-build.py from a folder of files; committed, and
+      delivered to the pod by repositorySync with the rest of the deployment.
+      Node ids are documentation_page:<sha256(url)[:16]>: a page keeps its id
+      as long as its URL does. No reference params (releases_map_path, ...):
+      a configured reference file that is missing at run time raises, and
+      cmssw-releases writes its map during the same bootstrap.
+    entry:
+      module: archi.sources.docs
+      class: DocumentationAdapter
+      ownership_id: '{{deployment}}.{{id}}'
+      admission_policy:
+        producer_id: '{{deployment}}.{{id}}'
+        producer_kind: source
+        trust_label: implicit_legacy_trusted
+        admission_mode: fast_track
+        authority_scope:
+          source_family: '{{deployment}}'
+          source_name: '{{name}}'
+        output_signature:
+          nodes:
+            - {subtype: documentation_page}
+            - {subtype: document_chunk}
+          edges:
+            - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+        output_scope_summary:
+          summary: 'pages of {{id}} (records.json built from files) and their text chunks'
+          nodes: [documentation_page, document_chunk]
+          edges:
+            - documentation_page contains document_chunk
+      source_class: discovery_crawl
+      record_identity_kind: scoped_locator
+      record_identity_fields: [url]
+      source_revision_kind: content_hash
+      deletion_semantics: missing_from_completed_scope
+      publication_mode: published_generation
+      required_for_baseline: false
+      params:
+        # no source_name: okg 0a8e0cd4's strict adapter contract injects it, and
+        # `okg deployment lint` refuses a registry that sets it (param_reserved).
+        # archi's templates still carry it (legacy contract).
+        required: true
+        records_path: ${OKG_DEPLOYMENTS_DIR}/{{deployment}}/{{data}}/records.json
+      sync:
+        triggers: [manual, reconcile]
+        default_event_mode: scope_complete
+        reconcile_mode: scope_complete
+    produces: [documentation_page, document_chunk]
+
+  # --------------------------------------------------------------------------
+  twiki-raw:
+    about: raw TWiki topics (<Web>/<Topic>.txt with %META lines), as in the EOS snapshot
+    render: source
+    proven: archi TwikiEOSSource, cms parity corpus (archi-okg twiki.py)
+    data_check: twiki-tree
+    comment: |
+      Same reader as the EOS snapshot; the curated dir is a smaller snapshot.
+      web_root "" + one subdirectory per web: page ids come out as
+      CMS/<Topic>, CMSPublic/<Topic>, ... Never put a topic at the top level.
+    entry:
+      module: archi.sources.twiki
+      class: TwikiEOSAdapter
+      ownership_id: '{{deployment}}.{{id}}'
+      admission_policy:
+        producer_id: '{{deployment}}.{{id}}'
+        producer_kind: source
+        trust_label: implicit_legacy_trusted
+        admission_mode: fast_track
+        authority_scope:
+          source_family: '{{deployment}}'
+          source_name: '{{name}}'
+        output_signature:
+          nodes:
+            - {subtype: documentation_page}
+            - {subtype: document_chunk}
+          edges:
+            - {src_subtype: documentation_page, edge_type: references, dst_subtype: documentation_page}
+            - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+        output_scope_summary:
+          summary: curated CRAB-relevant CMS TWiki topics, their text chunks, and topic-to-topic references
+          nodes: [documentation_page, document_chunk]
+          edges:
+            - documentation_page references documentation_page
+            - documentation_page contains document_chunk
+      source_class: discovery_crawl
+      record_identity_kind: scoped_locator
+      record_identity_fields: [path]
+      source_revision_kind: content_hash
+      deletion_semantics: missing_from_completed_scope
+      publication_mode: published_generation
+      required_for_baseline: false
+      params:
+        eos_root: ${OKG_DEPLOYMENTS_DIR}/{{deployment}}/{{data}}
+        web_root: ""
+        required: true
+        heading_style: markdown
+        whitespace: preserve
+      sync:
+        triggers: [manual, reconcile]
+        default_event_mode: scope_complete
+        reconcile_mode: scope_complete
+    produces: [documentation_page, document_chunk]
+
+  # --------------------------------------------------------------------------
+  cmssw-releases:
+    about: the public CMSSW release catalog (cms-bot releases.map)
+    render: source
+    proven: staging since v0.5
+    comment: |
+      The ADAPTER, not the bare reader (a bare reader crashes okg's runner:
+      'ConnectorRun' has no 'next_cursor'). reference_catalog admits only
+      domain_key. NO `limit`: a truncating cap forfeits the completed-scope
+      claim on every run and disables retraction forever.
+    entry:
+      module: archi.sources.cmssw
+      class: CMSSWReleaseAdapter
+      ownership_id: '{{deployment}}.{{id}}'
+      admission_policy:
+        producer_id: '{{deployment}}.{{id}}'
+        producer_kind: source
+        trust_label: implicit_legacy_trusted
+        admission_mode: fast_track
+        authority_scope:
+          source_family: '{{deployment}}'
+          source_name: '{{name}}'
+        output_signature:
+          nodes:
+            - {subtype: cmssw_release}
+          edges:
+            - {src_subtype: cmssw_release, edge_type: supersedes, dst_subtype: cmssw_release}
+        output_scope_summary:
+          summary: CMSSW releases, release families, and supersedes chains
+          nodes: [cmssw_release]
+          edges:
+            - cmssw_release supersedes cmssw_release
+      source_class: reference_catalog
+      record_identity_kind: domain_key
+      record_identity_fields: [release]
+      source_revision_kind: content_hash
+      deletion_semantics: missing_from_completed_scope
+      publication_mode: published_generation
+      required_for_baseline: true
+      params:
+        map_cache_path: ${OKG_ENVIRONMENT_DATA_ROOT}/cmssw-releases/releases.map
+        releases_map_url: https://raw.githubusercontent.com/cms-sw/cms-bot/master/releases.map
+        fetch: true
+      sync:
+        triggers: [manual, reconcile]
+        default_event_mode: scope_complete
+        reconcile_mode: scope_complete
+    produces: [cmssw_release]

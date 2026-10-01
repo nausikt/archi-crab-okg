@@ -3,7 +3,7 @@
 # Change a source there, then: python3 scripts/sources.py render --write
 # CI (workflow `sources`) fails when this file differs from the render.
 #
-# Enabled tiers: [10]. Kinds reviewed against archi 1bb7e703, okg bed964f.
+# Enabled tiers: [10]. Kinds reviewed against archi 1bb7e703, okg 0a8e0cd4.
 # Not rendered (`python3 scripts/sources.py status` says why):
 #   cms-analysis-docs (enabled: false), cms-crab-docs (enabled: false)
 #   cmscrab-userguide (enabled: false), twiki-sanitized (enabled: false), twiki (enabled: false)

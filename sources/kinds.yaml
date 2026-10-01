@@ -25,7 +25,7 @@
 
 reviewed_against:
   archi: 1bb7e703   # archi-physics/archi-okg main, 2026-09-29
-  okg: bed964f      # mitdbg/okg, the engine in versions.lock
+  okg: 0a8e0cd4     # mitdbg/okg dev, the engine in versions.lock (catch-up, 2026-09-30)
 
 kinds:
   # --------------------------------------------------------------------------

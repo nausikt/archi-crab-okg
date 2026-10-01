@@ -27,9 +27,9 @@ runtime:
     size: 75Gi
     storageClassName: cinder-io1-delete
 repositorySync:
-  revision: "918037512a2c8821d14d6cab4d3ae8ceec367eb8" # <- merge sha (staging: CI bot; prod: Promote PR)
+  revision: "d01ff8c24da95a07d515127c676b70c0408bb52c" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
-  approvedRevision: "918037512a2c8821d14d6cab4d3ae8ceec367eb8" # <- MUST equal repositorySync.revision (chart enforces)
+  approvedRevision: "d01ff8c24da95a07d515127c676b70c0408bb52c" # <- MUST equal repositorySync.revision (chart enforces)
 mcp:
   allowedHosts:
     - "archi-crab-okg-staging.cern.ch"

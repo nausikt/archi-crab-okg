@@ -18,22 +18,22 @@ upstream: # okg — the engine (private repository, private images)
   # <image>:sha-<commit> for the tip of `dev` after every merge.
   track: dev
   # Read from the image (label org.opencontainers.image.revision), never chosen by hand.
-  commit: bed964f3fb89905e9d36abe46bdfbd8df5757132
+  commit: 0a8e0cd4339fe3737f8c6da7eecca1f8aeb45043
 images:
   okg:
-    ref: ghcr.io/mitdbg/okg@sha256:5a825f73c8929d2153859d95bfaf4c6f4ae01f02d08477583a7af05131826705
+    ref: ghcr.io/mitdbg/okg@sha256:9da97391a2919551af44dabfb749e11f8704965b85c04f16bf5de1c7f68e06c7
   okg-postgres:
-    ref: ghcr.io/mitdbg/okg-postgres@sha256:75845f96d973859c248f0f6741cb0a06445e9d312e563de7a39c5e25f3236616
+    ref: ghcr.io/mitdbg/okg-postgres@sha256:b5b6eb8ca70a960d643e9117ac73d05d75899aa42018065b666d8f4bdae8fe36
 archi: # archi-okg — the HEP distribution (public): connectors, bundle, schemas, skills
   repository: https://github.com/archi-physics/archi-okg
   branch: main # archi-okg has no `dev`; merges land on main
-  commit: 728739e64763aa897b2f264259a3d9a6c46e9bd8
+  commit: 1bb7e7038ed2ef9a17939e216aaaa21f58c18293
 runtime: # OUR image = okg base + archi. Every line below is written by engine.yaml.
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: sha256:5922753c73f2e3873522260aa7d8c0458dd8adbdf6216fc6e13d7745a32d362c
-  built_from: b90d1c98cf4e5a1dcee24905ae69628a3e737085
+  digest: sha256:f7ffb358b07f191ce2cf91df3d2d43322a0a9d7124a60dd7ca4d336a2db130b3
+  built_from: 5622d413bf9222598f6b5bf20837a6380748a53d
   base_user: "10001:10001" # the base image's USER, read from its config
   # Fingerprints of what `digest` was built from (scripts/engine-lock.sh). CI fails when
   # `inputs` no longer matches the pins above: someone moved a pin without rebuilding.
-  inputs: bb7ce6bf9a39b81846b80d7f70401a9e00bcb4b847fc168326450f6ca27a7b76
-  dockerfile: 9c1e5f81ff793c4e1fff2c674528628541cd18993d7f80ca3542ffe947122f36
+  inputs: 6092a01c5556380e5a5cf068ca2de2b3a680c3328c7498741d334a352e02a101
+  dockerfile: 42f24c886ed2e9b2797042a73801593403d5f7f45cb509030bf032785fe3c5a5

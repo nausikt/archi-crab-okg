@@ -83,7 +83,7 @@ jobs:
           #!/usr/bin/env bash
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
-            -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_DSN -e OKG_MCP_RO_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
             -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
@@ -96,27 +96,46 @@ jobs:
       # runtime.enabled: true (correct for the chart) makes plain `okg ingest` ENQUEUE to
       # the runtime worker's DBOS queue, which does not exist here. --inline is the
       # in-process path. The chart-path job below exercises the worker path instead.
+      - name: "workspace is a clean checkout (okg refuses to publish from a dirty repository)"
+        run: |
+          # OKG_REPO_ROOT is this workspace. okg publishes only from a committed tree and
+          # refuses on any untracked file that is not ignored ("repository provenance inputs
+          # are not committed"). Job outputs go to $RUNNER_TEMP, never into the workspace.
+          dirty="$(git status --porcelain --untracked-files=all)"
+          [ -z "$dirty" ] || { echo "::error::the workspace is not clean before the publish:"; echo "$dirty"; exit 1; }
       - run: okg ingest --deployment archi-crab --progress --inline
-      - run: okg runtime bootstrap --deployment archi-crab --json
-      - run: bash scripts/smoke.sh
+      # Migration creates the read role okg_mcp WITHOUT a login, and `okg mcp-serve` refuses
+      # to start until it has one. Given the role's DSN, `runtime bootstrap` grants LOGIN with
+      # that password and proves the connection. (In the cluster the chart's mcp-role init
+      # container does this from the Secret; the chart-path job below mirrors that.)
+      - name: "okg runtime bootstrap (also gives the MCP read role its login)"
+        env:
+          OKG_MCP_RO_DSN: postgresql://okg_mcp:okg_mcp@127.0.0.1:5432/okg
+        run: okg runtime bootstrap --deployment archi-crab --json
+      - name: smoke (published, search answers, MCP serves)
+        env:
+          OKG_MCP_RO_DSN: postgresql://okg_mcp:okg_mcp@127.0.0.1:5432/okg
+        run: bash scripts/smoke.sh
       - if: always()
         run: docker logs pg --tail 80
   chart-path:
-    # THE CHART'S BOOTSTRAP, VERBATIM. The Argo CD path is: init `bootstrap` =
-    # `okg provision --publish-once --source-workers N --json`, then init
-    # `runtime-bootstrap` = `okg runtime bootstrap`, then the MAIN container
-    # `okg runtime worker` — which performs the publish — gated by its startup
-    # probe `okg deployment ready <dep> --profile <p> --json` (30s x 60). This job
-    # runs exactly that sequence on a PRISTINE database — no manual CREATE
-    # EXTENSION — i.e. the state a fresh PVC gives the cluster. Red here = the
-    # chart would be red in-cluster:
-    #   extension_missing  -> provision does not create extensions -> chart delta 6
-    #                         (initdb ConfigMap) is REQUIRED; mirror it in this job.
-    #   auth error         -> app_rw/app_ro NOLOGIN -> chart delta 4.
-    #   dbos enqueue error -> provision is not in-process on this deployment; the
-    #                         chart's init ordering is unsound -> upstream question.
-    #   probe never green  -> the worker does not publish; kubelet would restart the
-    #                         pod forever -> read worker.log, then upstream question.
+    # THE CHART'S SEQUENCE, AND NOTHING ELSE. init `catalog-claim` = `okg catalog ownership
+    # claim` (nothing to claim on a pristine database), init `bootstrap` = `okg provision
+    # --publish-once --source-workers N --json`, init `runtime-bootstrap` = `okg runtime
+    # bootstrap`, init `mcp-role` = ALTER ROLE okg_mcp LOGIN, then the MAIN container `okg
+    # runtime worker`, gated by its probe `okg deployment ready <dep> --profile <p> --json`
+    # executed INSIDE that container (30s x 60). All on a PRISTINE database, the state a
+    # fresh PVC gives the cluster. Red here = the chart would be red in-cluster:
+    #   extension_missing   -> provision does not create extensions; mirror the chart's fix.
+    #   probe never green   -> the step prints each blocker with its own cause.
+    #     deployment.apply    the worker's acknowledgment does not match the declared
+    #                         container identity (/opt/okg, its venv python, OKG_CODE_REVISION).
+    #                         The worker must run from the image's own working directory.
+    #     nomos.*             deployment.yaml's nomos posture or a source policy is missing.
+    #     mcp.graph_read      okg_mcp cannot log in (the mcp-role step).
+    # There is deliberately NO `okg deployment apply` here: the chart does not run it, and
+    # under supervisor=container okg has no reload to perform. The worker acknowledges the
+    # desired state by itself when it boots.
     needs: pins
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -143,10 +162,11 @@ jobs:
       - name: chart-path mirrors the chart (fail on drift)
         run: |
           t=helm/okg/templates/runtime-statefulset.yaml
-          grep -q -- '- provision' "$t" && grep -q -- '--publish-once' "$t" \
+          grep -q -- 'okg catalog ownership claim' "$t" \
+            && grep -q -- '- provision' "$t" && grep -q -- '--publish-once' "$t" \
             && grep -q -- '--source-workers' "$t" && grep -q -B1 -- '- bootstrap$' "$t" \
             && grep -q -- '- worker$' "$t" && grep -q -- '- ready$' "$t" \
-            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs provision/--publish-once/runtime bootstrap/runtime worker/deployment ready — update chart-path"; exit 1; }
+            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs catalog ownership claim/provision/--publish-once/runtime bootstrap/runtime worker/deployment ready — update chart-path"; exit 1; }
           # Every OKG_* env the chart's helpers inject must be one the wrapper passes (below).
           want=$(grep -oE '^- name: OKG_[A-Z_]+' helm/okg/templates/_helpers.tpl | sed 's/- name: //' | sort -u)
           have="OKG_DSN OKG_MCP_RO_DSN OKG_DEPLOYMENTS_DIR OKG_ENVIRONMENT_DATA_ROOT OKG_RUNTIME_ENVIRONMENT OKG_RUNTIME_SUPERVISOR OKG_DEPLOYMENT OKG_NOMOS_SUBJECT OKG_REPO_ROOT"
@@ -168,60 +188,68 @@ jobs:
           #!/usr/bin/env bash
           exec docker run --rm --network host --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
-            -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_DSN -e OKG_MCP_RO_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
             -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
+      - name: "workspace is a clean checkout (okg refuses to publish from a dirty repository)"
+        run: |
+          # OKG_REPO_ROOT is this workspace. okg publishes only from a committed tree and
+          # refuses on any untracked file that is not ignored ("repository provenance inputs
+          # are not committed"). Job outputs go to $RUNNER_TEMP, never into the workspace.
+          dirty="$(git status --porcelain --untracked-files=all)"
+          [ -z "$dirty" ] || { echo "::error::the workspace is not clean before the publish:"; echo "$dirty"; exit 1; }
+      - name: "init catalog-claim == okg catalog ownership claim (nothing to claim on a pristine database)"
+        run: |
+          okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --json \
+            || echo "catalog ownership not claimed: expected only on a database that has never been provisioned"
       - name: "init bootstrap == okg provision --publish-once"
-        run: okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee provision.json
+        run: |
+          set -o pipefail
+          rc=0
+          okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee "$RUNNER_TEMP/provision.json" || rc=$?
+          # The chart maps exit 8 (published, with a capacity warning) to success. So does this.
+          if [ "$rc" = 8 ]; then echo "::warning::okg provision published with a capacity warning (exit 8)"; rc=0; fi
+          exit "$rc"
       - name: "init runtime-bootstrap == okg runtime bootstrap"
         run: okg runtime bootstrap --deployment archi-crab --json
       - name: "init mcp-role == ALTER ROLE okg_mcp LOGIN"
         run: docker exec pg psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U postgres -d okg -c "ALTER ROLE okg_mcp LOGIN PASSWORD 'okg_mcp'"
       - name: "main container == okg runtime worker (background, named so we can read its logs)"
         run: |
+          # NO `-w`: the worker must run from the image's working directory (/opt/okg), as it
+          # does in the pod. Its boot-time acknowledgment records where it runs, and readiness
+          # compares that with the container identity okg declares for supervisor=container.
           docker run -d --name worker --network host --user "$(id -u):$(id -g)" \
-            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
             -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
             -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
             --entrypoint okg "$OKG_IMG" runtime worker --deployment archi-crab
-      - name: "init deployment-apply == okg deployment apply (source supervision + worker ack)"
-        run: |
-          # dry-run emits the plan id; --apply requires --confirm <plan-id>.
-          # The plan can change between the two calls (worker ack lands, state moves),
-          # so re-derive and retry rather than failing on a stale confirmation.
-          for attempt in 1 2 3 4 5; do
-            okg deployment apply archi-crab --json > plan.json
-            PLAN=$(python3 -c "import json;d=json.load(open('plan.json'));print(d.get('plan_id',''))")
-            if [ -z "$PLAN" ]; then echo "no plan_id in dry-run:"; cat plan.json; exit 1; fi
-            if python3 -c "import json,sys; d=json.load(open('plan.json')); sys.exit(0 if not [a for a in d.get('actions',[]) if a.get('needed')] else 1)"; then
-              echo "nothing to apply (plan converged)"; break
-            fi
-            echo "attempt $attempt plan: $PLAN"
-            if okg deployment apply archi-crab --apply --confirm "$PLAN" --worker-ack-timeout-seconds 120 --json; then
-              echo "applied"; break
-            fi
-            [ "$attempt" = 5 ] && { echo "::error::deployment apply never converged"; exit 1; }
-            sleep 10
-          done
       - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
         run: |
+          # `docker exec`, not a new container: the kubelet runs the probe inside the worker.
+          blockers() { python3 -c "import json, os; d=json.load(open(os.environ['RUNNER_TEMP'] + '/ready.json')); print(d.get('status'), [c['id'] for c in d.get('checks', []) if c.get('status') == 'blocker'])" 2>/dev/null || true; }
           for i in $(seq 1 60); do
-            if okg deployment ready archi-crab --profile general --json > ready.json \
-               && python3 -c "import json,sys; sys.exit(0 if json.load(open('ready.json')).get('ok') is True else 1)"; then
-              echo "ready after $i probe(s)"; cat ready.json; exit 0
+            if docker exec worker okg deployment ready archi-crab --profile general --json > "$RUNNER_TEMP/ready.json" \
+               && python3 -c "import json, os, sys; sys.exit(0 if json.load(open(os.environ['RUNNER_TEMP'] + '/ready.json')).get('ok') is True else 1)"; then
+              echo "ready after $i probe(s)"; exit 0
             fi
+            echo "probe $i: not ready: $(blockers)"
             [ "$(docker inspect -f '{{.State.Running}}' worker)" = "true" ] || { echo "::error::worker exited"; docker logs worker --tail 80; exit 1; }
             sleep 30
           done
-          echo "::error::worker never published within the startup budget (kubelet would restart the pod)"
-          cat ready.json; docker logs worker --tail 80; exit 1
-      - name: "read-back proof (asserts STATUS; provision, like install, may exit 0 on a failed publish)"
+          echo "::error::the worker never became ready within the startup budget (kubelet would restart the pod): $(blockers)"
+          python3 -c "import json, os; d=json.load(open(os.environ['RUNNER_TEMP'] + '/ready.json')); [print(json.dumps(c, indent=1)[:4000]) for c in d.get('checks', []) if c.get('status') == 'blocker']" || cat "$RUNNER_TEMP/ready.json"
+          docker logs worker --tail 80; exit 1
+      - name: "read-back proof (published, search answers, MCP serves)"
+        env:
+          # What the chart gives the mcp container (okg.readerDsnEnv); the password is the
+          # one the mcp-role step set.
+          OKG_MCP_RO_DSN: postgresql://okg_mcp:okg_mcp@127.0.0.1:5432/okg
         run: bash scripts/smoke.sh
       - if: always()
         run: |
           echo "== worker log"; docker logs worker --tail 80 2>/dev/null || true
           docker stop worker >/dev/null 2>&1 || true
           echo "== postgres log"; docker logs pg --tail 40
-    continue-on-error: true

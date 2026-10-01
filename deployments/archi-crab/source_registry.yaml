@@ -39,7 +39,7 @@ code_repos:
 sources:
   cmssw_releases:
     module: archi.sources.cmssw
-    class: CMSSWReleaseSource
+    class: CMSSWReleaseAdapter
     ownership_id: archi-crab.cmssw-releases
     admission_policy:
       producer_id: archi-crab.cmssw-releases

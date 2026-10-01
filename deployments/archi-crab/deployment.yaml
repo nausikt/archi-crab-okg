@@ -42,8 +42,53 @@ consistency:
 # The Helm chart runs an always-on worker container — declare the truth.
 runtime:
   enabled: true
-# Nomos rollout audit requires owner.name + owner.contact + review_by.
+# Nomos is okg's access-policy layer. Because this manifest has a `nomos:` block, okg
+# audits it on every readiness probe (check `nomos.deployment_policy`): without a
+# posture, and a policy for every entry under `sources:` in the registry, the worker
+# never becomes Ready.
+#
+# The posture DECLARES what this graph holds. Today that is public material only: two
+# public GitHub repositories and the public CMSSW release map, ingested without any
+# credential. `public_reference_demo` is okg's class for exactly that, and the only one
+# that does not require Nomos runtime enforcement.
+#
+# THIS IS A GATE, ON PURPOSE. The first source that is not public (CMS-internal TWiki,
+# a private repository, anything read with a token or an SSO cookie) fails the audit
+# until the class becomes `org_operational_private`, and okg accepts that class only
+# with runtime enforcement switched on (the rollout below). Do not widen the lists
+# here to make such a source pass.
 nomos:
+  deployment_posture:
+    deployment_class: public_reference_demo
+    read_principals: [human_operator, okg_service, mcp_client]
+    write_principals: [okg_service, source_adapter]
+    mcp_write_default: deny # the MCP surface is read-only
+    export_policy: public_allowed
+    secret_handling: no_secrets # no SOURCE carries or needs a secret
+    live_call_default: deny
+    allowed_source_sensitivities: [public]
+    allowed_data_classifications: [public]
+    allowed_exportability: [public]
+    privacy_obligations: [audit]
+    # Readiness profiles that must prove enforcement is ON. `general`, the chart's
+    # probe, is deliberately absent while enforcement is off.
+    readiness_profiles: [production]
+  # One policy per source class used under `sources:`. A source of a class not listed
+  # here fails the audit until its policy is written down.
+  source_policy_defaults:
+    by_source_class:
+      # cmssw_releases: the public releases.map, downloaded at ingest and cached. It is
+      # not a live-overlay or mutable-API source, which is what okg means by a live call.
+      reference_catalog:
+        sensitivity: public
+        data_classification: public
+        credential_ref_policy: none
+        live_call_allowed: false
+        exportability: public
+        retention: normal
+        provenance: remote_api
+        privacy_obligations: [audit]
+  # Rollout audit requires owner.name + owner.contact + review_by.
   rollout:
     status: deferred
     owner:

@@ -146,10 +146,50 @@ spec:
               readOnly: true
             {{- end }}
         {{- end }}
+        {{- if .Values.bootstrap.requireApprovalRevision }}
+        # archi-crab delta 9 (not in upstream's chart). okg binds a database to the
+        # manifest it was claimed with and refuses to publish once deployment.yaml or the
+        # source registry changed: `catalog_manifest_drifted`. Every knowledge change is
+        # such an edit, so without this the bootstrap below fails on any existing database
+        # and the pod stays in Init until someone re-claims by hand.
+        # Re-claiming here is the approved act, not a bypass: the checkout is exactly
+        # bootstrap.approvedRevision (the chart refuses to render otherwise), a commit that
+        # was reviewed and e2e-tested. No --force: a claim held by a DIFFERENT writer is
+        # still refused, and bootstrap then fails as before.
+        # On a database that has never been provisioned there is nothing to claim yet; the
+        # command says so and bootstrap makes the first claim itself.
+        - name: catalog-claim
+          image: {{ include "okg.runtimeImage" . | quote }}
+          imagePullPolicy: {{ .Values.images.okg.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - 'okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/$OKG_DEPLOYMENT" --json || echo "catalog ownership not claimed: expected only on a database that has never been provisioned" >&2'
+          env:
+            {{- include "okg.commonEnv" . | nindent 12 }}
+            {{- include "okg.runtimeSubjectEnv" . | nindent 12 }}
+            {{- include "okg.writerDsnEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "okg.containerSecurityContext" . | nindent 12 }}
+          resources:
+            {{- toYaml .Values.runtime.resources | nindent 12 }}
+          volumeMounts:
+            - name: runtime-data
+              mountPath: {{ .Values.okg.environmentDataRoot }}
+            - name: tmp
+              mountPath: /tmp
+        {{- end }}
         - name: bootstrap
           image: {{ include "okg.runtimeImage" . | quote }}
           imagePullPolicy: {{ .Values.images.okg.pullPolicy }}
-          command: ["okg"]
+          # Exit 8 means the publish committed with a capacity warning (the
+          # lock hold passed the bar); the JSON in this log carries it. Only
+          # that code is mapped to success; every other code stays fatal.
+          command:
+            - /bin/sh
+            - -c
+            - 'okg "$@"; rc=$?; if [ "$rc" -eq 8 ]; then exit 0; fi; exit "$rc"'
+            - okg-bootstrap
           args:
             - provision
             - --deployment

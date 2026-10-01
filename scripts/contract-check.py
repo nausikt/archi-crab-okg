@@ -8,7 +8,7 @@ Run INSIDE the runtime image (it imports the connectors and calls the okg CLI):
       --entrypoint python "$IMG" /w/scripts/contract-check.py \
       --deployment /w/deployments/archi-crab --markdown /out/contract.md --fixes /out/fixes.json
 
-Exit 1 when an ERROR is found, 0 otherwise. Four checks, each about one thing WE
+Exit 1 when an ERROR is found, 0 otherwise. Five checks, each about one thing WE
 wrote against something UPSTREAM owns:
 
   1. sources   every registry `module`/`class` imports, is the class okg can run
@@ -17,6 +17,9 @@ wrote against something UPSTREAM owns:
                the same module; which bundle connectors we do not use yet
   3. cli       every okg command and flag our workflows, chart and smoke test call
   4. vendor    every path VENDOR.yaml copies from the image still exists
+  5. policy    okg's own audit of deployment.yaml's Nomos posture and of every source's
+               policy: the audit each readiness probe runs, here in one second instead
+               of as a worker that never becomes Ready
 
 Applying the mechanical fixes (on the host, no imports needed):
 
@@ -47,7 +50,6 @@ CLI_CONTRACT: list[tuple[str, list[str]]] = [
     ("provision", ["--deployment", "--publish-once", "--source-workers", "--include", "--json"]),
     ("runtime bootstrap", ["--deployment", "--json"]),
     ("runtime worker", ["--deployment"]),
-    ("deployment apply", ["--apply", "--confirm", "--worker-ack-timeout-seconds", "--json"]),
     ("deployment ready", ["--profile", "--json"]),
     ("status", ["--deployment", "--json"]),
     ("search", ["--deployment", "--query"]),
@@ -228,6 +230,46 @@ def check_vendor(report: Report, deployment: Path) -> None:
             report.add(section, ERROR, entry["dest"], f"`{src}` is not in this image: upstream moved or removed it")
 
 
+def check_policy(report: Report, deployment: Path, registry: dict) -> None:
+    section = "5. access policy (the Nomos audit that readiness runs)"
+    manifest = _load_yaml(deployment / "deployment.yaml") or {}
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("nomos"), dict):
+        report.add(section, OK, "nomos", "no nomos block in deployment.yaml: okg skips the audit")
+        return
+    try:  # okg internals, not its public SDK: when they move, say so instead of crashing
+        from okg.substrate.nomos.deployment_audit import audit_deployment_policy
+
+        audit = audit_deployment_policy(manifest, source_registry=registry, deployment=str(manifest.get("name") or ""))
+    except Exception as exc:
+        report.add(section, WARN, "nomos", f"could not run okg's audit in this engine ({type(exc).__name__}: {exc}); readiness is the only check")
+        return
+    for finding in audit.get("findings") or []:
+        hint = ""
+        if finding.get("code") == "nomos.audit.source_policy_missing":
+            cls = (finding.get("details") or {}).get("source_class") or "<source_class>"
+            hint = f". Declare `nomos.source_policy_defaults.by_source_class.{cls}` in deployment.yaml, or `source_policy` on the source"
+        level = ERROR if finding.get("severity") == "error" else WARN
+        report.add(section, level, str(finding.get("path") or "nomos"), f"{finding.get('message')}{hint}")
+    for warning in audit.get("warnings") or []:
+        report.add(section, WARN, str(warning.get("path") or "nomos"), str(warning.get("message")))
+    posture = audit.get("deployment_posture") or {}
+    try:  # a governed class is accepted by readiness only with runtime enforcement on
+        from okg.substrate.nomos.doctor import GOVERNED_DEPLOYMENT_CLASSES
+        from okg.substrate.nomos.runtime_enforcement import manifest_nomos_enforcement_mode
+
+        mode = manifest_nomos_enforcement_mode(manifest)
+        if posture.get("deployment_class") in GOVERNED_DEPLOYMENT_CLASSES and mode != "enforce":
+            report.add(
+                section, ERROR, "nomos.deployment_posture.deployment_class",
+                f"`{posture.get('deployment_class')}` is a governed class and runtime enforcement is `{mode}`: "
+                "readiness will block on `nomos.source_lineage` until Nomos enforcement is rolled out",
+            )
+    except Exception as exc:
+        report.add(section, WARN, "nomos.runtime_enforcement", f"could not check the governed-class rule ({type(exc).__name__})")
+    if audit.get("ok"):
+        report.add(section, OK, "nomos.deployment_posture", f"class `{posture.get('deployment_class')}`, {audit.get('source_policy_count')} source policies")
+
+
 def apply_fixes(fixes_path: Path, deployment: Path) -> int:
     """Rewrite `class:` lines in source_registry.yaml. Text edit on purpose: comments stay."""
     fixes = json.loads(fixes_path.read_text())
@@ -283,6 +325,7 @@ def main() -> int:
     check_bundle(report, registry, args.bundle)
     check_cli(report)
     check_vendor(report, args.deployment)
+    check_policy(report, args.deployment, registry)
 
     header = (
         f"Engine in this image: okg `{os.environ.get('OKG_CODE_REVISION', 'unknown')[:12]}`, "

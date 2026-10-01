@@ -112,7 +112,8 @@ jobs:
       - if: always()
         run: docker logs pg --tail 80
   chart-path:
-    # THE CHART'S SEQUENCE, AND NOTHING ELSE. init `bootstrap` = `okg provision
+    # THE CHART'S SEQUENCE, AND NOTHING ELSE. init `catalog-claim` = `okg catalog ownership
+    # claim` (nothing to claim on a pristine database), init `bootstrap` = `okg provision
     # --publish-once --source-workers N --json`, init `runtime-bootstrap` = `okg runtime
     # bootstrap`, init `mcp-role` = ALTER ROLE okg_mcp LOGIN, then the MAIN container `okg
     # runtime worker`, gated by its probe `okg deployment ready <dep> --profile <p> --json`
@@ -154,10 +155,11 @@ jobs:
       - name: chart-path mirrors the chart (fail on drift)
         run: |
           t=helm/okg/templates/runtime-statefulset.yaml
-          grep -q -- '- provision' "$t" && grep -q -- '--publish-once' "$t" \
+          grep -q -- 'okg catalog ownership claim' "$t" \
+            && grep -q -- '- provision' "$t" && grep -q -- '--publish-once' "$t" \
             && grep -q -- '--source-workers' "$t" && grep -q -B1 -- '- bootstrap$' "$t" \
             && grep -q -- '- worker$' "$t" && grep -q -- '- ready$' "$t" \
-            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs provision/--publish-once/runtime bootstrap/runtime worker/deployment ready — update chart-path"; exit 1; }
+            || { echo "::error::helm/okg runtime-statefulset.yaml no longer runs catalog ownership claim/provision/--publish-once/runtime bootstrap/runtime worker/deployment ready — update chart-path"; exit 1; }
           # Every OKG_* env the chart's helpers inject must be one the wrapper passes (below).
           want=$(grep -oE '^- name: OKG_[A-Z_]+' helm/okg/templates/_helpers.tpl | sed 's/- name: //' | sort -u)
           have="OKG_DSN OKG_MCP_RO_DSN OKG_DEPLOYMENTS_DIR OKG_ENVIRONMENT_DATA_ROOT OKG_RUNTIME_ENVIRONMENT OKG_RUNTIME_SUPERVISOR OKG_DEPLOYMENT OKG_NOMOS_SUBJECT OKG_REPO_ROOT"
@@ -184,6 +186,10 @@ jobs:
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
+      - name: "init catalog-claim == okg catalog ownership claim (nothing to claim on a pristine database)"
+        run: |
+          okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --json \
+            || echo "catalog ownership not claimed: expected only on a database that has never been provisioned"
       - name: "init bootstrap == okg provision --publish-once"
         run: |
           set -o pipefail

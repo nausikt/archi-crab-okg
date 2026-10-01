@@ -179,15 +179,18 @@ Then wait for `e2e`. It is the first real ingest and publish on the new engine.
    ```bash
    NS=archi-crab-staging POD=archi-crab-okg-staging-runtime-0
    kubectl -n $NS get pods
+   kubectl -n $NS logs $POD -c catalog-claim | tail -5
    kubectl -n $NS logs $POD -c bootstrap | tail -30
+   kubectl -n $NS get pod $POD        # the worker container should now become READY
    kubectl -n $NS exec $POD -c worker -- printenv OKG_CODE_REVISION ARCHI_CODE_REVISION
    kubectl -n $NS exec $POD -c worker -- okg status --deployment archi-crab --json | head -40
    ```
 
-   If `bootstrap` refuses the existing database, send me its log before deleting
-   anything. Staging's volumes are disposable (`cinder-io1-delete`), so a rebuild from
-   empty is an option there, but prod's procedure has to come from what staging showed.
-   Settle it before the first Promote.
+   `catalog-claim` (§8) re-claims the database for the new revision before `bootstrap`
+   runs. If `bootstrap` still refuses the existing database, send me its log before
+   deleting anything. Staging's volumes are disposable (`cinder-io1-delete`), so a rebuild
+   from empty is an option there, but prod's procedure has to come from what staging
+   showed. Settle it before the first Promote.
 
 ### Step 5: the daily routine
 
@@ -300,6 +303,32 @@ accepts without Nomos runtime enforcement.
   A private repository cloned with a token would pass the audit while making
   `secret_handling: no_secrets` and `public` untrue. The class has to change with the
   first private repository too, even though nothing will stop you.
+
+### Rolling out onto an existing database (chart delta 9)
+
+CI always starts from an empty database, so it cannot see this. okg binds a database to
+the manifest it was claimed with. After any edit to `deployment.yaml` or the source
+registry, `okg provision` refuses to publish on that database
+(`catalog_manifest_drifted`) until ownership is claimed again. The engine staging ran
+before the catch-up behaves the same way; it is not new.
+
+For this repository every knowledge change is such an edit. Without a re-claim the
+`bootstrap` init container fails and the pod stays in `Init`.
+
+`helm/okg` therefore gets one init container upstream's chart does not have,
+`catalog-claim`, before `bootstrap`. It runs `okg catalog ownership claim` for the checked
+out revision, without `--force`. It is rendered only when
+`bootstrap.requireApprovalRevision` is on, so what it claims is always the reviewed,
+tested revision the chart was told to deploy.
+
+Rehearsed locally: a database and volume created by okg `bed964f` + archi `728739e6` at
+the old knowledge revision, then the chart's sequence with the new engine and this
+branch. Without the claim, `bootstrap` failed with `catalog_manifest_drifted`. With it:
+claim, provision (migrations 33 → 35, published), worker Ready after 30 s, smoke passed.
+
+It is a rehearsal, not staging: the data was ingested today, and the old engine's
+`runtime bootstrap` did not run in the local copy. If you would rather re-claim by hand
+on every knowledge change, drop that commit; the command is in the refusal's own hint.
 
 ## 7. Next
 

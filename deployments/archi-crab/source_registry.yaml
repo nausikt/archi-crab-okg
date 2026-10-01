@@ -60,7 +60,6 @@ sources:
     publication_mode: published_generation
     required_for_baseline: false
     params:
-      source_name: twiki_sanitized
       required: true
       records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/twiki-sanitized/records.json
     sync:

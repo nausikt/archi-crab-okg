@@ -730,6 +730,18 @@ def cmd_lint(ctx, args):
         f.error("sources/%s.yaml: unknown top-level key(s) %s" % (ctx.deployment, sorted(stray)))
     if m.get("version") != 1:
         f.error("sources/%s.yaml: version must be 1" % ctx.deployment)
+    # okg (0a8e0cd4+) injects these from deployment authority; a registry that sets
+    # them is refused by `okg deployment lint` (deployment.source_registry.param_reserved)
+    reserved = {"change_probe_kind", "deployment", "dsn", "graph_branch", "mode", "name",
+                "profile", "run_id", "source_name", "sync_scope"}
+    for kname, kd in sorted(((ctx.kinds or {}).get("kinds") or {}).items()):
+        given = set(((kd or {}).get("entry") or {}).get("params") or {})
+        for key in sorted(given & reserved):
+            f.error("sources/kinds.yaml %s: entry.params.%s is reserved -- okg injects it (strict adapter "
+                    "contract) and `okg deployment lint` refuses it; delete it" % (kname, key))
+    for sid, s in sorted(ctx.sources.items()):
+        for key in sorted(set((s or {}).get("params") or {}) & reserved):
+            f.error("%s: params.%s is reserved -- okg injects it; delete it" % (sid, key))
     tiers = ctx.tiers()
     if not tiers or not all(isinstance(t, int) for t in tiers):
         f.error("rollout.enabled_tiers must be a non-empty list of integers")

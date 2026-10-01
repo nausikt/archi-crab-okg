@@ -96,7 +96,9 @@ kinds:
       publication_mode: published_generation
       required_for_baseline: false
       params:
-        source_name: '{{name}}'
+        # no source_name: okg 0a8e0cd4's strict adapter contract injects it, and
+        # `okg deployment lint` refuses a registry that sets it (param_reserved).
+        # archi's templates still carry it (legacy contract).
         required: true
         records_path: ${OKG_DEPLOYMENTS_DIR}/{{deployment}}/{{data}}/records.json
       sync:

@@ -43,6 +43,12 @@ code_repos:
     - {slug: dbs2go, url: 'https://github.com/dmwm/dbs2go.git', dir: dbs2go}
     # cmsmonitoring -- tier 20 -- CMS monitoring infrastructure (MONIT, dashboards, CRAB/WMAgent metrics)
     - {slug: cmsmonitoring, url: 'https://github.com/dmwm/CMSMonitoring.git', dir: CMSMonitoring}
+    # crabserver-wiki -- tier 20 -- CRABServer GitHub wiki -- developer and operator notes not in the code or the TWiki
+    - {slug: crabserver-wiki, url: 'https://github.com/dmwm/CRABServer.wiki.git', dir: CRABServer.wiki}
+    # wmcore-wiki -- tier 20 -- WMCore GitHub wiki -- WMAgent operations, error handling, background of the WM exit codes
+    - {slug: wmcore-wiki, url: 'https://github.com/dmwm/WMCore.wiki.git', dir: WMCore.wiki}
+    # rucio-docs -- tier 20 -- Rucio user and operator documentation ("how do I"; the rucio repo is "where in the code")
+    - {slug: rucio-docs, url: 'https://github.com/rucio/documentation.git', dir: rucio-documentation}
 
 sources:
   # ---- twiki-sanitized -- tier 10 -- kind docs-files -- Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file)

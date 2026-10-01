@@ -287,6 +287,34 @@ sources:
     dir: CMSMonitoring
     about: CMS monitoring infrastructure (MONIT, dashboards, CRAB/WMAgent metrics)
 
+  # ==== 20: public wikis and docs (GitHub wikis are plain git repos) ==========
+  crabserver-wiki:
+    tier: 20
+    group: extras/docs
+    kind: git
+    git: https://github.com/dmwm/CRABServer.wiki.git
+    branch: master
+    dir: CRABServer.wiki
+    about: CRABServer GitHub wiki -- developer and operator notes not in the code or the TWiki
+
+  wmcore-wiki:
+    tier: 20
+    group: extras/docs
+    kind: git
+    git: https://github.com/dmwm/WMCore.wiki.git
+    branch: master
+    dir: WMCore.wiki
+    about: WMCore GitHub wiki -- WMAgent operations, error handling, background of the WM exit codes
+
+  rucio-docs:
+    tier: 20
+    group: extras/docs
+    kind: git
+    git: https://github.com/rucio/documentation.git
+    branch: main
+    dir: rucio-documentation
+    about: Rucio user and operator documentation ("how do I"; the rucio repo is "where in the code")
+
   # ==== 30: large upstreams, ingested only in part ===========================
   # Each needs `scope`: whole, they are 5k-80k files. Scope needs an engine that
   # can restrict a repo to globs, and that is not verified for the pinned okg

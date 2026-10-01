@@ -21,11 +21,15 @@ wrote against something UPSTREAM owns:
                policy: the audit each readiness probe runs, here in one second instead
                of as a worker that never becomes Ready
 
-Applying the mechanical fixes (on the host, no imports needed):
+Applying the mechanical fixes (on the host):
 
     python3 scripts/contract-check.py --apply-fixes fixes.json --deployment deployments/archi-crab
 
-Standard library + PyYAML (present in the image; not needed for --apply-fixes).
+With sources/kinds.yaml present the registry is generated, so a rename goes into the
+kind and the registry is re-rendered (scripts/sources.py: needs PyYAML on the host).
+Without it, the old in-place registry edit (standard library only).
+
+Standard library + PyYAML (present in the image).
 """
 from __future__ import annotations
 
@@ -282,7 +286,6 @@ def apply_fixes(fixes_path: Path, deployment: Path) -> int:
     if (repo / "sources" / "kinds.yaml").is_file():
         ident = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
         done: set[tuple[str, str]] = set()
-        rc = 0
         for fix in fixes if isinstance(fixes, list) else []:
             if not (isinstance(fix, dict) and all(isinstance(fix.get(k), str) for k in ("old", "new"))
                     and ident.fullmatch(fix["old"]) and ident.fullmatch(fix["new"])):
@@ -293,8 +296,11 @@ def apply_fixes(fixes_path: Path, deployment: Path) -> int:
             done.add((fix["old"], fix["new"]))
             proc = subprocess.run([sys.executable, str(repo / "scripts" / "sources.py"), "--repo", str(repo),
                                    "rename-class", fix["old"], fix["new"]])
-            rc |= proc.returncode
-        return rc
+            if proc.returncode:
+                # skip it, as the in-place path does: the engine PR must still open, and its
+                # contract report (and sources-lint) say what is left to do
+                print(f"skip {fix['old']} -> {fix['new']}: rename-class failed (exit {proc.returncode})", file=sys.stderr)
+        return 0
     registry = deployment / "source_registry.yaml"
     lines = registry.read_text().splitlines(keepends=True)
     applied = 0

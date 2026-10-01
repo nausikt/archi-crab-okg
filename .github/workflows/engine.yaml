@@ -172,6 +172,8 @@ jobs:
             echo "**vendor-sync failed**: a path in VENDOR.yaml is gone from the image. Vendored files were left as they are." > "$RUNNER_TEMP/report/vendor.md"
           fi
           git add -A versions.lock deployments
+          # vendor/: the reference copies vendor-sync writes (VENDOR.yaml `root: repo`)
+          if [ -d vendor ]; then git add -A vendor; fi
           git commit -q -m "engine: okg $OKG + archi-okg $ARCHI" || echo "nothing to commit"
 
       - name: Contract check in the new image; apply mechanical fixes

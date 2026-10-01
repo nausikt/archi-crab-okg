@@ -77,6 +77,12 @@ SOURCE_KEYS = {"tier", "group", "kind", "git", "branch", "dir", "about", "enable
 KIND_REQUIRED = {"git": ("git",), "docs-files": ("data",), "twiki-raw": ("data",), "cmssw-releases": ()}
 
 
+def is_git(ctx, sid):
+    """A source rendered into code_repos (kind `git`, or any kind with render: code_repos)."""
+    k = ((ctx.kinds or {}).get("kinds") or {}).get(ctx.sources[sid].get("kind"))
+    return (k or {}).get("render") == "code_repos" if k else ctx.sources[sid].get("kind") == "git"
+
+
 def kind_names(ctx):
     """Kinds are whatever sources/kinds.yaml defines (a new connector = a new kind
     there, no code change); the built-in four when kinds.yaml is not at hand."""
@@ -243,6 +249,9 @@ def render(ctx):
         if has_userinfo(env["git"]) or "@" in env["git"].split("://", 1)[-1].split("/", 1)[0]:
             raise RenderError("%s: credentials in the git URL; tokens go through gitCredentials, never the URL" % sid)
         if k.get("render") == "code_repos":
+            if git_kind is not None and k.get("code_repos") != git_kind.get("code_repos"):
+                raise RenderError("%s: kind %s renders into code_repos with a different code_repos block than "
+                                  "another rendered git kind; okg has one code_repos block" % (sid, s.get("kind")))
             git_kind = k
             entry = _subst(k["repo_entry"], env)
             scope = s.get("scope") or {}
@@ -334,7 +343,7 @@ def render_text(ctx):
         out.append(line.rstrip(",") + ".")
     out.append("")
     if "code_repos" in reg:
-        gk = ctx.kinds["kinds"]["git"]
+        gk = next(ctx.kind(sid) for what, sid in meta if what == "repo")
         out.append(_comment("kind git: %s.\nProven: %s." % (gk.get("about", ""), gk.get("proven", "")), 0))
         cr = reg["code_repos"]
         out.append(_block({"code_repos": {k: v for k, v in cr.items() if k != "repos"}}, 0))
@@ -514,23 +523,30 @@ def _job_runs(job):
     return "\n".join(str(st.get("run") or "") for st in (job.get("steps") or []) if isinstance(st, dict))
 
 
-def check_ci_credentials(ctx, hosts_needed, f):
-    """Every CI job that ingests must carry the same git credential helper the
-    chart renders (docs/ONBOARDING.md §4 B5): job/workflow env with the helper,
-    its value, the count and a token from a secret, and every `docker run` of
-    the okg image in that job must pass them into the container."""
+def _ingesting_jobs(ctx):
+    """([(workflow file, job name, workflow doc, job)], {workflow file: doc}) for every
+    CI job that runs `okg ingest`/`okg provision` -- where the e2e clones sources."""
     wf_dir = ctx.repo / ".github" / "workflows"
     docs = {}
     for p in sorted(wf_dir.glob("*.y*ml")) if wf_dir.is_dir() else []:
         try:
             docs[p.name] = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError as exc:
-            f.error(".github/workflows/%s does not parse: %s" % (p.name, exc))
-    ingesting = []
+        except yaml.YAMLError:
+            docs[p.name] = {}
+    jobs = []
     for name, doc in docs.items():
-        for jname, job in (doc.get("jobs") or {}).items():
+        for jname, job in ((doc.get("jobs") or {}) if isinstance(doc, dict) else {}).items():
             if isinstance(job, dict) and _INGEST_RE.search(_job_runs(job)):
-                ingesting.append((name, jname, doc, job))
+                jobs.append((name, jname, doc, job))
+    return jobs, docs
+
+
+def check_ci_credentials(ctx, hosts_needed, f):
+    """Every CI job that ingests must carry the same git credential helper the
+    chart renders (docs/ONBOARDING.md §4 B5): job/workflow env with the helper,
+    its value, the count and a token from a secret, and every `docker run` of
+    the okg image in that job must pass them into the container."""
+    ingesting, docs = _ingesting_jobs(ctx)
     actions_dir = ctx.repo / ".github" / "actions"
     for p in sorted(actions_dir.rglob("action.y*ml")) if actions_dir.is_dir() else []:
         if _INGEST_RE.search(p.read_text(encoding="utf-8")):
@@ -552,9 +568,11 @@ def check_ci_credentials(ctx, hosts_needed, f):
                 needed.setdefault(name, set()).update(re.findall(r"secrets\.([A-Za-z0-9_]+)", str(v)))
     for callee, names in needed.items():
         trig = docs[callee].get("on", docs[callee].get(True)) or {}
-        call = trig.get("workflow_call") if isinstance(trig, dict) else None
-        if call is None:
+        is_reusable = (isinstance(trig, dict) and "workflow_call" in trig) or trig == "workflow_call" or (
+            isinstance(trig, list) and "workflow_call" in trig)
+        if not is_reusable:
             continue
+        call = trig.get("workflow_call") if isinstance(trig, dict) else None
         declared = set(((call or {}).get("secrets") or {}).keys())
         for n in sorted(names - declared):
             f.error(".github/workflows/%s reads secrets.%s but does not declare it under on.workflow_call.secrets -- "
@@ -581,24 +599,42 @@ def check_ci_credentials(ctx, hosts_needed, f):
                         "fail to clone and staging would never get the pin (docs/ONBOARDING.md §4 B5)" % (where, host))
                 continue
             i = keys[0].rsplit("_", 1)[-1]
-            missing = [k for k in ("GIT_CONFIG_COUNT", "GIT_CONFIG_VALUE_%s" % i) if k not in env]
-            if not any(str(k).startswith("GIT_CRED_TOKEN_") and "secrets." in str(v) for k, v in env.items()):
-                missing.append("GIT_CRED_TOKEN_i from a secret")
-            if missing:
-                f.error("%s: credential helper for %s is incomplete, missing %s" % (where, host, ", ".join(missing)))
-        runs = _job_runs(job).replace("\\\n", " ")
-        for line in runs.split("\n"):
-            if "docker run" in line and "OKG_IMG" in line:
-                lacking = [flag for flag in ("-e GIT_CONFIG_COUNT", "-e GIT_CRED_TOKEN_") if flag not in line]
-                if lacking:
-                    f.error("%s: a `docker run` of the okg image does not pass %s into the container: %s"
-                            % (where, " / ".join(lacking), line.strip()[:120]))
+            problems = []
+            try:
+                count = int(str(env.get("GIT_CONFIG_COUNT", "")).strip())
+            except ValueError:
+                count = -1
+            if count <= int(i):
+                problems.append("GIT_CONFIG_COUNT must be at least %d (git ignores KEY_%s otherwise)" % (int(i) + 1, i))
+            value = str(env.get("GIT_CONFIG_VALUE_%s" % i) or "")
+            tok = re.search(r"\$\{?(GIT_CRED_TOKEN_\w+)", value)
+            if not value:
+                problems.append("GIT_CONFIG_VALUE_%s (the helper) is missing" % i)
+            elif not tok:
+                problems.append("the helper in GIT_CONFIG_VALUE_%s reads no $GIT_CRED_TOKEN_* variable" % i)
+            elif "secrets." not in str(env.get(tok.group(1)) or ""):
+                problems.append("the helper reads $%s, which the env does not set from a secret" % tok.group(1))
+            if problems:
+                f.error("%s: credential helper for %s: %s" % (where, host, "; ".join(problems)))
+                continue
+            # every okg container must receive the whole helper, or git inside it breaks for EVERY clone
+            needed_flags = ["-e GIT_CONFIG_COUNT", "-e GIT_CONFIG_KEY_%s" % i, "-e GIT_CONFIG_VALUE_%s" % i,
+                            "-e %s" % tok.group(1)]
+            runs = _job_runs(job).replace("\\\n", " ")
+            for line in runs.split("\n"):
+                if "docker run" in line and "OKG_IMG" in line:
+                    lacking = [fl for fl in needed_flags if not re.search(re.escape(fl) + r"(?![\w])", line)]
+                    if lacking:
+                        f.error("%s: a `docker run` of the okg image does not pass %s into the container: %s"
+                                % (where, " ".join(lacking), line.strip()[:120]))
 
 
 def source_auth(ctx, sid):
-    """none|token: the source's own `auth:` (a public project on a token host), else its host's."""
+    """none|token: the source's own `auth:` (a public project on a token host), else
+    its host's; None when the host is not declared (lint reports that separately)."""
     s = ctx.sources[sid]
-    return s.get("auth") or ((ctx.manifest.get("hosts") or {}).get(git_host(s.get("git"))) or {}).get("auth")
+    host = (ctx.manifest.get("hosts") or {}).get(git_host(s.get("git")))
+    return s.get("auth") or (host or {}).get("auth") if host is not None or s.get("auth") else None
 
 
 def sensitivity(ctx, sid):
@@ -608,11 +644,32 @@ def sensitivity(ctx, sid):
     s = ctx.sources[sid]
     if s.get("sensitivity"):
         return str(s["sensitivity"])
-    if s.get("kind") == "git":
-        return "public" if source_auth(ctx, sid) == "none" else "internal"
+    if is_git(ctx, sid):
+        auth = source_auth(ctx, sid)
+        return "" if auth is None else "public" if auth == "none" else "internal"
     if s.get("kind") == "cmssw-releases":
         return "public"
     return ""
+
+
+def held_credentials(ctx):
+    """Hosts this repository is wired to authenticate to, whatever the sources say:
+    gitCredentials in envs/*/values.yaml (the pod) and credential helpers in CI."""
+    held = {}
+    for env in ("staging", "prod"):
+        p = ctx.repo / "envs" / env / "values.yaml"
+        vals = load_yaml(p) if p.exists() else {}
+        for h in (((vals or {}).get("gitCredentials") or {}).get("hosts") or []):
+            if isinstance(h, dict) and h.get("host"):
+                held.setdefault(h["host"], set()).add("envs/%s/values.yaml" % env)
+    for name, jname, doc, job in _ingesting_jobs(ctx)[0]:
+        env = dict(doc.get("env") or {})
+        env.update(job.get("env") or {})
+        for k, v in env.items():
+            m = re.fullmatch(r"credential\.https://([^/\s]+)\.helper", str(v)) if str(k).startswith("GIT_CONFIG_KEY_") else None
+            if m:
+                held.setdefault(m.group(1), set()).add(".github/workflows/%s job %s" % (name, jname))
+    return held
 
 
 def check_nomos(ctx, reg, token_hosts, f):
@@ -638,10 +695,14 @@ def check_nomos(ctx, reg, token_hosts, f):
             sid = name.replace("_", "-")
             pol = by_class[sc] or {}
             if sid in ctx.sources and pol.get("sensitivity") and sensitivity(ctx, sid) and pol["sensitivity"] != sensitivity(ctx, sid):
-                f.warn("source %s is %s, but the %s policy it falls under says %s" % (sid, sensitivity(ctx, sid), sc, pol["sensitivity"]))
+                f.error("source %s is %s, but the %s policy it falls under says %s: one class policy cannot describe "
+                        "both; a non-public source waits for the governed posture (docs/ADDING-SOURCES.md 4)"
+                        % (sid, sensitivity(ctx, sid), sc, pol["sensitivity"]))
     for sid in ctx.sources:
         if not ctx.selected(sid):
             continue
+        if is_git(ctx, sid) and source_auth(ctx, sid) is None:
+            continue  # undeclared host: reported by lint already, not a governance question
         sens = sensitivity(ctx, sid)
         if not sens:
             f.error("%s: say what its content is -- `sensitivity: public` (every page is world-readable) or "
@@ -650,9 +711,15 @@ def check_nomos(ctx, reg, token_hosts, f):
             f.error("%s is %s, but the posture (%s) allows only %s sources. This is the data-governance gate, on purpose: "
                     "the class must become org_operational_private with Nomos runtime enforcement first. Do not "
                     "widen the public lists (docs/UPSTREAM-SYNC.md 'The posture is a gate')" % (sid, sens, klass, allowed))
-    if token_hosts and posture.get("secret_handling") == "no_secrets":
-        f.error("sources read %s with a token, but the posture says secret_handling: no_secrets -- untrue the moment "
-                "the first private repository is enabled (same gate as above)" % ", ".join(sorted(token_hosts)))
+    if posture.get("secret_handling") == "no_secrets":
+        if token_hosts:
+            f.error("sources read %s with a token, but the posture says secret_handling: no_secrets -- untrue the moment "
+                    "the first private repository is enabled (same gate as above)" % ", ".join(sorted(token_hosts)))
+        held = held_credentials(ctx)
+        for host in sorted(set(held) - set(token_hosts)):
+            f.error("%s: a credential for %s is wired (%s) while the posture says secret_handling: no_secrets -- the pod "
+                    "and CI would clone with it whatever a source's `auth:` says; remove it, or change the posture first"
+                    % (host, host, ", ".join(sorted(held[host]))))
 
 
 def cmd_lint(ctx, args):
@@ -707,14 +774,28 @@ def cmd_lint(ctx, args):
         if kind not in kind_names(ctx):
             f.error("%s: kind must be one of %s (sources/kinds.yaml)" % (sid, ", ".join(kind_names(ctx))))
             continue
-        if s.get("params") is not None and (not isinstance(s["params"], dict) or kind == "git"):
+        if s.get("params") is not None and (not isinstance(s["params"], dict) or is_git(ctx, sid)):
             f.error("%s: params must be a mapping, on a kind rendered as a source (not git)" % sid)
+        elif ctx.kinds and kind in kind_names(ctx):
+            kd = ctx.kind(sid)
+            given = s.get("params") or {}
+            fixed = set(((kd.get("entry") or {}).get("params") or {})) - set(kd.get("params_overridable") or [])
+            for key in sorted(set(given) & fixed):
+                f.error("%s: params.%s is set by kind %s (data paths and safety switches live there); "
+                        "change the kind, or list it under the kind's params_overridable" % (sid, key, kind))
+            types = {"list": list, "str": str, "int": int, "bool": bool, "mapping": dict}
+            for key, typ in (kd.get("params_required") or {}).items():
+                val = given.get(key)
+                ok = isinstance(val, types.get(typ, object)) and not (typ == "list" and not val) and not (
+                    typ == "list" and not all(isinstance(x, str) and x for x in val))
+                if not ok:
+                    f.error("%s: kind %s needs params.%s as a non-empty %s (got %r)" % (sid, kind, key, typ, val))
         for req in kind_requires(ctx, kind):
             if not s.get(req):
                 f.error("%s: kind %s needs `%s`" % (sid, kind, req))
         if "scope" in s:
             sc = s["scope"]
-            ok = (kind == "git" and isinstance(sc, dict) and sc and not (set(sc) - {"include", "exclude"})
+            ok = (is_git(ctx, sid) and isinstance(sc, dict) and sc and not (set(sc) - {"include", "exclude"})
                   and all(isinstance(v, list) and v and all(isinstance(g, str) and g for g in v) for v in sc.values()))
             if not ok:
                 f.error("%s: scope must be {include: [globs], exclude: [globs]} with at least one glob, on a git "
@@ -731,14 +812,14 @@ def cmd_lint(ctx, args):
             f.error("%s: no credentials or query in the git URL -- tokens go through gitCredentials" % sid)
             continue
         if not ctx.selected(sid):
-            if kind == "git" and PLACEHOLDER_RE.search(url):
+            if is_git(ctx, sid) and PLACEHOLDER_RE.search(url):
                 f.note("%s: pending -- fill the repository path, then `probe --id %s`" % (sid, sid))
             continue
 
         # ---- selected sources only below ----
         if ctx.kinds:
             produced.update(ctx.kind(sid).get("produces") or [])
-        if kind == "git":
+        if is_git(ctx, sid):
             if PLACEHOLDER_RE.search(url):
                 f.error("%s: git URL still has a placeholder: %s" % (sid, url))
             host = git_host(url)
@@ -752,7 +833,7 @@ def cmd_lint(ctx, args):
             if d in dirs:
                 f.error("%s: clone dir %r already used by %s" % (sid, d, dirs[d]))
             dirs[d] = sid
-            if s.get("scope") and ctx.kinds and not (ctx.kinds["kinds"]["git"].get("scope_fields")):
+            if s.get("scope") and ctx.kinds and not ctx.kind(sid).get("scope_fields"):
                 f.error("%s: has `scope` but scoping is not verified for the pinned okg "
                         "(sources/kinds.yaml git.scope_fields is null) -- keep it disabled (docs/SOURCES.md §5)" % sid)
         elif (ctx.kinds and (ctx.kind(sid).get("data_check") == "records-json")) or kind == "docs-files":
@@ -930,7 +1011,7 @@ def cmd_status(ctx, args):
     for sid, s in ctx.sources.items():
         why = ctx.why_not(sid)
         extra = []
-        if s.get("kind") == "git" and PLACEHOLDER_RE.search(str(s.get("git") or "")):
+        if is_git(ctx, sid) and PLACEHOLDER_RE.search(str(s.get("git") or "")):
             extra.append("path unknown")
         if s.get("scope"):
             extra.append("needs scope")
@@ -968,9 +1049,16 @@ def in_scope(paths, scope):
     return [p for p in paths if (not inc or any(r.match(p) for r in inc)) and not any(r.match(p) for r in exc)]
 
 
-def _git(args, timeout, cwd=None):
+def _git(args, timeout, cwd=None, anonymous=False):
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_ASKPASS="true")
-    return subprocess.run(["git"] + args, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
+    pre = []
+    if anonymous:
+        # prove the repo is readable with NO credential: drop every configured helper
+        # (env-injected, global, system), as an `auth: none` source claims
+        env = {k: v for k, v in env.items() if not k.startswith("GIT_CONFIG_")}
+        env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        pre = ["-c", "credential.helper="]
+    return subprocess.run(["git"] + pre + args, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
 
 
 def _last_line(text):
@@ -995,12 +1083,14 @@ def probe_git(ctx, sid, cache, refresh, strict):
         return ("FAIL" if strict else "skip"), (
             "no git credential for %s in this environment; run the probe in the worker pod "
             "(see `sources.py --help`) or export the CI helper env" % host), {}
+    anon = auth == "none"
     try:
-        r = _git(["ls-remote", "--symref", url, "HEAD"], 90)
+        r = _git(["ls-remote", "--symref", url, "HEAD"], 90, anonymous=anon)
     except subprocess.TimeoutExpired:
         return "FAIL", "ls-remote timed out (network/egress?)", {}
     if r.returncode != 0:
-        return "FAIL", "cannot reach: %s (on GitLab, 'not found' also means 'no access')" % _last_line(r.stderr), {}
+        return "FAIL", "cannot reach%s: %s (on GitLab, 'not found' also means 'no access')" % (
+            " WITHOUT a credential, as `auth: none` claims" if anon else "", _last_line(r.stderr)), {}
     m = re.search(r"^ref: refs/heads/(\S+)\s+HEAD", r.stdout, re.M)
     if not m:
         return "FAIL", "no default branch advertised (empty repository?)", {}
@@ -1019,7 +1109,8 @@ def probe_git(ctx, sid, cache, refresh, strict):
             shutil.rmtree(dest, ignore_errors=True)
         if not dest.exists():
             base.mkdir(parents=True, exist_ok=True)
-            c = _git(["clone", "--quiet", "--bare", "--depth", "1", "--filter=blob:none", "--no-tags", url, str(dest)], 900)
+            c = _git(["clone", "--quiet", "--bare", "--depth", "1", "--filter=blob:none", "--no-tags", url, str(dest)], 900,
+                     anonymous=anon)
             if c.returncode != 0:
                 return "FAIL", "clone failed: %s" % _last_line(c.stderr), info
         t = _git(["ls-tree", "-r", "--name-only", "HEAD"], 300, cwd=str(dest))
@@ -1037,7 +1128,7 @@ def probe_git(ctx, sid, cache, refresh, strict):
     ext = collections.Counter(os.path.splitext(p)[1].lower() or "<none>" for p in scoped)
     info.update(head=head, files_total=len(paths), files_in_scope=len(scoped), max_files=budget,
                 est_nodes=len(scoped) * NODES_PER_FILE, top_ext=dict(ext.most_common(6)))
-    scope_ok = bool(ctx.kinds and ctx.kinds["kinds"]["git"].get("scope_fields"))
+    scope_ok = bool(ctx.kinds and ctx.kind(sid).get("scope_fields"))
     if s.get("scope") and not scope_ok:
         problems.append("scope not supported by the pinned engine yet: enabled today it would ingest all %d files" % len(paths))
     if len(scoped) > budget:
@@ -1080,7 +1171,7 @@ def cmd_probe(ctx, args):
     for sid in ids:
         kind = ctx.sources[sid].get("kind")
         try:
-            if kind == "git":
+            if is_git(ctx, sid):
                 res = probe_git(ctx, sid, args.cache, args.refresh, args.strict)
             elif kind == "cmssw-releases":
                 res = probe_catalog(ctx, sid) if ctx.kinds else ("skip", "needs sources/kinds.yaml (pass --repo)", {})
@@ -1203,107 +1294,141 @@ def _okg_keys_near_code_repos():
 
 
 def _string_collections(path):
-    """NAME = {...}/[...]/(...)/frozenset(...)/Literal[...] of >= 2 strings, from one file."""
+    """Vocabularies in one okg file: NAME = {...}/[...]/(...)/frozenset(...)/Literal[...]
+    of >= 2 strings, `name: Literal[...]` annotations, and Enum classes whose members
+    are strings."""
     out = []
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-    except (SyntaxError, OSError, UnicodeDecodeError):
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+    except (SyntaxError, OSError, ValueError):
         return out
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
-            continue
-        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-        names = [t.id for t in targets if isinstance(t, ast.Name)]
-        val = node.value
-        if val is None or not names:
-            continue
+
+    def strings(val):
         if isinstance(val, ast.Call) and val.args:
             val = val.args[0]
         if isinstance(val, ast.Subscript):
             val = val.slice.value if isinstance(val.slice, getattr(ast, "Index", ())) else val.slice
+        if isinstance(val, ast.Constant) and isinstance(val.value, str):
+            return [val.value]
         elts = getattr(val, "elts", None) if isinstance(val, (ast.Set, ast.List, ast.Tuple)) else None
-        strs = [e.value for e in elts or [] if isinstance(e, ast.Constant) and isinstance(e.value, str)]
-        if len(strs) >= 2 and len(strs) == len(elts or []):
-            out.append((names[0], strs, node.lineno))
+        got = [e.value for e in elts or [] if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+        return got if elts and len(got) == len(elts) else []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and any(
+                getattr(base, "id", getattr(base, "attr", "")).endswith("Enum") for base in node.bases):
+            vals = [st.value.value for st in node.body if isinstance(st, ast.Assign)
+                    and isinstance(st.value, ast.Constant) and isinstance(st.value.value, str)]
+            if len(vals) >= 2:
+                out.append((node.name, vals, node.lineno))
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            names = [getattr(x, "id", getattr(x, "attr", None)) for x in targets]
+            names = [n for n in names if n]
+            if not names:
+                continue
+            found = strings(node.value) if node.value is not None else []
+            if len(found) < 2 and isinstance(node, ast.AnnAssign):
+                found = strings(node.annotation)  # field: Literal["a", "b"]
+            if len(found) >= 2:
+                out.append((names[0], found, node.lineno))
     return out
 
 
 def cmd_inventory(ctx, args):
-    """Read-only map of what the pinned engine offers, for writing modules,
-    kinds and Nomos policies without guessing. Markdown on stdout."""
+    """Read-only map of what the pinned engine offers, for writing modules, kinds
+    and Nomos policies without guessing. Markdown on stdout, section by section
+    (a section that fails says so; the others still print)."""
     try:
         import okg
     except ImportError as exc:
         print("inventory must run inside the pinned image (okg not importable: %s)" % exc, file=sys.stderr)
         return 2
     root = Path(okg.__file__).resolve().parent
-    out = ["## Engine inventory", "",
-           "okg `%s`, archi `%s` (from the image environment)" % (
-               os.environ.get("OKG_CODE_REVISION", "?")[:12], os.environ.get("ARCHI_CODE_REVISION", "?")[:12]), ""]
-    # 1. ontology modules: any directory named `modules` in okg, its children, and the
-    #    LinkML classes (= node subtypes) their YAML declares
-    out += ["### Ontology modules (what `deployment.yaml` `modules:` may name)", ""]
-    mod_dirs = [d for d in root.rglob("modules") if d.is_dir() and "__pycache__" not in d.parts and len(d.relative_to(root).parts) <= 5]
-    for md in sorted(mod_dirs):
-        children = sorted(c for c in md.iterdir() if not c.name.startswith(("_", ".")))
-        if not children:
-            continue
-        out += ["`%s`" % md.relative_to(root.parent), "", "| module | subtypes it declares |", "|---|---|"]
-        for c in children:
-            classes = set()
-            for y in ([c] if c.is_file() else sorted(c.rglob("*.y*ml"))):
-                if y.suffix not in (".yaml", ".yml"):
-                    continue
-                try:
-                    doc = yaml.safe_load(y.read_text(encoding="utf-8"))
-                except (yaml.YAMLError, OSError, UnicodeDecodeError):
-                    continue
-                if isinstance(doc, dict) and isinstance(doc.get("classes"), dict):
-                    classes.update(doc["classes"])
-            name = c.stem if c.is_file() else c.name
-            shown = ", ".join(sorted(classes)[:14]) + (" ..." if len(classes) > 14 else "")
-            out.append("| `%s` | %s |" % (name, shown or "(no LinkML classes found)"))
-        out.append("")
-    if not mod_dirs:
-        out += ["No `modules` directory found under %s; look for the module loader in okg." % root, ""]
-    # 2. the code-graph template the `git` kind mirrors
-    tpl = root / "substrate" / "library" / "templates" / "codebase-index"
-    out += ["### codebase-index template (the `git` kind: `code_repos`, lanes, scope keys)", ""]
-    if tpl.is_dir():
+
+    def emit(lines):
+        sys.stdout.write("\n".join(lines) + "\n")
+        sys.stdout.flush()
+
+    def section(title, body):
+        emit(["### " + title, ""])
+        try:
+            lines = body()
+        except Exception as exc:  # noqa: BLE001 -- an unknown layout must not hide the rest
+            lines = ["(this section failed: %s: %s)" % (type(exc).__name__, str(exc)[:200])]
+        emit((lines or ["(nothing found)"]) + [""])
+
+    def modules():
+        lines = []
+        dirs = [d for d in root.rglob("modules") if d.is_dir() and "__pycache__" not in d.parts
+                and len(d.relative_to(root).parts) <= 5]
+        for md in sorted(dirs):
+            children = sorted(c for c in md.iterdir() if not c.name.startswith(("_", ".")))
+            if not children:
+                continue
+            lines += ["`%s`" % md.relative_to(root.parent), "", "| module | LinkML classes it declares |", "|---|---|"]
+            for c in children:
+                classes = set()
+                for y in ([c] if c.is_file() else sorted(c.rglob("*"))):
+                    if y.suffix not in (".yaml", ".yml"):
+                        continue
+                    try:
+                        doc = yaml.safe_load(y.read_text(encoding="utf-8", errors="replace"))
+                    except yaml.YAMLError:
+                        continue
+                    if isinstance(doc, dict) and isinstance(doc.get("classes"), dict):
+                        classes.update(str(k) for k in doc["classes"])
+                shown = ", ".join(sorted(classes)[:14]) + (" ..." if len(classes) > 14 else "")
+                lines.append("| `%s` | %s |" % (c.stem if c.is_file() else c.name, shown or "(none found)"))
+            lines.append("")
+        return lines or ["no `modules` directory under %s: find okg's module loader instead" % root]
+
+    def template():
+        tpl = root / "substrate" / "library" / "templates" / "codebase-index"
+        if not tpl.is_dir():
+            return ["not found at %s" % tpl]
+        lines = []
         for y in sorted(tpl.rglob("*")):
             if y.is_file() and y.suffix in (".yaml", ".yml", ".example", ".md") and "schemas" not in y.parts:
                 text = y.read_text(encoding="utf-8", errors="replace").splitlines()
-                out += ["<details><summary>%s (%d lines)</summary>" % (y.relative_to(tpl), len(text)), "", "```yaml",
-                        *text[:220], "```", "</details>", ""]
-    else:
-        out += ["not found at %s" % tpl, ""]
-    # 3. the Nomos vocabulary
-    nomos = root / "substrate" / "nomos"
-    out += ["### Nomos vocabulary (values a posture or source policy may use)", ""]
-    for py in sorted(nomos.glob("*.py")) if nomos.is_dir() else []:
-        for name, values, line in _string_collections(py):
-            if any(v in values for v in ("public", "public_reference_demo", "remote_api", "deny", "normal", "audit")) \
-                    or re.search(r"CLASS|SENSITIV|PROVENANCE|EXPORT|RETENTION|CLASSIFICATION|PRINCIPAL|POLICY|OBLIGATION", name):
-                out.append("- `%s` (%s:%d): %s" % (name, py.name, line, ", ".join("`%s`" % v for v in values)))
-    out.append("")
-    # 4. archi's connector templates
-    bundle = Path(os.environ.get("OKG_PROFILES_DIR", "/opt/archi/bundles")) / "cern-team" / "source-defaults"
-    out += ["### archi cern-team source templates (candidates for new kinds)", ""]
-    for y in sorted(bundle.glob("*.y*ml*")) if bundle.is_dir() else []:
-        try:
-            doc = yaml.safe_load(y.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError:
-            continue
-        for bname, entry in (doc.items() if isinstance(doc, dict) else []):
-            if isinstance(entry, dict) and "module" in entry:
-                out.append("- `%s` (%s): `%s.%s`, source_class `%s`" % (
-                    bname, y.name, entry.get("module"), entry.get("class"), entry.get("source_class")))
-    text = "\n".join(out) + "\n"
-    sys.stdout.write(text)
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a", encoding="utf-8") as fh:
-            fh.write("<details><summary>Engine inventory (modules, templates, Nomos vocabulary)</summary>\n\n" + text + "\n</details>\n")
+                lines += ["<details><summary>%s (%d lines)</summary>" % (y.relative_to(tpl), len(text)), "",
+                          "```yaml", *text[:220], "```", "</details>", ""]
+        return lines
+
+    def vocabulary():
+        nomos = root / "substrate" / "nomos"
+        lines = []
+        for py in sorted(nomos.rglob("*.py")) if nomos.is_dir() else []:
+            for name, values, line in _string_collections(py):
+                if any(v in values for v in ("public", "public_reference_demo", "remote_api", "deny", "normal", "audit")) \
+                        or re.search(r"CLASS|SENSITIV|PROVENANCE|EXPORT|RETENTION|CLASSIFICATION|PRINCIPAL|POLICY|"
+                                     r"OBLIGATION|provenance|sensitiv|export|retention|classification", name):
+                    lines.append("- `%s` (%s:%d): %s" % (name, py.relative_to(nomos), line, ", ".join("`%s`" % v for v in values)))
+        if not lines:
+            lines = ["no string vocabularies recognised under %s; the PR's okg audit (ci okg-validate, "
+                     "contract-check section 5) is the authority on posture and policy values" % nomos]
+        return lines
+
+    def templates():
+        bundle = Path(os.environ.get("OKG_PROFILES_DIR", "/opt/archi/bundles")) / "cern-team" / "source-defaults"
+        lines = []
+        for y in sorted(bundle.glob("*.y*ml*")) if bundle.is_dir() else []:
+            try:
+                doc = yaml.safe_load(y.read_text(encoding="utf-8", errors="replace")) or {}
+            except yaml.YAMLError:
+                continue
+            for bname, entry in (doc.items() if isinstance(doc, dict) else []):
+                if isinstance(entry, dict) and "module" in entry:
+                    lines.append("- `%s` (%s): `%s.%s`, source_class `%s`" % (
+                        bname, y.name, entry.get("module"), entry.get("class"), entry.get("source_class")))
+        return lines
+
+    emit(["## Engine inventory", "", "okg `%s`, archi `%s` (from the image environment)" % (
+        os.environ.get("OKG_CODE_REVISION", "?")[:12], os.environ.get("ARCHI_CODE_REVISION", "?")[:12]), ""])
+    section("Ontology modules (what `deployment.yaml` `modules:` may name)", modules)
+    section("codebase-index template (the `git` kind: `code_repos`, lanes, scope keys)", template)
+    section("Nomos vocabulary (values a posture or source policy may use)", vocabulary)
+    section("archi cern-team source templates (candidates for new kinds)", templates)
     return 0
 
 
@@ -1369,7 +1494,10 @@ def cmd_contract(ctx, args):
     for key in sorted({k for r in repos for k in r}):
         if key not in keys:
             f.warn("code_repos repo key %r not found near okg's code_repos handling (static scan) -- confirm it is read" % key)
-    scope_fields = (ctx.kinds or {}).get("kinds", {}).get("git", {}).get("scope_fields") or {}
+    scope_fields = {}
+    for kname, kind in ((ctx.kinds or {}).get("kinds") or {}).items():
+        if kind.get("render") == "code_repos":
+            scope_fields.update(kind.get("scope_fields") or {})
     for part, key in scope_fields.items():
         if key not in keys:
             f.error("kinds git.scope_fields.%s = %r, but the pinned okg never reads that key near code_repos: an "
@@ -1446,7 +1574,7 @@ def cmd_verify(ctx, args):
         return 2
     probed = json.loads(Path(args.probe).read_text()) if args.probe else {}
     for sid, s in ctx.sources.items():
-        if not ctx.selected(sid) or s.get("kind") != "git":
+        if not ctx.selected(sid) or not is_git(ctx, sid):
             continue
         n = counts.get(sid, 0)
         cap = ctx.max_files(sid)

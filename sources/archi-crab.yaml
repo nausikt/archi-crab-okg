@@ -63,7 +63,11 @@ hosts:
 
 # Sources removed on purpose after they were published: {id: "<date> <reason>"}.
 # Their facts stay live until the next rebuild (okg does not retract them).
-retired: {}
+retired:
+  cmssw-releases: >-
+    2026-10-01, temporarily: its bootstrap run is rejected as `partial` (okg
+    release_new vs archi scope_complete), which blocks every publish. Its
+    release nodes stay until a rebuild; it comes back with the frozen map.
 
 defaults:
   # Tracked files after scope. Staging measured ~38 code nodes per file
@@ -136,11 +140,18 @@ sources:
     enabled: false           # until curated topics are committed (docs/ONBOARDING.md §3)
     about: Curated raw CMS TWiki topics from the EOS snapshot
 
-  cmssw-releases:
-    tier: 10
-    group: catalog
-    kind: cmssw-releases
-    about: CMSSW release catalog (cms-bot releases.map, public)
+  # OFF 2026-10-01 (see retired: above). To restore: uncomment, delete the
+  # retired entry, and put cmssw_release back into invariants.yaml's core floor.
+  # cmssw-releases:
+  #   tier: 10
+  #   group: catalog
+  #   kind: cmssw-releases
+  #   about: CMSSW release catalog (cms-bot releases.map, public)
+  #   # OFF 2026-10-01: okg 0a8e0cd4 bootstraps it with run_mode release_new, and
+  #   # archi 1bb7e703's reader claims a complete scope only for scope_complete /
+  #   # reconcile, so admission rejects it as `partial` and blocks EVERY publish
+  #   # (all-or-nothing), even on an empty database. Back on with the frozen map
+  #   # or an upstream fix (okg mode vs archi CMSSWReleaseSource.run).
 
   # ==== 20: the services CRAB talks to, and their MCP servers ================
   # The MCP repos ground the tools the vMCP exposes (coverage: TOOL_UNGROUNDED).

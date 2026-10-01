@@ -9,11 +9,12 @@ invariants:
     description: >-
       Core archi-crab subtypes must have at least one live row each:
       source_file / code_symbol (code graph), document_chunk (doc-corpus),
-      cmssw_release (cmssw_releases). Cold-start note: fires until the first
+      (cmssw_release left the floor 2026-10-01 while cmssw-releases is off;
+      put it back with the source). Cold-start note: fires until the first
       ingest has published.
     sql: |
       WITH required(subtype) AS (
-        VALUES ('source_file'), ('code_symbol'), ('document_chunk'), ('cmssw_release')
+        VALUES ('source_file'), ('code_symbol'), ('document_chunk')
       ),
       counts AS (SELECT subtype, count(*) AS n FROM okg.v_nodes GROUP BY subtype)
       SELECT r.subtype, coalesce(c.n, 0) AS live_count

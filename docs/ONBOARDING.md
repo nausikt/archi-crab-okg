@@ -17,6 +17,18 @@ to the lines that matter, so the patches are the full truth:
 | 0004 | `tools + docs` | this guide, `scripts/twiki-curate.py`, `data/twiki/README.md` |
 | 0005 | `knowledge` | curated TWiki source, CMSSW adapter class, invariant, CI checks. Goes on the engine-bump branch. |
 
+> **Since the `sources` branch (v0.12): the registry is generated.** Every
+> `source_registry.yaml` diff below is now made by editing `sources/archi-crab.yaml`
+> and running `python3 scripts/sources.py render --write`; a hand edit fails CI.
+> The curated TWiki is the `twiki` source there (off until topics are committed), and its
+> floor is parked in `invariants.yaml` as `archi_crab_docs_floor`.
+> [SOURCES.md](SOURCES.md) is the page for anything that decides what is ingested.
+>
+> **Which patches still apply.** 0001 (engine) and 0003 (promote) are superseded by the
+> upstream-sync series (engine.yaml, `claude/UPSTREAM-SYNC-v0.12.md`), and 0005 by the
+> sources series. The sources branch carries 0002 (git credentials, chart delta 8) and
+> 0004 (this guide, twiki-curate) on top of `main`.
+
 ---
 
 ## 0. The map: four repositories, one pod
@@ -244,6 +256,10 @@ directory.
 - **Think twice about a personal GitHub account** hosting CMS-internal pages.
 
 ### A3. The registry entry (actual diff)
+
+*(v0.12: you no longer write this by hand. Remove `enabled: false` from `twiki` in
+`sources/archi-crab.yaml` and `render --write` produces exactly this entry;
+[SOURCES.md](SOURCES.md) §2.)*
 
 ```diff
    cmssw_releases:
@@ -519,6 +535,10 @@ was tested with real git: the rendered env answers `git credential fill` for
 
 ### B4. Declare the repo
 
+*(v0.12: add it to `sources/archi-crab.yaml` as a `kind: git` source and `render --write`,
+which produces the `code_repos` line below; lint checks B3 and B5 are in place.
+[SOURCES.md](SOURCES.md) §4.)*
+
 ```diff
  code_repos:
    base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos
@@ -534,7 +554,7 @@ why).
 
 ### B5. CI needs the same credential (do this with the first private repo)
 
-Only `main.yaml` ingests (`e2e-smoke` and `chart-path`); `ci.yaml` on PRs never clones
+Only `main.yaml` ingests (`e2e-smoke` and `chart-path`; after the upstream-sync series they move to `e2e.yaml`, which also runs on PRs, and the same env goes there); `ci.yaml` on PRs never clones
 code sources. So a bad or missing token shows up **after** the merge, as a red
 `main.yaml` and no staging pin. Set it up in the same PR that adds the repo.
 

@@ -396,6 +396,14 @@ def read_records(path):
     return items
 
 
+def _command_lookalike(m):
+    """git@github.com:org/repo, user@host:path, user@lxplus.cern.ch -- commands in a
+    page, not contact addresses (docs-build.py keeps them for the same reason)."""
+    local, dom = m.group(0).split("@", 1)
+    return (m.string[m.end():m.end() + 1] == ":" or local == "git"
+            or bool(re.match(r"(lxplus|lxtunnel|aiadm|cmslpc|lxbatch|lxslc)[\w-]*\.", dom, re.I)))
+
+
 def check_records_json(path, f, label):
     """Data gate for a docs-files source. Returns the URLs (for cross-source checks)."""
     if not path.is_file():
@@ -422,7 +430,7 @@ def check_records_json(path, f, label):
             empty += 1
             continue
         short += len(body) < 200
-        emails += len(EMAIL_RE.findall(body))
+        emails += sum(1 for m in EMAIL_RE.finditer(body) if not _command_lookalike(m))
         if len(body) < 3000 and LOGIN_RE.search(body):
             login.append(u)
     if nourl:

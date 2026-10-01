@@ -1,0 +1,18 @@
+{
+ "emails_redacted": true,
+ "files": 290,
+ "pages": 285,
+ "pdf_extractor": [],
+ "source_dir": "sanitized_twikis",
+ "statuses": {
+  "kept": 285,
+  "subdir_skipped": 2,
+  "unsupported": 2,
+  "web_filtered": 1
+ },
+ "tool": "scripts/docs-build.py",
+ "url_template": "https://twiki.cern.ch/twiki/bin/view/{web}/{topic}",
+ "webs": [
+  "CMSPublic"
+ ]
+}

@@ -11,7 +11,7 @@ sources/archi-crab.yaml   WHAT we ingest: ids, tiers, git URLs, branches, scopes
                           Names no okg/archi class. Survives engine bumps unchanged.
 sources/kinds.yaml        HOW each kind becomes okg registry YAML for the PINNED engine.
                           All engine-specific data lives here (module, class, params,
-                          signatures). Reviewed against archi 1bb7e703 / okg bed964f.
+                          signatures). Reviewed against archi 1bb7e703 / okg 0a8e0cd4.
         │  python3 scripts/sources.py render --write
         ▼
 deployments/archi-crab/source_registry.yaml    GENERATED. What okg reads. Never hand-edited;
@@ -21,9 +21,10 @@ vendor/reference/                              upstream templates the kinds mirr
                                                their diff next to the kind to adjust)
 ```
 
-`scripts/sources.py` has six commands: `render`, `lint`, `status`, `probe`, `contract`
-and `verify`. `scripts/docs-build.py` turns a folder of pages into the data one kind
-reads.
+`scripts/sources.py` has eight commands: `render`, `lint`, `status` and `probe` (run
+them anywhere), `contract` and `inventory` (inside the pinned image), `verify` (against
+an ingested database) and `rename-class` (the mechanical fix for an upstream rename).
+`scripts/docs-build.py` turns a folder of pages into the data one kind reads.
 
 The first render is a **no-op** for what is live: with the curated TWiki switched on,
 it reproduces the onboarding registry exactly. Without it, it reproduces main's
@@ -31,7 +32,9 @@ it reproduces the onboarding registry exactly. Without it, it reproduces main's
 
 Outside kinds.yaml, `sources.py` still relies on a few engine facts, each checked where
 it is used:
-- the four kind *names*;
+- the two render modes a kind can name (`render: code_repos` or `render: source`) and
+  the two data checks (`data_check: records-json` or `twiki-tree`); everything else
+  about a kind is data in kinds.yaml (§2.1);
 - `okg.deployment.ConnectorAdapter` and the readers' `run()` result (`contract`);
 - node ids `file:<slug>:<path>` in `okg.v_nodes` (`verify`);
 - the `versions.lock` keys (`contract`'s review warning);
@@ -55,7 +58,9 @@ series sits on top of it:
   same image `ci.yaml` and `e2e.yaml` test. `contract-check.py` (in ci's okg-validate)
   covers the rendered registry, okg's CLI, vendored paths and okg's own Nomos audit.
   `sources.py contract` adds the kinds nothing renders yet, the fixture ingests and the
-  code_repos scope keys. `sources.py inventory` lists what the engine offers.
+  code_repos scope keys. `sources.py inventory` lists what it can find in the image
+  (modules, templates, Nomos vocabulary). It is a reading aid: okg's own audit, `okg
+  catalog load` and `okg deployment lint` stay the authority on what is accepted.
 - **The e2e is reusable.** `e2e.yaml` runs on PRs (from ci.yaml) and on main (from
   main.yaml), and only gets the secrets its callers pass. lint follows that chain for
   the GitLab token (§4).
@@ -112,6 +117,26 @@ Why the GitLab **documentation** repos use `git` and not archi's GitLab docs dow
 same credential path as the MCP repos, and the doc-corpus lane chunks Markdown by
 heading. The downloader would mean a manual rebuild and a committed cache for every
 change.
+
+### 2.1 The fields of a kind (what you write in kinds.yaml)
+
+A kind is data. `sources.py` reads these fields; nothing about a specific kind is
+hard-coded (docs/ADDING-SOURCES.md example 6 adds one).
+
+| field | meaning | checked by |
+|---|---|---|
+| `render` | `code_repos` (the entry joins okg's `code_repos.repos`, through `repo_entry`) or `source` (a full entry under `sources:`, from `entry`) | render |
+| `entry` / `repo_entry` | the registry YAML, with `{{id}}`, `{{name}}`, `{{deployment}}`, `{{data}}`, `{{git}}`, `{{dir}}` filled in; `${VAR}` passes through to okg | render; `contract` imports `entry.module`/`class` |
+| `requires` | per-source fields a source of this kind must set (`git`, `data`, ...) | lint |
+| `data_check` | `records-json` or `twiki-tree`: lint validates the committed data, `contract` ingests a fixture through the real reader | lint, contract |
+| `params_required` | `{key: list\|str\|int\|bool\|mapping}`: params each source must give, non-empty | lint |
+| `params_overridable` | keys of `entry.params` a source may override. Every other key in `entry.params` is fixed by the kind (data paths, safety switches) and lint refuses a source that sets it | lint |
+| `produces` | the subtypes it emits: lint uses it for floors and search profiles | lint |
+| `scope_fields` | (git only) the repo-entry keys for `scope`; `null` = not verified, scoped sources are refused | lint, render, probe, contract |
+| `about`, `proven`, `comment` | for humans; `proven` says where it last ran for real | — |
+
+Per source, the list may then set `params:` (merged over `entry.params`), `sensitivity:`
+and `auth: none` (§4).
 
 ## 3. The sanitized TWiki folder → `twiki-sanitized`
 
@@ -204,6 +229,19 @@ The token needs `read_repository` on every listed project: a group access token 
 the group, or one project token per repo. It expires (GitLab caps tokens at one year).
 The weekly strict probe is what tells you before a reconcile does.
 
+**A GitLab project whose visibility is Public** needs none of the above: give the source
+`auth: none`. Its sensitivity then defaults to `public`, and two rules keep that claim
+honest:
+
+- **probe clones it anonymously** (no credential helper, no global or system git config),
+  so a project that is really private fails the probe instead of passing on a token
+  you happen to have;
+- **a held credential overrides `auth:`.** git applies a credential helper per host,
+  so if the deployment holds a token for the host (`gitCredentials` in `envs/*`, or a
+  helper in an ingesting CI job), the pod and the e2e clone with it whatever the source
+  says. Under `secret_handling: no_secrets` lint refuses any held credential, even when
+  every source on that host says `auth: none`.
+
 ## 5. Tier 30: scoped repositories
 
 cmssw (62,655 files), cms-sw.github.io (81,204, almost all dashboard data) and htcondor
@@ -257,16 +295,17 @@ unambiguous.
 | URL, host, placeholder and duplicate-repo checks | `lint`, `render`, `probe` | FILL-ME paths going live; tokens in clone URLs (any case, never echoed); the same repo under two ids |
 | token host wired in both envs + every CI job that ingests (job env with helper, value, count and a token from a secret; `-e` flags on each `docker run` of the okg image; the secret declared by `e2e.yaml` and passed by its callers) | `lint` | the pod or the post-merge e2e cannot clone, so staging never gets its pin |
 | data present and sane | `lint` | empty or garbled `records.json` (archi reports `cache_missing` and blocks the publish); login pages ingested as content; two sources owning one URL |
-| every rendered source has a Nomos policy for its source_class; every source's `sensitivity` is allowed by the posture; no token host under `secret_handling: no_secrets` | `lint` (and okg's own audit in contract-check §5) | a worker that never becomes Ready (`nomos.deployment_policy`); a private repo or CMS-internal pages slipping into a public posture, which okg cannot see for `code_repos` |
+| every rendered source has a Nomos policy for its source_class, and that policy's sensitivity matches the source's; every source's `sensitivity` is allowed by the posture; under `secret_handling: no_secrets`, no token host and no held credential (envs `gitCredentials`, CI helpers) | `lint` (and okg's own audit in contract-check §5) | a worker that never becomes Ready (`nomos.deployment_policy`); a private repo or CMS-internal pages slipping into a public posture, which okg cannot see for `code_repos`; an `auth: none` source cloned with a token after all |
+| a kind's `requires`, `params_required` and fixed params | `lint` | a source missing what its reader needs, or overriding a data path or safety switch the kind owns |
 | every invariant floor has a producer (and search profiles, as a warning) | `lint` | a permanent error-severity failure after every publish. It caught the old twiki floor on this branch, with no twiki source rendered |
 | nothing **published** vanished, was renamed or re-pointed; docs pages or topics removed | `lint --base published` | stale facts okg never retracts (§7). A planned removal goes under `retired:` (durable, so later PRs are not blocked); the label `rebuild-planned` waives the gate for one PR |
-| reachable, right branch, non-empty, within budget | `probe` (PRs, weekly strict, pod) | wrong path or no access; expired token; default-branch drift; a repo far bigger than planned |
+| reachable, right branch, non-empty, within budget; `auth: none` sources cloned anonymously | `probe` (PRs, weekly strict, pod) | wrong path or no access; expired token; default-branch drift; a repo far bigger than planned; a "public" project that is not |
 | every kind imports, is an adapter, binds its params; data kinds ingest a fixture within their signature | `contract`, inside the pinned image | engine bumps that rename a class or parameter, or change what a reader emits; bare readers (`'ConnectorRun' has no 'next_cursor'`); **before** the PR that enables a kind |
 | scope keys appear in okg's code_repos code | `contract` | a guessed scope key (necessary, not sufficient) |
 | kinds reviewed against this engine | `contract` (warning) | an engine bump nobody re-read the templates for |
 | per-repo file counts after the real ingest | `verify` (e2e, pod) | a scope that was ignored; a lane that emitted nothing |
 | `okg deployment lint` | ci.yaml (unchanged) | okg's own registry rules (profile combinations, strict admission) |
-| the real ingest | the e2e (unchanged; on PRs too after upstream-sync) | anything left: staging is only pinned after it passes |
+| the real ingest | the e2e (`e2e.yaml`: on PRs from this repository, and again on main) | anything left: staging is only pinned after it passes |
 
 ## 7. Things that bite
 
@@ -306,8 +345,8 @@ unambiguous.
 1. **Merge this series.** It changes nothing that is live (§0.1). The next engine PR
    runs `vendor-sync --apply`, and `vendor/reference/` appears with okg's codebase-index
    template and archi's connector templates. The sources-contract job summary carries
-   `sources.py inventory`: modules, templates and the Nomos vocabulary of the pinned
-   engine.
+   `sources.py inventory`: the modules, templates and Nomos vocabulary it finds in the
+   pinned image (okg's audit stays the authority).
 2. **Public repos, now.** `enabled_tiers: [10, 20]` renders das2go, dasgoclient,
    dbsclient and rucio; the five MCP repos stay off until their paths are known
    (docs/ADDING-SOURCES.md example 1). A new public repo is the same, plus a probe and a

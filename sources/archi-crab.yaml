@@ -50,7 +50,8 @@ rollout:
 # enabled, and lint checks the first two:
 #   1. envs/staging + envs/prod values.yaml: gitCredentials.hosts has the host
 #      with this username/secret_key (chart delta 8; docs/ONBOARDING.md §4 B3)
-#   2. .github/workflows/main.yaml passes the same helper to the e2e jobs (§4 B5)
+#   2. .github/workflows/e2e.yaml gives both ingest jobs the same helper, and its
+#      callers ci.yaml + main.yaml pass the GITLAB_TOKEN secret (§4 B5)
 #   3. the token itself in the okg Secret and the GITLAB_TOKEN repo secret (§4 B2)
 hosts:
   github.com:

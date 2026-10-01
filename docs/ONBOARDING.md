@@ -554,13 +554,26 @@ why).
 
 ### B5. CI needs the same credential (do this with the first private repo)
 
-Only `main.yaml` ingests (`e2e-smoke` and `chart-path`; after the upstream-sync series they move to `e2e.yaml`, which also runs on PRs, and the same env goes there); `ci.yaml` on PRs never clones
-code sources. So a bad or missing token shows up **after** the merge, as a red
-`main.yaml` and no staging pin. Set it up in the same PR that adds the repo.
+The ingest runs in **one** workflow, `e2e.yaml`, with two jobs (`e2e-smoke` and
+`chart-path`). It is reusable: `ci.yaml` calls it on pull requests, `main.yaml` calls it
+again after the merge. A reusable workflow sees **only the secrets its callers pass by
+name**, so the token has to be wired at both ends. The complete diff is
+[ADDING-SOURCES.md](ADDING-SOURCES.md) example 4; the four steps:
 
 1. Add a repository secret `GITLAB_TOKEN` (Settings → Secrets → Actions).
-2. In `main.yaml`, give **both** jobs the same helper the chart renders, at **job**
-   level, so every step and every `docker run` can pass it:
+2. In `e2e.yaml`, declare it, `required: false` (the workflow stays valid in any run
+   where the secret is absent; the clone then fails loudly instead):
+
+   ```yaml
+   on:
+     workflow_call:
+       secrets:
+         GHCR_PAT: {required: true}
+         GITLAB_TOKEN: {required: false}
+   ```
+
+3. In `e2e.yaml`, give **both** jobs the same helper the chart renders, at **job** level,
+   so every step and every `docker run` can pass it:
 
    ```yaml
    env:                                    # add to e2e-smoke: env: and chart-path: env:
@@ -571,14 +584,29 @@ code sources. So a bad or missing token shows up **after** the merge, as a red
      GIT_CRED_TOKEN_0: ${{ secrets.GITLAB_TOKEN }}
    ```
 
-3. Pass them into the containers: add
+   and pass them into the containers: add
    `-e GIT_TERMINAL_PROMPT -e GIT_CONFIG_COUNT -e GIT_CONFIG_KEY_0 -e GIT_CONFIG_VALUE_0 -e GIT_CRED_TOKEN_0`
    to **three** `docker run` lines: the wrapper in `e2e-smoke`, the wrapper in
    `chart-path`, and chart-path's background `worker` container, which doesn't use the
    wrapper.
+4. In **both callers**, `ci.yaml` (job `e2e`) and `main.yaml` (job `e2e`), pass it on:
+
+   ```yaml
+   secrets:
+     GHCR_PAT: ${{ secrets.GHCR_PAT }}
+     GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+   ```
+
+`scripts/sources.py lint` checks all four (declared, passed by both callers, job env,
+the `-e` flags on every `docker run` of the okg image) as soon as a `token` source is
+enabled, and names the missing piece. Set it up in the same PR that adds the repo, so
+the PR's own e2e proves the clone **before** the merge.
 
 This mirrors the chart exactly (same variable names, same helper), so a clone that works
-in CI works in the pod. GitHub masks the secret in logs.
+in CI works in the pod. GitHub masks the secret in logs. On pull requests the e2e runs
+only for branches of this repository (`ci.yaml`'s `changes` job skips forks, which get
+no secrets anyway): a source PR from a fork is first proven by `main.yaml` after the
+merge, unless a maintainer pushes the branch here.
 
 ### B6. Verify before trusting an ingest
 

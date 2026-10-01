@@ -14,9 +14,18 @@ behind it; this page is the walkthrough.
 | 5 | update the vocabulary (subtypes) | `VENDOR.yaml`, `schemas/sources.yaml` | `ex5` |
 | 6 | use an archi connector nobody uses here yet | `sources/kinds.yaml`, the list, `deployment.yaml` | `ex6`, on top of `ex5` |
 
-To try one, on a branch that has the sources series (`archi-crab-okg-v0.13-sources`
-patches on `main`): `git switch -c try && git am <path>/ex1/*.patch`, then run the commands
-in its section. Examples 2 and 4 go on top of example 1; example 6 on top of example 5. A
+To try one, unpack `archi-crab-okg-v0.13-sources.tgz` next to your clone. `series/` is
+the sources series itself (what makes these commands exist), `examples/exN/` one patch
+set per example:
+
+```bash
+git switch -c sources-v13 origin/main && git am ../archi-crab-okg-v0.13-sources/series/*.patch   # once
+git switch -c try-ex1 sources-v13    && git am ../archi-crab-okg-v0.13-sources/examples/ex1/*.patch
+# example 2 or 4: on top of example 1        example 6: on top of example 5
+git switch -c try-ex4 try-ex1        && git am ../archi-crab-okg-v0.13-sources/examples/ex4/*.patch
+```
+
+Then run the commands in its section; throw the `try-*` branches away when done. A
 suggested real order is at the end (§8).
 
 ---
@@ -73,7 +82,7 @@ What goes wrong when one is missing:
 $EDITOR sources/archi-crab.yaml                 # (and the other files the example names)
 python3 scripts/sources.py render --write       # regenerate the registry
 python3 scripts/sources.py lint --base published  # offline gates, seconds
-python3 scripts/sources.py probe --tier 20      # network: reachable? right branch? how big?
+python3 scripts/sources.py probe --tier 20      # network: reachable? right branch? how big? (or --id <id>)
 git add -A && git commit && git push            # open the PR
 ```
 
@@ -130,7 +139,8 @@ The five MCP repos in the same tier stay off; they still say `enabled: false`.
 ```
 $ python3 scripts/sources.py lint --base published
 sources lint: ok -- 7 rendered, 13 pending
-$ python3 scripts/sources.py probe
+$ python3 scripts/sources.py probe --tier 20
+crab-mcp     20  skip  repository path not filled in      (and the other four MCP repos)
 das2go       20  ok  master@2301a754c6  100 files  ~4k nodes  .go=34, .tmpl=17, .yml=13, .txt=9
 dasgoclient  20  ok  master@d781756487  14 files   ~0k nodes  .md=4, <none>=3, .go=3, .yml=2
 dbsclient    20  ok  main@1e6acbd55c    110 files  ~4k nodes  .py=69, .json=19, .sh=9, <none>=3
@@ -142,7 +152,8 @@ rucio        20  ok  master@5a4c2e188c  952 files  ~38k nodes .py=582, .js=52, .
 - **Vocabulary.** A `git` source makes `source_file`, `code_symbol`, `document_chunk` and
   the like. The code modules in `deployment.yaml` already declare them all.
 - **Policy.** okg's Nomos audit only covers entries under `sources:`. These go under
-  `code_repos:`, and lint confirms each is `public` (a GitHub host without a token).
+  `code_repos:`, and lint confirms each is `public` (`github.com` is an `auth: none`
+  host, and the deployment holds no credential for it).
 - **Search and floors.** Both already include code.
 
 **Watch out for:** the e2e time. These four add about 1,180 files to the 512 ingested
@@ -269,9 +280,10 @@ The policy is per **source class**, not per source. `discovery_crawl` comes from
 kind (`sources/kinds.yaml`), and every later `discovery_crawl` source with the same
 sensitivity reuses this block. Every value copies the `reference_catalog` policy that
 main already passes with. `provenance: remote_api` is the one whose meaning may not fit
-pages committed to the repo: check the vocabulary in the `sources-contract` job summary,
-which lists okg's allowed values. okg's own audit then
-judges the block on the PR (ci's okg-validate, contract-check section 5).
+pages committed to the repo. The `sources-contract` job summary may list okg's allowed
+values (`sources.py inventory` reads them from the image when it can find them); either
+way okg's own audit judges the block on the PR (ci's okg-validate, contract-check
+section 5), and that is the answer that counts.
 
 **Step 3, question 4 (what is an answer?).** Make whole pages searchable, and give the
 source a floor:
@@ -297,8 +309,9 @@ sources lint: ok -- 4 rendered, 16 pending
 ```
 
 **Step 3, question 2 (the words).** Nothing to do: `documentation_page` is in
-`schemas/sources.yaml` (archi's slice) and `document_chunk` is in the `extraction`
-module. Apply example 5 first anyway. It makes a page's title searchable by its
+`schemas/sources.yaml` (archi's slice), and `document_chunk` comes from okg's
+`extraction` module, which `deployment.yaml` already composes (the slice's own header
+says so: "person and document_chunk come from the `person` and `extraction` modules"). Apply example 5 first anyway. It makes a page's title searchable by its
 component words (separators today; CamelCase like `CRAB3FAQ` once okg#2925 is in the
 engine) and rolls chunk hits up to their page, which TWiki pages need.
 
@@ -358,14 +371,24 @@ it. That is intended.
   `gitlab-token`;
 - a `GITLAB_TOKEN` repository secret.
 
-**Lint follows each piece.** Here is the run with the e2e only half-wired:
+**Lint follows each piece.** Here is the run with the e2e only half-wired (job env
+added, but no caller passes the secret and no `docker run` has the `-e` flags). Seven
+errors: five name a missing piece, the last two are the posture gate below:
 
 ```
 ERROR: .github/workflows/ci.yaml job e2e calls e2e.yaml without passing secrets.GITLAB_TOKEN -- the e2e clone gets no token
-ERROR: .github/workflows/main.yaml job e2e calls e2e.yaml without passing secrets.GITLAB_TOKEN -- ...
-ERROR: .github/workflows/e2e.yaml job e2e-smoke: a `docker run` of the okg image does not pass -e GIT_CONFIG_COUNT / -e GIT_CRED_TOKEN_ ...
-ERROR: .github/workflows/e2e.yaml job chart-path: a `docker run` of the okg image does not pass ... (x2)
+ERROR: .github/workflows/main.yaml job e2e calls e2e.yaml without passing secrets.GITLAB_TOKEN -- the e2e clone gets no token
+ERROR: .github/workflows/e2e.yaml job e2e-smoke: a `docker run` of the okg image does not pass -e GIT_CONFIG_COUNT -e GIT_CONFIG_KEY_0 -e GIT_CONFIG_VALUE_0 -e GIT_CRED_TOKEN_0 into the container: exec docker run --rm ...
+ERROR: .github/workflows/e2e.yaml job chart-path: a `docker run` of the okg image does not pass -e GIT_CONFIG_COUNT ... into the container: exec docker run --rm ...
+ERROR: .github/workflows/e2e.yaml job chart-path: a `docker run` of the okg image does not pass -e GIT_CONFIG_COUNT ... into the container: docker run -d --name worker ...
+ERROR: crab-mcp is internal, but the posture (public_reference_demo) allows only ['public'] sources. ...
+ERROR: sources read gitlab.cern.ch with a token, but the posture says secret_handling: no_secrets -- ...
 ```
+
+Why `required: false` on the secret, and the fork caveat: the workflow stays valid in a
+run where the secret is absent (the clone then fails loudly). Pull requests from forks
+get no secrets, and ci's `changes` job skips the e2e for them anyway, so a fork's source
+PR is first proven by main's e2e after the merge.
 
 **With everything wired, two errors remain**, and they are the point:
 
@@ -389,7 +412,24 @@ posture is a gate"). The way forward is a decision, not a patch:
    (SOURCES.md §4) proves the pod's token.
 
 A GitLab project whose visibility is **Public** needs none of this: give it `auth: none`
-in the list. It is then cloned without a token, and its sensitivity defaults to public.
+in the list, and leave `envs/*` and the workflows alone. Its sensitivity defaults to
+public, and two rules keep that honest:
+
+- `probe` clones it **anonymously** (no credential helper, no git config), so a project
+  that is really private fails instead of passing on your token;
+- a credential the deployment **holds** for the host wins over `auth: none` (git picks
+  the helper per host, in the pod and in the e2e). So under `no_secrets`, lint refuses
+  `gitCredentials` for gitlab.cern.ch, or a helper in an ingesting CI job, even when
+  every GitLab source says `auth: none`.
+
+```diff
+--- a/sources/archi-crab.yaml        (an `auth: none` GitLab source: the whole change)
+   cms-analysis-docs:
+-    git: https://gitlab.cern.ch/FILL-ME/cms-analysis-docs.git
+-    enabled: false           # GitLab path unknown here; fill it, probe, then drop this line
++    git: https://gitlab.cern.ch/<group>/<project>.git   # visibility: Public, checked in the GitLab UI
++    auth: none
+```
 
 ## Example 5: vocabulary (subtypes): the archi half, and how the okg half works
 
@@ -447,8 +487,9 @@ already composes twelve: the base five (`document_starter`, `person`, `extractio
 (code, documents, CDS) only uses subtypes these modules or archi's slice declare. You
 add a module only when a source emits a subtype that nothing declares yet.
 
-1. **Find it.** The `sources-contract` job summary carries `sources.py inventory`:
-   every module in the pinned okg and the subtypes it declares. Locally:
+1. **Find it.** The `sources-contract` job summary carries `sources.py inventory`: the
+   modules it finds in the pinned okg and the subtypes each declares (a reading aid;
+   `okg catalog load` is the authority). Locally:
    ```bash
    IMG=$(yq -r '.runtime.ref + "@" + .runtime.digest' versions.lock)
    docker run --rm -v "$PWD:/w:ro" --entrypoint python "$IMG" /w/scripts/sources.py --repo /w inventory
@@ -479,14 +520,22 @@ add a module only when a source emits a subtype that nothing declares yet.
 `CDSAdapter`. It is public and needs no credential.
 
 This example teaches the mechanics. Whether CMS Notes belong in a CRAB graph is your
-call; the computing notes are in that set too.
+call. The set name comes straight from archi's template, which lists `cerncds:cms-pas`
+and `cerncds:cms-notes` as CMS's sets; `verb=ListSets` on the endpoint lists the rest.
+
+**Example 6 sits on example 5 (it needs `cds_record`), not on example 1.** It puts the
+source in tier 20, so it turns tier 20 on itself; that also renders example 1's four
+GitHub repos, hence "8 rendered" below (3 in tier 10 + 4 repos + cms-notes). To try CDS
+alone, give it `tier: 10` instead.
 
 **Step 1: a new kind,** copied from
 `vendor/reference/archi-cern-team-source-defaults/cds.yaml.example` (or the bundle in
-archi-okg). Three rules:
+archi-okg). Four rules:
 - `${deployment_name}` becomes `{{deployment}}`;
 - the name becomes `{{id}}`/`{{name}}`;
-- the per-source choice moves out to each source's `params:`.
+- the per-source choice (`sets`) moves out to each source's `params:`;
+- `params_required` says which params a source **must** give. Without it, a source that
+  forgot `sets:` would render, pass lint, and fail only in the e2e.
 
 ```diff
 --- a/sources/kinds.yaml
@@ -504,7 +553,9 @@ archi-okg). Three rules:
 +      record_identity_fields: [oai_id]
 +      ...
 +      params:
-+        required: false
++        required: false        # fixed by the kind: a source cannot override it
++    params_required:
++      sets: list               # every cds-oai source names its OAI sets, non-empty
 +    produces: [cds_record]
 ```
 
@@ -528,14 +579,16 @@ same `discovery_crawl` block as example 3 (keep one). **Search** gets `cds_recor
 ```
 $ python3 scripts/sources.py lint --base published
 sources lint: ok -- 8 rendered, 13 pending
-$ python3 scripts/sources.py contract        # in the image; here with archi 1bb7e703
+$ python3 scripts/sources.py contract        # on the PR: in the pinned image. Here: archi 1bb7e703 + a stand-in okg SDK
   note: cms_notes: archi.sources.cds.CDSAdapter binds
   note: ~kind cds-oai: archi.sources.cds.CDSAdapter binds
 $ python3 scripts/sources.py probe --id cms-notes
 cms-notes  20  skip  no network probe for kind cds-oai (contract binds it; the e2e ingests it)
 ```
 
-No code change: lint, probe and contract read `requires:` and the rest from the kind.
+No code change: lint, probe and contract read `requires:`, `params_required` and the
+rest from the kind. Forget `sets:` and lint says
+`cms-notes: kind cds-oai needs params.sets as a non-empty list (got None)`.
 The e2e is the first real harvest. archi's note says it takes a few minutes; leave
 `max_records` unset in production, because a bounded run never claims a complete scope.
 
@@ -552,7 +605,7 @@ The e2e is the first real harvest. archi's note says it takes a few minutes; lea
 | use a new archi connector | a kind in `kinds.yaml`; a source with `params:`; vocabulary; policy; search | render, lint, contract | contract (import, adapter, params), okg audit, e2e |
 | add vocabulary | vendor (5a) or `modules:` (5b) | vendor-sync, `inventory` | vendor-check, catalog load, deployment lint |
 | remove a published source | delete it **and** list it under `retired:` | render, lint `--base published` | lint (identity); the facts stay until a rebuild |
-| a class was renamed upstream | nothing: the engine PR runs `contract-check --apply-fixes` → `sources.py rename-class` | (by hand: `sources.py rename-class OLD NEW`) | sources-lint (registry == render) |
+| a class was renamed upstream | a bare reader → its `…Adapter`: nothing, the engine PR's `contract-check --apply-fixes` proposes it and runs `sources.py rename-class`. Any other rename: by hand | `sources.py rename-class OLD NEW` (edits kinds.yaml, re-renders) | sources-contract (import fails); sources-lint (registry == render) |
 
 ## 8. A sensible order for real
 
@@ -572,12 +625,14 @@ The e2e is the first real harvest. archi's note says it takes a few minutes; lea
   - every example lints clean (example 4 stops at exactly its two intended errors);
   - the render of each is what the diffs show;
   - the docs-files, twiki-raw and CDS kinds bind against archi-okg `1bb7e703`, and the
-    data kinds ingest a fixture through archi's real readers;
+    data kinds ingest a fixture through archi's real readers. okg itself is private, so
+    these runs used a small stand-in for its SDK (`okg.deployment.ConnectorAdapter` and
+    the `run()` result); the PR's `sources-contract` repeats them in the real image;
   - example 4's chart values render the credential into `bootstrap` and `worker` only;
   - the probe numbers are from the real repositories on 2026-10-01.
 - **Not checked here** (needs the private image or the cluster):
   - okg's acceptance of the `discovery_crawl` policy values (`provenance` in particular);
-  - the module list;
+  - the module list, and what `inventory` prints against the real image;
   - a real CDS harvest;
   - the e2e duration with tier 20.
 

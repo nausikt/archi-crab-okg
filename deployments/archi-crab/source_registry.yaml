@@ -3,15 +3,13 @@
 # Change a source there, then: python3 scripts/sources.py render --write
 # CI (workflow `sources`) fails when this file differs from the render.
 #
-# Enabled tiers: [10]. Kinds reviewed against archi 1bb7e703, okg 0a8e0cd4.
+# Enabled tiers: [10, 20]. Kinds reviewed against archi 1bb7e703, okg 0a8e0cd4.
 # Not rendered (`python3 scripts/sources.py status` says why):
 #   cms-analysis-docs (enabled: false), cms-crab-docs (enabled: false)
-#   cmscrab-userguide (enabled: false), twiki (enabled: false), crab-mcp (tier 20 not enabled)
-#   dbs-mcp (tier 20 not enabled), htcondor-mcp (tier 20 not enabled)
-#   rucio-mcp (tier 20 not enabled), site-status-mcp (tier 20 not enabled)
-#   das2go (tier 20 not enabled), dasgoclient (tier 20 not enabled), dbsclient (tier 20 not enabled)
-#   rucio (tier 20 not enabled), cmssw (tier 30 not enabled), cms-sw-github-io (tier 30 not enabled)
-#   htcondor (tier 30 not enabled).
+#   cmscrab-userguide (enabled: false), twiki (enabled: false), crab-mcp (enabled: false)
+#   dbs-mcp (enabled: false), htcondor-mcp (enabled: false), rucio-mcp (enabled: false)
+#   site-status-mcp (enabled: false), cmssw (tier 30 not enabled)
+#   cms-sw-github-io (tier 30 not enabled), htcondor (tier 30 not enabled).
 
 # kind git: a git repository, ingested as a code graph (files, symbols, interfaces, doc chunks).
 # Proven: staging since v0.5 (crabserver, crabclient), public GitHub only.
@@ -23,6 +21,28 @@ code_repos:
     - {slug: crabserver, url: 'https://github.com/dmwm/CRABServer.git', dir: CRABServer}
     # crabclient -- tier 10 -- CRAB command-line client (crab submit/status/resubmit/getoutput ...)
     - {slug: crabclient, url: 'https://github.com/dmwm/CRABClient.git', dir: CRABClient}
+    # das2go -- tier 20 -- DAS server (Go)
+    - {slug: das2go, url: 'https://github.com/dmwm/das2go.git', dir: das2go}
+    # dasgoclient -- tier 20 -- dasgoclient, the DAS command-line client
+    - {slug: dasgoclient, url: 'https://github.com/dmwm/dasgoclient.git', dir: dasgoclient}
+    # dbsclient -- tier 20 -- DBS3 Python client
+    - {slug: dbsclient, url: 'https://github.com/dmwm/DBSClient.git', dir: DBSClient}
+    # rucio -- tier 20 -- Rucio (server, client, daemons); 952 files unscoped
+    - {slug: rucio, url: 'https://github.com/rucio/rucio.git', dir: rucio}
+    # wmcore -- tier 20 -- WMCore libraries CRAB runs on; WMExceptions.py holds the WM exit codes
+    - {slug: wmcore, url: 'https://github.com/dmwm/WMCore.git', dir: WMCore}
+    # monitoringscripts -- tier 20 -- CMS Computing Operations monitoring scripts (site readiness, SAM, metrics)
+    - {slug: monitoringscripts, url: 'https://github.com/CMSCompOps/MonitoringScripts.git', dir: MonitoringScripts}
+    # lpc-scripts -- tier 20 -- FNAL LPC user helper scripts (condor submission, EOS, environment)
+    - {slug: lpc-scripts, url: 'https://github.com/FNALLPC/lpc-scripts.git', dir: lpc-scripts}
+    # fts3 -- tier 20 -- FTS3 file transfer service (the transfers behind Rucio and CRAB stageout)
+    - {slug: fts3, url: 'https://github.com/cern-fts/fts3.git', dir: fts3}
+    # dbs -- tier 20 -- DBS3 server (Python), the dataset bookkeeping service
+    - {slug: dbs, url: 'https://github.com/dmwm/DBS.git', dir: DBS}
+    # dbs2go -- tier 20 -- DBS server in Go (the current production DBS)
+    - {slug: dbs2go, url: 'https://github.com/dmwm/dbs2go.git', dir: dbs2go}
+    # cmsmonitoring -- tier 20 -- CMS monitoring infrastructure (MONIT, dashboards, CRAB/WMAgent metrics)
+    - {slug: cmsmonitoring, url: 'https://github.com/dmwm/CMSMonitoring.git', dir: CMSMonitoring}
 
 sources:
   # ---- twiki-sanitized -- tier 10 -- kind docs-files -- Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file)

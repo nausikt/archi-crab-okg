@@ -42,7 +42,7 @@
 version: 1
 
 rollout:
-  enabled_tiers: [10]
+  enabled_tiers: [10, 20]
 
 # Git hosts. A source may override its host with `auth: none` (a GitLab project whose
 # visibility is Public: cloned without a token, sensitivity defaults to public).
@@ -218,6 +218,74 @@ sources:
     about: Rucio (server, client, daemons); 952 files unscoped
     # 952 files is under the default budget, so no scope is needed and this
     # source does not depend on scope support (see tier 30).
+
+  wmcore:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/dmwm/WMCore.git
+    branch: master
+    dir: WMCore
+    about: WMCore libraries CRAB runs on; WMExceptions.py holds the WM exit codes
+    # 3,081 files at 16a70a1e17 (2026-10-01): ~123k nodes, about 2x everything
+    # rendered so far. Accepted on purpose; revisit with a scope (src/python/**)
+    # once scope_fields is verified. Watch the e2e time on this PR.
+    max_files: 3200
+
+  # ==== 20: more public GitHub (added 2026-10-01) ============================
+  monitoringscripts:
+    tier: 20
+    group: extras/ops
+    kind: git
+    git: https://github.com/CMSCompOps/MonitoringScripts.git
+    branch: master
+    dir: MonitoringScripts
+    about: CMS Computing Operations monitoring scripts (site readiness, SAM, metrics)
+
+  lpc-scripts:
+    tier: 20
+    group: extras/ops
+    kind: git
+    git: https://github.com/FNALLPC/lpc-scripts.git
+    branch: main
+    dir: lpc-scripts
+    about: FNAL LPC user helper scripts (condor submission, EOS, environment)
+
+  fts3:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/cern-fts/fts3.git
+    branch: master
+    dir: fts3
+    about: FTS3 file transfer service (the transfers behind Rucio and CRAB stageout)
+
+  dbs:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/dmwm/DBS.git
+    branch: master
+    dir: DBS
+    about: DBS3 server (Python), the dataset bookkeeping service
+
+  dbs2go:
+    tier: 20
+    group: extras/data
+    kind: git
+    git: https://github.com/dmwm/dbs2go.git
+    branch: master
+    dir: dbs2go
+    about: DBS server in Go (the current production DBS)
+
+  cmsmonitoring:
+    tier: 20
+    group: extras/ops
+    kind: git
+    git: https://github.com/dmwm/CMSMonitoring.git
+    branch: master
+    dir: CMSMonitoring
+    about: CMS monitoring infrastructure (MONIT, dashboards, CRAB/WMAgent metrics)
 
   # ==== 30: large upstreams, ingested only in part ===========================
   # Each needs `scope`: whole, they are 5k-80k files. Scope needs an engine that

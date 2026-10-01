@@ -5,8 +5,7 @@
 #
 # Enabled tiers: [10, 20]. Kinds reviewed against archi 1bb7e703, okg 0a8e0cd4.
 # Not rendered (`python3 scripts/sources.py status` says why):
-#   cms-analysis-docs (enabled: false), cms-crab-docs (enabled: false)
-#   cmscrab-userguide (enabled: false), twiki (enabled: false), crab-mcp (enabled: false)
+#   cms-analysis-docs (enabled: false), twiki (enabled: false), crab-mcp (enabled: false)
 #   dbs-mcp (enabled: false), htcondor-mcp (enabled: false), rucio-mcp (enabled: false)
 #   site-status-mcp (enabled: false), cmssw (tier 30 not enabled)
 #   cms-sw-github-io (tier 30 not enabled), htcondor (tier 30 not enabled).
@@ -21,6 +20,10 @@ code_repos:
     - {slug: crabserver, url: 'https://github.com/dmwm/CRABServer.git', dir: CRABServer}
     # crabclient -- tier 10 -- CRAB command-line client (crab submit/status/resubmit/getoutput ...)
     - {slug: crabclient, url: 'https://github.com/dmwm/CRABClient.git', dir: CRABClient}
+    # cms-crab-docs -- tier 10 -- CRAB documentation site sources
+    - {slug: cms-crab-docs, url: 'https://gitlab.cern.ch/crab3/cms-crab-docs.git', dir: cms-crab-docs}
+    # cmscrab-userguide -- tier 10 -- CRAB user guide
+    - {slug: cmscrab-userguide, url: 'https://gitlab.cern.ch/crab3/cmscrab-userguide.git', dir: cmscrab-userguide}
     # das2go -- tier 20 -- DAS server (Go)
     - {slug: das2go, url: 'https://github.com/dmwm/das2go.git', dir: das2go}
     # dasgoclient -- tier 20 -- dasgoclient, the DAS command-line client

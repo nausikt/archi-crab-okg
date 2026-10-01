@@ -96,6 +96,13 @@ jobs:
       # runtime.enabled: true (correct for the chart) makes plain `okg ingest` ENQUEUE to
       # the runtime worker's DBOS queue, which does not exist here. --inline is the
       # in-process path. The chart-path job below exercises the worker path instead.
+      - name: "workspace is a clean checkout (okg refuses to publish from a dirty repository)"
+        run: |
+          # OKG_REPO_ROOT is this workspace. okg publishes only from a committed tree and
+          # refuses on any untracked file that is not ignored ("repository provenance inputs
+          # are not committed"). Job outputs go to $RUNNER_TEMP, never into the workspace.
+          dirty="$(git status --porcelain --untracked-files=all)"
+          [ -z "$dirty" ] || { echo "::error::the workspace is not clean before the publish:"; echo "$dirty"; exit 1; }
       - run: okg ingest --deployment archi-crab --progress --inline
       # Migration creates the read role okg_mcp WITHOUT a login, and `okg mcp-serve` refuses
       # to start until it has one. Given the role's DSN, `runtime bootstrap` grants LOGIN with
@@ -120,7 +127,7 @@ jobs:
     # executed INSIDE that container (30s x 60). All on a PRISTINE database, the state a
     # fresh PVC gives the cluster. Red here = the chart would be red in-cluster:
     #   extension_missing   -> provision does not create extensions; mirror the chart's fix.
-    #   probe never green   -> read ready.json (printed): each blocker names its own cause.
+    #   probe never green   -> the step prints each blocker with its own cause.
     #     deployment.apply    the worker's acknowledgment does not match the declared
     #                         container identity (/opt/okg, its venv python, OKG_CODE_REVISION).
     #                         The worker must run from the image's own working directory.
@@ -186,6 +193,13 @@ jobs:
             --entrypoint okg "$OKG_IMG" "$@"
           EOF
           chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
+      - name: "workspace is a clean checkout (okg refuses to publish from a dirty repository)"
+        run: |
+          # OKG_REPO_ROOT is this workspace. okg publishes only from a committed tree and
+          # refuses on any untracked file that is not ignored ("repository provenance inputs
+          # are not committed"). Job outputs go to $RUNNER_TEMP, never into the workspace.
+          dirty="$(git status --porcelain --untracked-files=all)"
+          [ -z "$dirty" ] || { echo "::error::the workspace is not clean before the publish:"; echo "$dirty"; exit 1; }
       - name: "init catalog-claim == okg catalog ownership claim (nothing to claim on a pristine database)"
         run: |
           okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --json \
@@ -194,7 +208,7 @@ jobs:
         run: |
           set -o pipefail
           rc=0
-          okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee provision.json || rc=$?
+          okg provision --deployment archi-crab --publish-once --source-workers "$SOURCE_WORKERS" --json | tee "$RUNNER_TEMP/provision.json" || rc=$?
           # The chart maps exit 8 (published, with a capacity warning) to success. So does this.
           if [ "$rc" = 8 ]; then echo "::warning::okg provision published with a capacity warning (exit 8)"; rc=0; fi
           exit "$rc"
@@ -215,10 +229,10 @@ jobs:
       - name: "startup probe == okg deployment ready archi-crab --profile general --json (30s x 60, as kubelet)"
         run: |
           # `docker exec`, not a new container: the kubelet runs the probe inside the worker.
-          blockers() { python3 -c "import json; d=json.load(open('ready.json')); print(d.get('status'), [c['id'] for c in d.get('checks', []) if c.get('status') == 'blocker'])" 2>/dev/null || true; }
+          blockers() { python3 -c "import json, os; d=json.load(open(os.environ['RUNNER_TEMP'] + '/ready.json')); print(d.get('status'), [c['id'] for c in d.get('checks', []) if c.get('status') == 'blocker'])" 2>/dev/null || true; }
           for i in $(seq 1 60); do
-            if docker exec worker okg deployment ready archi-crab --profile general --json > ready.json \
-               && python3 -c "import json,sys; sys.exit(0 if json.load(open('ready.json')).get('ok') is True else 1)"; then
+            if docker exec worker okg deployment ready archi-crab --profile general --json > "$RUNNER_TEMP/ready.json" \
+               && python3 -c "import json, os, sys; sys.exit(0 if json.load(open(os.environ['RUNNER_TEMP'] + '/ready.json')).get('ok') is True else 1)"; then
               echo "ready after $i probe(s)"; exit 0
             fi
             echo "probe $i: not ready: $(blockers)"
@@ -226,7 +240,7 @@ jobs:
             sleep 30
           done
           echo "::error::the worker never became ready within the startup budget (kubelet would restart the pod): $(blockers)"
-          python3 -c "import json; d=json.load(open('ready.json')); [print(json.dumps(c, indent=1)[:4000]) for c in d.get('checks', []) if c.get('status') == 'blocker']" || cat ready.json
+          python3 -c "import json, os; d=json.load(open(os.environ['RUNNER_TEMP'] + '/ready.json')); [print(json.dumps(c, indent=1)[:4000]) for c in d.get('checks', []) if c.get('status') == 'blocker']" || cat "$RUNNER_TEMP/ready.json"
           docker logs worker --tail 80; exit 1
       - name: "read-back proof (published, search answers, MCP serves)"
         env:

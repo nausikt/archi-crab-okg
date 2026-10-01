@@ -149,7 +149,14 @@ spec:
         - name: bootstrap
           image: {{ include "okg.runtimeImage" . | quote }}
           imagePullPolicy: {{ .Values.images.okg.pullPolicy }}
-          command: ["okg"]
+          # Exit 8 means the publish committed with a capacity warning (the
+          # lock hold passed the bar); the JSON in this log carries it. Only
+          # that code is mapped to success; every other code stays fatal.
+          command:
+            - /bin/sh
+            - -c
+            - 'okg "$@"; rc=$?; if [ "$rc" -eq 8 ]; then exit 0; fi; exit "$rc"'
+            - okg-bootstrap
           args:
             - provision
             - --deployment

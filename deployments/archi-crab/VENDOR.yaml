@@ -20,6 +20,14 @@ entries:
   # ---- okg codebase-index template: the code-graph pieces (not part of the bundle) ----
   - {dest: extractors.yaml,                              type: file, src: /opt/okg/src/okg/substrate/library/templates/codebase-index/extractors.yaml}
   - {dest: schemas/bridges/extraction_to_git_files.yaml, type: file, src: /opt/okg/src/okg/substrate/library/templates/codebase-index/schemas/bridges/extraction_to_git_files.yaml}
+  # ---- REFERENCE copies: okg never reads them (root: repo -> under vendor/reference/) ----
+  # The upstream templates sources/kinds.yaml is written against. An engine-bump PR
+  # re-copies them, so an upstream change to a source template arrives as a diff right
+  # next to the kind that mirrors it. optional: --check only warns until the first --apply.
+  - {dest: vendor/reference/archi-cern-team-source-defaults, type: dir, root: repo, optional: true,
+     src: /opt/archi/bundles/cern-team/source-defaults}
+  - {dest: vendor/reference/okg-codebase-index, type: dir, root: repo, optional: true,
+     src: /opt/okg/src/okg/substrate/library/templates/codebase-index}
 
 # Files WE own. The installer writes first versions of some of them (deployment.yaml,
 # source registry, invariants.yaml); after the first scaffold they are ours and

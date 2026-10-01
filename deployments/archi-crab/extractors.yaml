@@ -66,6 +66,16 @@ chunker:
   - format: markdown
     class: okg.substrate.library.extraction.chunk.markdown_heading.MarkdownHeadingChunker
     config: {min_tokens: 100, max_tokens: 1500}
+  # Python route: one chunk per top-level function, per class (or per
+  # method of a class too large for one chunk) and per run of module-level
+  # code, holding the code itself. Without it the Python parser's chunks
+  # hold only docstrings, so an identifier used inside a function body is
+  # unsearchable. Sets `prefers_raw_text = True`, like the Markdown route.
+  # A file that does not parse (Python 2) falls back to text through the
+  # doc-corpus block's `text_fallback: true`.
+  - format: code
+    class: okg.substrate.library.extraction.chunk.python_symbols.PythonSymbolChunker
+    config: {max_chars: 4000, overlap: 400}
   # Default fallthrough — used for every other format whose
   # parser does not emit structural chunks. Window chunker is
   # simple, deterministic, language-agnostic.

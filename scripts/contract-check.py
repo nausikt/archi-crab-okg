@@ -271,8 +271,30 @@ def check_policy(report: Report, deployment: Path, registry: dict) -> None:
 
 
 def apply_fixes(fixes_path: Path, deployment: Path) -> int:
-    """Rewrite `class:` lines in source_registry.yaml. Text edit on purpose: comments stay."""
+    """Rewrite `class:` lines in source_registry.yaml. Text edit on purpose: comments stay.
+
+    When the registry is GENERATED (sources/kinds.yaml exists, docs/SOURCES.md), the
+    class lives in the kind template: rename it there and re-render, through
+    scripts/sources.py rename-class. Editing the generated file alone would make
+    sources-lint fail (registry != render) and be undone by the next render."""
     fixes = json.loads(fixes_path.read_text())
+    repo = deployment.resolve().parent.parent
+    if (repo / "sources" / "kinds.yaml").is_file():
+        ident = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+        done: set[tuple[str, str]] = set()
+        rc = 0
+        for fix in fixes if isinstance(fixes, list) else []:
+            if not (isinstance(fix, dict) and all(isinstance(fix.get(k), str) for k in ("old", "new"))
+                    and ident.fullmatch(fix["old"]) and ident.fullmatch(fix["new"])):
+                print(f"refused a malformed fix: {str(fix)[:120]!r}", file=sys.stderr)
+                continue
+            if (fix["old"], fix["new"]) in done:
+                continue
+            done.add((fix["old"], fix["new"]))
+            proc = subprocess.run([sys.executable, str(repo / "scripts" / "sources.py"), "--repo", str(repo),
+                                   "rename-class", fix["old"], fix["new"]])
+            rc |= proc.returncode
+        return rc
     registry = deployment / "source_registry.yaml"
     lines = registry.read_text().splitlines(keepends=True)
     applied = 0

@@ -191,9 +191,11 @@ jobs:
           check || true
           cp "$out/c/fixes.json" "$out/fixes.json" 2>/dev/null || echo "[]" > "$out/fixes.json"
           if [ -s "$out/fixes.json" ] && [ "$(jq length "$out/fixes.json")" -gt 0 ]; then
+            # the registry is generated from sources/ (scripts/sources.py needs PyYAML)
+            python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
             python3 scripts/contract-check.py --apply-fixes "$out/fixes.json" --deployment deployments/archi-crab
-            if ! git diff --quiet -- deployments; then
-              git add -A deployments
+            if ! git diff --quiet -- deployments sources; then
+              git add -A deployments sources
               git commit -q -m "converge: registry classes the new engine runs (mechanical, from contract-check)"
               cp "$out/fixes.json" "$out/applied.json"
               check || true # the report in the pull request describes the tree AFTER the fixes

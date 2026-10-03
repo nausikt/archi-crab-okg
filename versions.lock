@@ -18,22 +18,22 @@ upstream: # okg — the engine (private repository, private images)
   # <image>:sha-<commit> for the tip of `dev` after every merge.
   track: dev
   # Read from the image (label org.opencontainers.image.revision), never chosen by hand.
-  commit: 5ede1804837953bdb604012876c5b233cd7994c1
+  commit: 05144c633471b81f227274ac615cd308450780b0
 images:
   okg:
-    ref: ghcr.io/mitdbg/okg@sha256:cfe14ffceafbbd9cfa0c9dae1758b4b7b21beafa2825fc67c650d49145402284
+    ref: ghcr.io/mitdbg/okg@sha256:a65b1335af6177759476eed1dd00f2daebaf1f623eb3712421a2814c664fd602
   okg-postgres:
-    ref: ghcr.io/mitdbg/okg-postgres@sha256:b5c98c5b86f7e642ea299ab6b76a4fcb99d16b06f299e87364d7b5984616c685
+    ref: ghcr.io/mitdbg/okg-postgres@sha256:4ba27825ab23c3ab346582378faa531ecb96d2ae29ea3b7f3367d5ca01599592
 archi: # archi-okg — the HEP distribution (public): connectors, bundle, schemas, skills
   repository: https://github.com/archi-physics/archi-okg
   branch: main # archi-okg has no `dev`; merges land on main
   commit: 46d3daef5813678fd530ffe72dc1f14dcd8e68a7
 runtime: # OUR image = okg base + archi. Every line below is written by engine.yaml.
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: sha256:10bc4301dfc7e6c0e3cfc8bda04fcb907b2e8042b4ef18fa04c7676edfaa3ef1
-  built_from: afefa78284419982570c3a01df9272e5576819e5
+  digest: sha256:c2ee1741efab8f4441cb5c49eb1c38babe08538dc62775f091a7867f3da5d199
+  built_from: 84a223557e06bda8ab04f6c118d0f9fbddbda0ff
   base_user: "10001:10001" # the base image's USER, read from its config
   # Fingerprints of what `digest` was built from (scripts/engine-lock.sh). CI fails when
   # `inputs` no longer matches the pins above: someone moved a pin without rebuilding.
-  inputs: 1f56de3915e2580e84ab5af898b1f0d9ea4e19f371d3e2c0e0629ea5f53f7c83
+  inputs: f4ad21dc4e67965cde51efcf09479af7fa434c543af456f75f00d3a32404a41d
   dockerfile: 42f24c886ed2e9b2797042a73801593403d5f7f45cb509030bf032785fe3c5a5

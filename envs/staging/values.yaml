@@ -11,13 +11,13 @@ images:
   okg:
     repository: ghcr.io/nausikt/archi-crab-okg
     tag: ""
-    digest: "sha256:c2ee1741efab8f4441cb5c49eb1c38babe08538dc62775f091a7867f3da5d199"
+    digest: "sha256:9e05c239e0c6abbbbb8b830af6043cb8a7186b9e92bb18d24684afabf061699d"
     pullPolicy: IfNotPresent
 postgresql:
   image:
     repository: ghcr.io/mitdbg/okg-postgres
     tag: ""
-    digest: "sha256:4ba27825ab23c3ab346582378faa531ecb96d2ae29ea3b7f3367d5ca01599592"
+    digest: "sha256:39d60d883d1fcc9796b82a66c89e76d7efac8d057db7249d3834f66e68dc6e20"
     pullPolicy: IfNotPresent
   storage:
     size: 150Gi
@@ -27,9 +27,9 @@ runtime:
     size: 75Gi
     storageClassName: cinder-io1-delete
 repositorySync:
-  revision: "ffbe61dae15c72b7f5e15fa5600a3e7633e312fd" # <- merge sha (staging: CI bot; prod: Promote PR)
+  revision: "b534bb6bd604119f5e7b338079d34722fb06d1d8" # <- merge sha (staging: CI bot; prod: Promote PR)
 bootstrap:
-  approvedRevision: "ffbe61dae15c72b7f5e15fa5600a3e7633e312fd" # <- MUST equal repositorySync.revision (chart enforces)
+  approvedRevision: "b534bb6bd604119f5e7b338079d34722fb06d1d8" # <- MUST equal repositorySync.revision (chart enforces)
 mcp:
   allowedHosts:
     - "archi-crab-okg-staging.cern.ch"

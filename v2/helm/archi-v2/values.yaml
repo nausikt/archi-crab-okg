@@ -32,9 +32,16 @@ postgres:
   user: archi            # == files/config.yaml services.postgres.user (render-config.py)
   database: archi-db     # == services.postgres.database
   storage: {size: 50Gi, storageClassName: ""}
+  # /dev/shm as a Memory emptyDir. The container default is 64Mi, and Postgres' parallel
+  # workers / pgvector inserts need more: without it the first big ingest dies with
+  # "could not resize shared memory segment ... No space left on device" and the server
+  # crashes into recovery. Same as the okg chart (postgresql.shmSizeLimit). Counts against
+  # the memory limit below.
+  shmSizeLimit: 2Gi
+  # = okg's postgresql.resources: same budget for the comparison
   resources:
-    requests: {cpu: "500m", memory: 1Gi}
-    limits: {memory: 4Gi}
+    requests: {cpu: "1", memory: 4Gi}
+    limits: {memory: 8Gi}
 
 dataManager:
   port: 7871

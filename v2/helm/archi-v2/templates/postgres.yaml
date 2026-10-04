@@ -94,9 +94,15 @@ spec:
               readOnly: true
             - name: run
               mountPath: /var/run/postgresql
+            - name: dshm
+              mountPath: /dev/shm
       volumes:
         - name: run
           emptyDir: {}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.postgres.shmSizeLimit }}
         - name: init
           configMap:
             name: {{ $full }}-postgres-init

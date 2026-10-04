@@ -1,0 +1,187 @@
+# v2-engine — follows archi-physics/archi `main` for the v2 benchmark fixture and keeps ONE
+# rolling pull request, branch v2/upstream, that moves v2/versions.lock to the newest commit
+# (docs/V2-BENCH.md ADR-V2-7/10). Same loop as engine.yaml for the okg engine.
+#
+#   resolve archi main -> re-vendor upstream references -> rebuild OUR base image when its
+#   inputs moved -> build + push data-manager / mcp / postgres -> contract check in the image
+#   -> re-render config.yaml + init.sql -> write the lock -> push the branch -> open/update PR
+#
+# The pull request's own CI (v2-ci: lint + smoke, pulling the images this run pushed) proves
+# the bump BEFORE merge. Nothing here merges, and nothing here touches v2/envs/: staging
+# moves only after main's smoke is green (v2-main.yaml). While the PR is open, human commits
+# on v2/upstream survive: the branch is merged forward, never reset. Label `hold` pauses it.
+#
+# Run it by hand (workflow_dispatch) for phase 2's first images, or to hold archi at a commit.
+# Secrets: GHCR_PAT (push our images) · STAGING_BUMP_TOKEN (push the branch + open the PR).
+# Upstream code runs only inside the image build and in `docker run --network none`.
+name: v2-engine
+on:
+  schedule:
+    - cron: "41 3 * * *" # daily, after the okg engine (03:17)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild even when nothing moved
+        type: boolean
+        default: false
+      archi_commit:
+        description: Hold archi at this full sha (empty = newest main)
+        type: string
+        default: ""
+  push:
+    branches: [main]
+    paths: [v2/docker/**, v2/mcp/**, v2/deployments/**]   # a merged change to what the images are built from: same rolling PR
+permissions: {}
+concurrency: {group: v2-engine, cancel-in-progress: false}
+defaults:
+  run:
+    shell: bash
+env:
+  BRANCH: v2/upstream
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions: {contents: read, pull-requests: read, packages: write}
+    steps:
+      - uses: step-security/harden-runner@v2
+        with: {egress-policy: audit}
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+
+      - id: gate
+        name: Hold? (label `hold` on the open pull request stops the daily run)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr="$(gh pr list --head "$BRANCH" --state open --json number,labels,isCrossRepository \
+                  --jq '[.[] | select(.isCrossRepository | not)][0] // empty')"
+          pr="${pr:-null}"
+          go=true
+          if jq -e '.labels[]? | select(.name == "hold")' <<<"$pr" >/dev/null; then
+            echo "::notice::the v2 pull request is labelled 'hold' - nothing moved"; go=false
+          fi
+          { echo "pr=$(jq -r '.number // empty' <<<"$pr")"; echo "go=$go"; } >> "$GITHUB_OUTPUT"
+
+      - id: branch
+        name: Branch (open pull request = merge forward; none = start from main)
+        if: steps.gate.outputs.go == 'true'
+        env:
+          PR: ${{ steps.gate.outputs.pr }}
+        run: |
+          git config user.name archi-crab-bot
+          git config user.email archi-crab-bot@users.noreply.github.com
+          if [ -n "$PR" ] && git rev-parse -q --verify "origin/$BRANCH" >/dev/null; then
+            git checkout -q -B "$BRANCH" "origin/$BRANCH"
+            git merge -q --no-edit origin/main || { git merge --abort; echo "::error::$BRANCH conflicts with main: merge by hand (PR #$PR) or close it"; exit 1; }
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          else
+            git checkout -q -B "$BRANCH" origin/main
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - id: resolve
+        name: Resolve archi main (or the held commit); vendor its references
+        if: steps.gate.outputs.go == 'true'
+        env:
+          HOLD: ${{ inputs.archi_commit }}
+        run: |
+          repo="$(yq -r .archi.repository v2/versions.lock)"; branch="$(yq -r .archi.branch v2/versions.lock)"
+          commit="${HOLD:-$(git ls-remote "$repo.git" "refs/heads/$branch" | cut -f1)}"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not resolve archi $branch: '$commit'"; exit 1; }
+          git clone -q --filter=blob:none "$repo.git" "$RUNNER_TEMP/archi" && git -C "$RUNNER_TEMP/archi" checkout -q "$commit"
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' "$RUNNER_TEMP/archi/pyproject.toml" | head -1)"
+          was="$(yq -r .archi.commit v2/versions.lock)"
+          C="$commit" V="$version" yq -i '.archi.commit = strenv(C) | .archi.version = strenv(V)' v2/versions.lock
+          v2/scripts/vendor-sync.sh "$RUNNER_TEMP/archi"
+          pip install --quiet pyyaml jinja2
+          python3 v2/scripts/render-config.py --write --archi "$RUNNER_TEMP/archi"
+          { echo "commit=$commit"; echo "was=$was"; echo "moved=$([ "$commit" != "$was" ] && echo true || echo false)"; } >> "$GITHUB_OUTPUT"
+          echo "archi: $was -> $commit ($version)"
+
+      - name: ghcr login
+        if: steps.gate.outputs.go == 'true'
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: echo "$GHCR_PAT" | docker login ghcr.io -u nausikt --password-stdin
+      - uses: docker/setup-buildx-action@v3
+        if: steps.gate.outputs.go == 'true'
+
+      - id: base
+        name: Our base image (python:3.10 + archi's base requirements), when its inputs moved
+        if: steps.gate.outputs.go == 'true'
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          if v2/scripts/lock.sh base-stale || [ "$FORCE" = "true" ]; then
+            ref="$(yq -r .base.ref v2/versions.lock)"; tag="archi-$(yq -r .archi.commit v2/versions.lock | cut -c1-12)"
+            docker buildx build --push -f v2/docker/Dockerfile.base -t "$ref:$tag" -t "$ref:latest" --provenance=false \
+              --metadata-file "$RUNNER_TEMP/base.json" .
+            digest="$(jq -r '."containerimage.digest"' "$RUNNER_TEMP/base.json")"
+            v2/scripts/lock.sh set-base "$digest"
+            echo "built=true" >> "$GITHUB_OUTPUT"; echo "base: $ref@$digest"
+          else
+            echo "built=false" >> "$GITHUB_OUTPUT"; echo "base: unchanged ($(v2/scripts/lock.sh base-ref))"
+          fi
+
+      - id: images
+        name: data-manager / mcp / postgres, when their inputs moved
+        if: steps.gate.outputs.go == 'true'
+        env:
+          FORCE: ${{ inputs.force }}
+        run: |
+          if ! v2/scripts/lock.sh images-stale && [ "$FORCE" != "true" ]; then
+            echo "built=false" >> "$GITHUB_OUTPUT"; echo "images: unchanged"; exit 0
+          fi
+          base="$(v2/scripts/lock.sh base-ref)"; archi="$(yq -r .archi.commit v2/versions.lock)"; model="$(v2/scripts/lock.sh hf-model)"
+          tag="archi-${archi:0:12}-$(git rev-parse --short=12 origin/main)"
+          build() { # target, image ref, extra args...
+            docker buildx build --push -t "$2:$tag" --provenance=false --metadata-file "$RUNNER_TEMP/$1.json" "${@:3}"
+            jq -r '."containerimage.digest"' "$RUNNER_TEMP/$1.json"
+          }
+          dm="$(build data-manager "$(yq -r '.images["data-manager"].ref' v2/versions.lock)" -f v2/docker/Dockerfile --target data-manager \
+                --build-arg BASE_IMAGE="$base" --build-arg ARCHI_COMMIT="$archi" --build-arg HF_PREFETCH_MODEL="$model" .)"
+          mcp="$(build mcp "$(yq -r .images.mcp.ref v2/versions.lock)" -f v2/docker/Dockerfile --target mcp \
+                --build-arg BASE_IMAGE="$base" --build-arg ARCHI_COMMIT="$archi" --build-arg HF_PREFETCH_MODEL="$model" .)"
+          pg="$(build postgres "$(yq -r .images.postgres.ref v2/versions.lock)" -f v2/docker/Dockerfile.postgres v2/docker)"
+          docker run --rm --network none "$(yq -r .images.mcp.ref v2/versions.lock)@$mcp" python /root/archi/v2mcp/contract-check.py --archi /root/archi \
+            --markdown /dev/stdout > "$RUNNER_TEMP/contract.md" || echo "contract=failed" >> "$GITHUB_OUTPUT"
+          v2/scripts/lock.sh set-images "$dm" "$mcp" "$pg"
+          echo "built=true" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/contract.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - id: commit
+        name: Commit the bump (lock, vendored references, rendered config)
+        if: steps.gate.outputs.go == 'true'
+        run: |
+          git add -A v2
+          if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; echo "nothing changed"; exit 0; fi
+          git commit -q -m "v2: archi ${{ steps.resolve.outputs.commit }}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Push the branch; open or update the pull request
+        if: steps.gate.outputs.go == 'true' && steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.STAGING_BUMP_TOKEN }} # a PAT, not GITHUB_TOKEN: CI must run on what it pushes
+          PR: ${{ steps.gate.outputs.pr }}
+          FRESH: ${{ steps.branch.outputs.fresh }}
+          TITLE: "v2: archi ${{ steps.resolve.outputs.commit }}"
+        run: |
+          if git diff --quiet origin/main HEAD; then echo "::notice::up to date"; exit 0; fi
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"; echo "::add-mask::$basic"
+          ref="HEAD:refs/heads/$BRANCH"; [ "$FRESH" = "true" ] && ref="+$ref"
+          git -c "http.https://github.com/.extraheader=Authorization: Basic $basic" push -q "https://github.com/${GITHUB_REPOSITORY}.git" "$ref"
+          body="$RUNNER_TEMP/body.md"
+          {
+            echo "## archi v2 bump"; echo
+            echo "archi: \`${{ steps.resolve.outputs.was }}\` -> \`${{ steps.resolve.outputs.commit }}\` (base rebuilt: ${{ steps.base.outputs.built }}, images rebuilt: ${{ steps.images.outputs.built }})"; echo
+            echo "Read \`v2/vendor/reference\` in the diff first: it is the upstream change. Then the contract report:"; echo
+            cat "$RUNNER_TEMP/contract.md" 2>/dev/null || echo "(images unchanged: no contract run)"
+          } > "$body"
+          short="$(sed -E 's/([0-9a-f]{9})[0-9a-f]{31}/\1/g' <<<"$TITLE")"
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head "$BRANCH" --title "$short" --body-file "$body"
+            gh pr edit "$BRANCH" --add-label v2 || echo "::warning::label 'v2' missing: create it once (gh label create v2)"
+          else
+            gh pr edit "$PR" --title "$short" --body-file "$body"
+          fi

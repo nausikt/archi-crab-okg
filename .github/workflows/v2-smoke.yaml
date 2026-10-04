@@ -1,0 +1,100 @@
+# v2-smoke — the archi v2 fixture, for real, on the runner (callable: v2-ci.yaml on pull
+# requests, v2-main.yaml on main before it pins staging).
+#
+#   images   from v2/versions.lock when its fingerprint matches this tree (pulled by digest:
+#            the images the engine PR built), else built here from the lock's pins (not pushed)
+#   run      Postgres + config seed + data-manager (ingests a two-entry list at boot)
+#            + mcp-grep + mcp-vector as plain containers (sidecar mode semantics)
+#   prove    contract check inside the image; MCP initialize, tools/list == the family,
+#            one call per tool family; 401 without the bearer
+name: v2-smoke
+on:
+  workflow_call:
+    secrets:
+      GHCR_PAT: {required: false}   # pull by digest (the packages may be public anyway)
+permissions: {}
+defaults:
+  run:
+    shell: bash
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions: {contents: read}
+    env:
+      PG_PASSWORD: ci
+      DM_API_TOKEN: dm-ci
+      V2_MCP_AUTH_TOKEN: mcp-ci
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: docker/setup-buildx-action@v3
+      - name: ghcr login (when a token is passed)
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: if [ -n "$GHCR_PAT" ]; then echo "$GHCR_PAT" | docker login ghcr.io -u nausikt --password-stdin; fi
+      - id: img
+        name: Images -- pull the lock's, or build from the lock's pins
+        run: |
+          set -x
+          if ! v2/scripts/lock.sh images-stale; then
+            for k in data-manager mcp postgres; do
+              ref="$(yq -r ".images[\"$k\"].ref + \"@\" + .images[\"$k\"].digest" v2/versions.lock)"
+              docker pull "$ref" && docker tag "$ref" "v2-$k:ci"
+            done
+            echo "source=lock" >> "$GITHUB_OUTPUT"
+          else
+            if v2/scripts/lock.sh base-stale; then
+              docker build -f v2/docker/Dockerfile.base -t v2-python-base:ci .
+              base=v2-python-base:ci
+            else
+              base="$(v2/scripts/lock.sh base-ref)"
+            fi
+            archi="$(yq -r .archi.commit v2/versions.lock)"; model="$(v2/scripts/lock.sh hf-model)"
+            docker build -f v2/docker/Dockerfile --target data-manager --build-arg BASE_IMAGE="$base" --build-arg ARCHI_COMMIT="$archi" --build-arg HF_PREFETCH_MODEL="$model" -t v2-data-manager:ci .
+            docker build -f v2/docker/Dockerfile --target mcp          --build-arg BASE_IMAGE="$base" --build-arg ARCHI_COMMIT="$archi" --build-arg HF_PREFETCH_MODEL="$model" -t v2-mcp:ci .
+            docker build -f v2/docker/Dockerfile.postgres -t v2-postgres:ci v2/docker
+            echo "source=built" >> "$GITHUB_OUTPUT"
+          fi
+      - name: contract check inside the image (imports + signatures)
+        run: docker run --rm --network none -e ARCHI_ROOT=/root/archi v2-mcp:ci python /root/archi/v2mcp/contract-check.py --archi /root/archi
+      - name: the smoke corpus (two entries; the real list is the chart's) + the rendered config
+        run: |
+          mkdir -p "$RUNNER_TEMP/weblists" "$RUNNER_TEMP/configs"
+          printf 'git-https://github.com/dmwm/dasgoclient.git\nhttps://twiki.cern.ch/twiki/bin/view/CMSPublic/CRAB3FAQ\n' > "$RUNNER_TEMP/weblists/archi-crab.list"
+          sed 's/host: archi-v2-postgres/host: 127.0.0.1/' v2/helm/archi-v2/files/config.yaml > "$RUNNER_TEMP/configs/config.yaml"
+      - name: postgres
+        run: |
+          docker run -d --name pg --network host -e POSTGRES_USER=archi -e POSTGRES_DB=archi-db -e POSTGRES_PASSWORD="$PG_PASSWORD" \
+            -v "$PWD/v2/helm/archi-v2/files/init.sql:/docker-entrypoint-initdb.d/init.sql:ro" v2-postgres:ci
+          for i in $(seq 1 30); do docker exec pg pg_isready -U archi -d archi-db && break; sleep 2; done
+      - name: config seed + data-manager (ingests the list at boot; the model is baked, no download)
+        run: |
+          PGENV="--network host -e PGHOST=127.0.0.1 -e PGPORT=5432 -e PGDATABASE=archi-db -e PGUSER=archi -e PG_PASSWORD=$PG_PASSWORD"
+          docker run --rm $PGENV -e CONFIG_PATH=/rendered-config/config.yaml -v "$RUNNER_TEMP/configs:/rendered-config:ro" v2-data-manager:ci python -m src.cli.tools.config_seed
+          docker run -d --name dm $PGENV -e DM_API_TOKEN="$DM_API_TOKEN" -e VERBOSITY=3 -e HF_HUB_OFFLINE=1 \
+            -v "$RUNNER_TEMP/configs:/root/archi/configs:ro" -v "$RUNNER_TEMP/weblists:/root/archi/weblists:ro" v2-data-manager:ci
+          s=""
+          for i in $(seq 1 120); do
+            s=$(curl -sf http://127.0.0.1:7871/api/ingestion/status | yq -r .state 2>/dev/null || true)
+            echo "ingestion: ${s:-starting}"; [ "$s" = completed ] && break; [ "$s" = error ] && { docker logs dm | tail -80; exit 1; }; sleep 10
+          done
+          [ "$s" = completed ] || { echo "ingestion did not complete"; docker logs dm | tail -80; exit 1; }
+      - name: the two MCP servers
+        run: |
+          PGENV="--network host -e PGHOST=127.0.0.1 -e PGPORT=5432 -e PGDATABASE=archi-db -e PGUSER=archi -e PG_PASSWORD=$PG_PASSWORD"
+          docker run -d --name grep   --network host -e V2_MCP_FAMILY=grep   -e V2_MCP_PORT=8081 -e DM_BASE_URL=http://127.0.0.1:7871 -e DM_API_TOKEN="$DM_API_TOKEN" -e V2_MCP_AUTH_TOKEN="$V2_MCP_AUTH_TOKEN" v2-mcp:ci
+          docker run -d --name vector $PGENV -e V2_MCP_FAMILY=vector -e V2_MCP_PORT=8082 -e HF_HUB_OFFLINE=1 -e DM_BASE_URL=http://127.0.0.1:7871 -e DM_API_TOKEN="$DM_API_TOKEN" -e V2_MCP_AUTH_TOKEN="$V2_MCP_AUTH_TOKEN" v2-mcp:ci
+          for p in 8081 8082; do for i in $(seq 1 60); do curl -sf "http://127.0.0.1:$p/healthz" && break; sleep 3; done; done
+      - name: smoke (initialize, tools/list == family, one call each) with the image's own client
+        run: |
+          docker run --rm --network host v2-mcp:ci python /root/archi/v2mcp/smoke.py http://127.0.0.1:8081/mcp --token "$V2_MCP_AUTH_TOKEN" \
+            --expect fetch_catalog_document,list_metadata_schema,search_local_files,search_metadata_index \
+            --call list_metadata_schema '{}' --call search_local_files '{"query": "dasgoclient"}' --call search_metadata_index '{"query": "source_type:git"}'
+          docker run --rm --network host v2-mcp:ci python /root/archi/v2mcp/smoke.py http://127.0.0.1:8082/mcp --token "$V2_MCP_AUTH_TOKEN" \
+            --expect fetch_catalog_document,search_vectorstore_hybrid \
+            --call search_vectorstore_hybrid '{"query": "how do I query DAS from the command line"}'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8081/mcp); [ "$code" = 401 ] || { echo "no bearer -> $code, want 401"; exit 1; }
+          echo "smoke ok (images: ${{ steps.img.outputs.source }})"
+      - if: always()
+        run: for c in dm grep vector pg; do echo "== $c"; docker logs "$c" --tail 40 2>&1 || true; done

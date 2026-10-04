@@ -1,0 +1,77 @@
+# v2-ci — the archi v2 benchmark fixture (v2/): proven on every pull request that touches it.
+#
+#   v2-lint    no secrets, fork-safe: the generated files equal their render (weblist from
+#              sources/, config.yaml + init.sql from archi's templates at the pinned commit),
+#              the chart lints and templates in BOTH modes, the static contract with archi
+#              holds, the vendored upstream references still match the pinned archi.
+#   v2-smoke   v2-smoke.yaml: the real thing on the runner (images from the lock when its
+#              fingerprint matches, else built), Postgres + data-manager + both MCP servers,
+#              MCP handshake and calls, the contract check inside the image.
+#
+# Nothing here pushes: v2-engine.yaml builds and pushes images and writes the lock on its
+# rolling pull request; v2-main.yaml pins staging after the merge.
+name: v2-ci
+on:
+  pull_request:
+    paths: [v2/**, sources/**, scripts/sources.py, .github/workflows/v2-*.yaml]
+  push:
+    branches: [main]
+    paths: [v2/**, sources/**, scripts/sources.py, .github/workflows/v2-*.yaml]
+  workflow_dispatch:
+permissions: {}
+defaults:
+  run:
+    shell: bash
+jobs:
+  v2-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: python deps (PyYAML, Jinja2 for the config render)
+        run: pip install --quiet pyyaml jinja2
+      - name: archi at the pinned commit (public; templates + source for the static checks)
+        run: |
+          commit=$(yq -r .archi.commit v2/versions.lock)
+          git clone -q --filter=blob:none https://github.com/archi-physics/archi.git .archi
+          git -C .archi checkout -q "$commit"
+          echo "archi $commit ($(git -C .archi log -1 --format=%cs))"
+      - name: generated files == render
+        run: |
+          python3 scripts/sources.py lint --base published
+          python3 v2/scripts/render-config.py --check --archi .archi
+          python3 -m py_compile v2/mcp/server.py v2/scripts/*.py
+          bash -n v2/scripts/lock.sh && v2/scripts/lock.sh base-inputs >/dev/null && v2/scripts/lock.sh images-inputs >/dev/null
+      - name: contract with archi (static part; the import part runs in v2-smoke)
+        run: |
+          python3 v2/scripts/contract-check.py --archi .archi --markdown "$RUNNER_TEMP/contract.md"
+          cat "$RUNNER_TEMP/contract.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: azure/setup-helm@v5
+      - name: "helm lint + template: ci values (sidecar mode) and staging values (toolhive mode)"
+        run: |
+          helm lint v2/helm/archi-v2 -f v2/envs/ci/values.yaml
+          helm lint v2/helm/archi-v2 -f v2/envs/staging/values.yaml --set images.dataManager.tag=x --set images.mcp.tag=x --set images.postgres.tag=x
+          helm template archi-v2 v2/helm/archi-v2 --namespace archi-crab-staging -f v2/envs/ci/values.yaml > "$RUNNER_TEMP/ci.yaml"
+          helm template archi-v2 v2/helm/archi-v2 --namespace archi-crab-staging -f v2/envs/staging/values.yaml \
+            --set images.dataManager.tag=x --set images.mcp.tag=x --set images.postgres.tag=x > "$RUNNER_TEMP/staging.yaml"
+          echo "ci: $(grep -c '^kind:' "$RUNNER_TEMP/ci.yaml") objects; staging: $(grep -c '^kind:' "$RUNNER_TEMP/staging.yaml") objects"
+          grep -q 'kind: VirtualMCPServer' "$RUNNER_TEMP/staging.yaml" && ! grep -q 'kind: VirtualMCPServer' "$RUNNER_TEMP/ci.yaml"
+      - name: vendored upstream references still match the pinned archi
+        run: |
+          rc=0
+          for f in Dockerfile-data-manager-universal Dockerfile-postgres-universal; do
+            diff -q .archi/src/cli/templates/dockerfiles/base-helm-images/$f v2/vendor/reference/dockerfiles/$f || rc=1
+          done
+          diff -q .archi/src/cli/templates/dockerfiles/base-python-image/Dockerfile v2/vendor/reference/dockerfiles/Dockerfile-python-base || rc=1
+          diff -q .archi/src/cli/templates/dockerfiles/base-python-image/requirements.txt v2/vendor/reference/dockerfiles/python-base-requirements.txt || rc=1
+          diff -rq .archi/src/cli/templates/helm v2/vendor/reference/helm || rc=1
+          [ $rc = 0 ] || { echo "::error::v2/vendor/reference differs from archi $(yq -r .archi.commit v2/versions.lock): run v2/scripts/vendor-sync.sh .archi"; exit 1; }
+
+  v2-smoke:
+    needs: v2-lint
+    permissions: {contents: read}
+    uses: ./.github/workflows/v2-smoke.yaml
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}

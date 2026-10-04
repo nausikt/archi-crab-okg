@@ -1,0 +1,2 @@
+# Pins WE add on top of archi's base requirements (keep empty unless upstream's set must be
+# patched -- a CVE, a yanked wheel). Each line is a deviation from upstream: say why.

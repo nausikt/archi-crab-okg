@@ -1,0 +1,33 @@
+# v2/versions.lock -- the ONE file that says which archi v2 the benchmark fixture runs.
+# Same role as the repository's versions.lock for the okg engine (docs/UPSTREAM-SYNC.md):
+#
+#   WRITTEN BY  v2-engine.yaml (daily, branch v2/upstream): archi.*, base.*, images.*.
+#               By hand you edit only what is FOLLOWED: archi.repository, archi.branch.
+#   READ BY     v2-smoke.yaml  which images a PR is tested with (pulled when images.inputs
+#                              matches the tree, built locally otherwise)
+#               v2-main.yaml   what gets pinned into v2/envs/staging after a green smoke
+#               v2-build.yaml  build args (base-ref, archi.commit, the baked model)
+#
+# Fingerprints (v2/scripts/lock.sh): base.inputs / images.inputs say what the digests were
+# built from; a workflow rebuilds when the tree no longer matches.
+archi: # archi-physics/archi `main`: the v2 data-manager, tools and config templates
+  repository: https://github.com/archi-physics/archi
+  branch: main
+  commit: e6609f8f6ade4831453b9548d1faf7bc62d7ea2b   # main, 2026-10-04 (PR #608 merge)
+  version: "1.2.4"                                   # pyproject.toml at that commit
+base: # OURS (ADR-V2-10): python:3.10 + archi's base requirements at archi.commit, v2/docker/Dockerfile.base
+  ref: ghcr.io/nausikt/archi-v2-python-base
+  digest: ""                                         # written by v2-build / v2-engine
+  inputs: ""                                         # lock.sh base-inputs at build time
+images: # OURS, from base + archi.commit + v2/docker, v2/mcp (v2/docker/Dockerfile)
+  data-manager:
+    ref: ghcr.io/nausikt/archi-v2-data-manager
+    digest: ""
+  mcp:
+    ref: ghcr.io/nausikt/archi-v2-mcp
+    digest: ""
+  postgres:
+    ref: ghcr.io/nausikt/archi-v2-postgres
+    digest: ""
+  inputs: ""                                         # lock.sh images-inputs at build time
+  built_from: ""                                     # this repository's commit the images were built from

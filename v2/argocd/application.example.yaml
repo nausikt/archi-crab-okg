@@ -1,0 +1,25 @@
+# EXAMPLE for the IaC repository (CMSKubernetes, branch archi-crab-testbed), next to the okg
+# Applications: one Argo CD Application per environment, chart + values from THIS repository.
+# ONE environment only (the fixture is a benchmark, not a service): namespace archi-crab-staging,
+# where the ToolHive operator and the Gateway's env=staging listener selector already are.
+# Not applied from here; copy it there and adjust the project/destination to the testbed's.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: archi-crab-v2
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/nausikt/archi-crab-okg.git
+    targetRevision: main                 # the bot pins images in v2/envs/bench/values.yaml; the chart follows main
+    path: v2/helm/archi-v2
+    helm:
+      valueFiles:
+        - ../../envs/bench/values.yaml   # relative to `path`; Argo CD allows paths inside the same repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: archi-crab-staging
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=false, ServerSideApply=true]

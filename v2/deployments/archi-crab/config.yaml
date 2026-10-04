@@ -1,0 +1,77 @@
+# archi v2 (the LangChain-era retrieval stack) for the archi-crab benchmark -- OUR choices only.
+# Everything not set here takes archi's own default (src/cli/templates/base-config.yaml in the
+# pinned archi); `python3 v2/scripts/render-config.py --write` turns this into the full
+# config.yaml + init.sql under v2/helm/archi-v2/files/ (generated, checked by CI).
+#
+# WHAT IS INGESTED is not decided here: v2/helm/archi-v2/files/weblists/archi-crab.list is
+# generated from sources/archi-crab.yaml (scripts/sources.py render), the same list the okg
+# instances read. docs/V2-BENCH.md.
+name: archi-crab-v2
+# Top level, not under data_manager: that is where archi's template reads it. The vectorstore
+# collection becomes `<collection_name>_with_<embedding_name>`.
+collection_name: archi_crab
+
+data_manager:
+  # PLACEHOLDER until the live v2 deployment's values are pasted in (docs/V2-BENCH.md, open
+  # question 1): the benchmark's "v2 production baseline" is only meaningful with the SAME
+  # embedding, chunking and hybrid weights that deployment used. The HuggingFace default is
+  # what archi's quickstart uses: offline, CPU, deterministic -- a stand-in, not the baseline.
+  embedding_name: HuggingFaceEmbeddings
+  embedding_class_map:
+    HuggingFaceEmbeddings:
+      class: HuggingFaceEmbeddings
+      kwargs:
+        model_name: sentence-transformers/all-MiniLM-L6-v2
+        model_kwargs: {device: cpu}
+        encode_kwargs: {normalize_embeddings: true}
+      # init.sql declares vector(<dimensions>): archi only knows this number when it is set
+      # here (its default table is keyed by model name, not by this class name).
+      dimensions: 384
+  chunk_size: 1000
+  chunk_overlap: 0
+  stemming: {enabled: false}
+  retrievers:
+    hybrid_retriever:
+      num_documents_to_retrieve: 5   # k: the agent passes this to HybridRetriever
+      bm25_weight: 0.6               # archi's config default (the CODE default is 0.5/0.5)
+      semantic_weight: 0.4
+  sources:
+    local_files: {enabled: false, visible: true, schedule: ""}
+    links:
+      enabled: true
+      visible: true
+      schedule: ""                 # no cron re-sync: the corpus moves only with a new release
+      base_source_depth: 1         # the listed pages only (the TWiki pages from the okg list)
+      input_lists: [archi-crab.list]
+      html_scraper: {reset_data: true, verify_urls: false, enable_warnings: false}
+    git: {enabled: true, visible: true, schedule: ""}   # `git-` lines of the list
+    sso: {enabled: false, visible: false, schedule: ""}
+    indico: {enabled: false, visible: false, schedule: ""}
+    jira: {enabled: false, visible: false, schedule: ""}
+    redmine: {enabled: false, visible: false, schedule: ""}
+
+services:
+  data_manager:
+    enabled: true
+    port: 7871
+    external_port: 7871
+    hostname: archi-v2-data-manager   # the chart's Service name
+    flask_debug_mode: false
+    # enabled: EVERY endpoint (catalog API, upload UI, add_git_repo, ...) then needs the admin
+    # login or the DM_API_TOKEN bearer. With auth off, archi serves the catalog API to anyone
+    # who can reach the pod (the token is only checked when auth is on: uploader_app/app.py).
+    auth: {enabled: true}
+  postgres:
+    user: archi
+    database: archi-db
+    port: 5432
+  vectorstore:
+    distance_metric: cosine
+
+# Applied AFTER archi's template, for the few fields it cannot express (each one is an upstream
+# quirk to report; render-config.py records them in the generated file's header):
+v2_overrides:
+  # base-config.yaml renders `reset_collection: {{ ... | default(true, true) }}`: a false value is
+  # treated as unset, so the template can only ever say true. True truncates document_chunks and
+  # re-embeds the whole corpus on EVERY data-manager start, which a benchmark cannot have.
+  data_manager.reset_collection: false

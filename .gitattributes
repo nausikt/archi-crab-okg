@@ -1,0 +1,5 @@
+# verbatim upstream copies and files rendered from upstream templates: CI diffs them byte for
+# byte against archi (v2/scripts/vendor-sync.sh, render-config.py --check) -- never "fix" them
+v2/vendor/reference/** -whitespace
+v2/helm/archi-v2/files/init.sql -whitespace
+v2/helm/archi-v2/files/config.yaml -whitespace

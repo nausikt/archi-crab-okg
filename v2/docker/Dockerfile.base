@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.7
+# OUR copy of archi's python base image (ADR-V2-10): python:3.10 + the base requirements of
+# the pinned archi commit, built by v2-build / v2-engine and pushed as
+# ghcr.io/nausikt/archi-v2-python-base. Nothing here depends on a2rchi/* on Docker Hub.
+#
+# Inputs (v2/scripts/lock.sh fingerprints them; the base is rebuilt only when one moves):
+#   this file
+#   v2/vendor/reference/dockerfiles/python-base-requirements.txt   <- archi's, re-vendored on every engine PR
+#   v2/docker/base-requirements.extra.txt                          <- ours (empty unless we must patch a pin)
+# Upstream's Dockerfile (vendored next to the requirements) is python:3.10 + `pip install -r`;
+# the ONLY additions are a pinned python digest and the extra file.
+ARG PYTHON_IMAGE=docker.io/library/python:3.10
+FROM ${PYTHON_IMAGE}
+RUN mkdir -p /root/archi
+WORKDIR /root/archi
+COPY v2/vendor/reference/dockerfiles/python-base-requirements.txt requirements.txt
+COPY v2/docker/base-requirements.extra.txt requirements.extra.txt
+# ONE resolve over both files, so an extra pin constrains the transitive picks instead of being
+# installed over them afterwards (a second `pip install` would leave the broken pair importable
+# only by luck of ordering)
+RUN pip install --upgrade pip && pip install -r requirements.txt -r requirements.extra.txt
+LABEL org.opencontainers.image.source="https://github.com/nausikt/archi-crab-okg" \
+      org.opencontainers.image.title="archi-v2-python-base"

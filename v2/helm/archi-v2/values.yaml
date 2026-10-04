@@ -1,0 +1,81 @@
+# archi-v2 -- defaults. envs/<env>/values.yaml overrides only what differs (images pinned by
+# digest, storage class, hostnames). Every value a human might reach for is here.
+#
+# Service names are baked into the generated config (files/config.yaml: services.postgres.host,
+# services.data_manager.hostname), so fullnameOverride MUST stay `archi-v2` -- one release per
+# namespace; the fixture has ONE environment (v2/envs/bench).
+fullnameOverride: archi-v2
+nameOverride: ""
+
+images:
+  # digest wins over tag when set; v2/versions.lock is the source, the bot copies it here
+  dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, tag: "", digest: "", pullPolicy: IfNotPresent}
+  mcp:         {repository: ghcr.io/nausikt/archi-v2-mcp,          tag: "", digest: "", pullPolicy: IfNotPresent}
+  postgres:    {repository: ghcr.io/nausikt/archi-v2-postgres,     tag: "", digest: "", pullPolicy: IfNotPresent}
+imagePullSecrets: []   # the images are public once pushed as such; otherwise a ghcr pull secret here
+
+secrets:
+  # One Opaque Secret, created out of band (never in git). Keys:
+  #   PG_PASSWORD            archi's Postgres password (data-manager + vector sidecar)
+  #   DM_API_TOKEN           bearer for the data-manager catalog API (grep + fetch tools)
+  #   DM_ADMIN_PASSWD        optional: the upload UI's admin login (nothing here needs the UI)
+  #   V2_MCP_AUTH_TOKEN      bearer MCP clients present (mcp.auth: bearer only)
+  #   OPENAI_API_KEY         only if data_manager.embedding_name is OpenAIEmbeddings
+  #   HUGGING_FACE_HUB_TOKEN optional (gated models)
+  #   GIT_USERNAME/GIT_TOKEN NOT for this deployment: public sources only (sources/archi-crab.yaml posture)
+  existingSecret: archi-v2
+
+verbosity: 3
+
+postgres:
+  port: 5432
+  user: archi            # == files/config.yaml services.postgres.user (render-config.py)
+  database: archi-db     # == services.postgres.database
+  storage: {size: 50Gi, storageClassName: ""}
+  resources:
+    requests: {cpu: "500m", memory: 1Gi}
+    limits: {memory: 4Gi}
+
+dataManager:
+  port: 7871
+  storage: {size: 20Gi, storageClassName: ""}   # /root/data: clones, scraped pages, catalog files
+  resources:
+    requests: {cpu: "1", memory: 2Gi}
+    limits: {memory: 6Gi}
+
+mcp:
+  # Two sidecars in the data-manager pod, one tool family each, one Service each
+  # (docs/V2-BENCH.md ADR-V2-3). Public exposure is NOT this chart's: the CMSKubernetes
+  # mcp-gateway chart fronts each Service with a ToolHive MCPRemoteProxy (CERN SSO, Cedar)
+  # at https://archi-crab-v2.cern.ch/grep/mcp and /vectorstore/mcp -- the same pattern that
+  # fronts okg. MCP is never exposed except through such a proxy.
+  #
+  # auth: bearer  the server demands V2_MCP_AUTH_TOKEN (CI, laptops, port-forward)
+  #       none    no app-level token: the proxy is the gate, and the NetworkPolicy admits only
+  #               ToolHive's proxy pods (label toolhive: "true") to the MCP ports
+  auth: bearer
+  hfHubOffline: true     # the embedding model is baked into the image; never download at run time
+  # Tool gating is server-side (V2_MCP_TOOLS / V2_MCP_FETCH): a client never sees a tool the
+  # family does not serve, which is what the ablations rely on.
+  grep:
+    enabled: true
+    port: 8081
+    fetch: true          # fetch_catalog_document rides with the family (V2_MCP_FETCH)
+    tools: ""            # override the family's tool list, comma-separated (V2_MCP_TOOLS)
+    resources: {requests: {cpu: "50m", memory: 128Mi}, limits: {memory: 512Mi}}
+  vector:
+    enabled: true
+    port: 8082
+    fetch: true
+    tools: ""
+    # the embedding model lives here (warm, once) + a psycopg2 connection per query
+    resources: {requests: {cpu: "500m", memory: 1Gi}, limits: {memory: 3Gi}}
+  logLevel: INFO
+
+networkPolicy:
+  enabled: true   # postgres: this chart's pods; data-manager API: the namespace; MCP ports: the namespace (auth bearer) or ToolHive proxies only (auth none)
+
+configSeed:
+  # archi keeps its config in Postgres: a post-install/upgrade hook Job loads files/config.yaml
+  # (config_seed.py), as archi's own chart does. The data-manager waits for it.
+  backoffLimit: 6

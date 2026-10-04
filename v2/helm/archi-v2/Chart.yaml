@@ -1,0 +1,10 @@
+apiVersion: v2
+name: archi-v2
+description: >-
+  archi v2 (the LangChain-era retrieval stack) as a headless benchmark fixture: Postgres
+  (pgvector + pg_textsearch), the data-manager that ingests the same source list as the okg
+  instances, and two MCP sidecars exposing its retrieval tools (grep family, vectorstore).
+  No chat, no UI. docs/V2-BENCH.md.
+type: application
+version: 0.1.0
+appVersion: "1.2.4"   # archi's pyproject version at v2/versions.lock archi.commit

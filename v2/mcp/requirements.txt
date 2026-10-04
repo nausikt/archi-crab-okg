@@ -1,0 +1,6 @@
+# The MCP layer's own dependencies. Everything else (langchain, requests, psycopg2, the
+# embedding providers, starlette/uvicorn via fastapi) is archi's, already in the image.
+# `mcp` is also pulled in transitively by archi's langchain-mcp-adapters; this pin keeps the
+# server API we use (lowlevel Server + StreamableHTTPSessionManager) in the 1.x line.
+mcp>=1.12,<2
+anyio>=4

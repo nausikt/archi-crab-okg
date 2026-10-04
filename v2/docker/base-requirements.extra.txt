@@ -1,0 +1,10 @@
+# Pins WE add on top of archi's base requirements (keep empty unless upstream's set must be
+# patched -- a CVE, a yanked wheel). Each line is a deviation from upstream: say why.
+
+# langgraph-prebuilt: archi pins langgraph==1.0.2, which accepts langgraph-prebuilt>=1.0.2,<1.1.0.
+# From 1.0.9 on, prebuilt imports `ExecutionInfo` from langgraph.runtime, which langgraph 1.0.2
+# does not have, so a fresh resolve today breaks every archi tool import (v2-smoke, 2026-10-04:
+# "cannot import name 'ExecutionInfo' from 'langgraph.runtime'"). 1.0.8 is the newest that
+# imports cleanly against 1.0.2. Upstream's own image has the same bug on a fresh build: drop
+# this line when archi bumps langgraph (>= the release that added ExecutionInfo) or pins prebuilt.
+langgraph-prebuilt==1.0.8

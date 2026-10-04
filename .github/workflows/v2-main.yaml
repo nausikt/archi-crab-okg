@@ -1,0 +1,60 @@
+# v2-main — after a merge that touches the v2 fixture: run the smoke again on main (pulling
+# the images the lock names), and only when it is green pin those image digests into
+# v2/envs/bench/values.yaml in one bot commit. Same shape as main.yaml for the okg engine.
+#
+# The chart and its generated files follow `main` directly (the Argo CD Application points at
+# the path), so a merged source-list or config change rolls the data-manager at once; what
+# this workflow gates is the IMAGE the fixture runs.
+name: v2-main
+on:
+  push:
+    branches: [main]
+    paths: [v2/**, .github/workflows/v2-main.yaml, .github/workflows/v2-smoke.yaml]
+  workflow_dispatch:
+permissions: {}
+concurrency: {group: v2-main, cancel-in-progress: false}
+defaults:
+  run:
+    shell: bash
+jobs:
+  smoke:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    permissions: {contents: read}
+    uses: ./.github/workflows/v2-smoke.yaml
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+  pin-bench:
+    needs: smoke
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging   # the GitHub Environment that holds STAGING_BUMP_TOKEN (shared with main.yaml)
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Pin the proven images into v2/envs/bench (one commit, forward only)
+        env:
+          GH_TOKEN: ${{ secrets.STAGING_BUMP_TOKEN }}
+        run: |
+          if v2/scripts/lock.sh images-stale; then
+            echo "::notice::v2/versions.lock has no images for this tree (run v2-engine first); nothing pinned"; exit 0
+          fi
+          DM="$(yq -r '.images["data-manager"].digest' v2/versions.lock)"
+          MCP="$(yq -r '.images.mcp.digest' v2/versions.lock)"
+          PG="$(yq -r '.images.postgres.digest' v2/versions.lock)"
+          export DM MCP PG
+          git config user.name archi-crab-bot
+          git config user.email archi-crab-bot@users.noreply.github.com
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"; echo "::add-mask::$basic"
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          agit() { git -c "http.${remote}.extraheader=Authorization: Basic $basic" "$@"; }
+          for attempt in 1 2 3; do
+            agit fetch -q "$remote" "+refs/heads/main:refs/remotes/origin/main"
+            git checkout -q -B main origin/main
+            yq -i '.images.dataManager.digest = strenv(DM) | .images.mcp.digest = strenv(MCP) | .images.postgres.digest = strenv(PG)' v2/envs/bench/values.yaml
+            git diff --quiet && { echo "the bench already runs these images"; exit 0; }
+            git commit -q -am "v2 bench: pin ${GITHUB_SHA::9} [skip ci]"
+            if agit push -q "$remote" HEAD:refs/heads/main; then echo "v2 bench pinned: mcp ${MCP::19}"; exit 0; fi
+            echo "push raced (attempt $attempt); retrying"; sleep 5
+          done
+          echo "::error::could not push the v2 bench pin"; exit 1

@@ -1,0 +1,21 @@
+archi-v2 ({{ .Release.Name }} in {{ .Release.Namespace }}) -- the LangChain-era retrieval stack as a benchmark fixture.
+
+  data-manager   http://{{ include "archi-v2.fullname" . }}-data-manager:{{ .Values.dataManager.port }}   (catalog API, bearer DM_API_TOKEN)
+{{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}
+  mcp-{{ $family }}{{ if eq $family "grep" }}       {{ else }}     {{ end }}http://{{ include "archi-v2.fullname" $ }}-mcp-{{ $family }}:{{ $m.port }}/mcp   ({{ if eq $.Values.mcp.auth "none" }}no token: behind MCPRemoteProxy{{ else }}bearer V2_MCP_AUTH_TOKEN{{ end }})
+{{- end }}{{ end }}
+
+Smoke an MCP endpoint from your machine (python3 -m pip install "mcp>=1.12,<2"):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "archi-v2.fullname" . }}-mcp-grep {{ .Values.mcp.grep.port }} &
+  python3 v2/scripts/smoke.py http://127.0.0.1:{{ .Values.mcp.grep.port }}/mcp --token "$V2_MCP_AUTH_TOKEN" \
+    --expect fetch_catalog_document,list_metadata_schema,search_local_files,search_metadata_index \
+    --call search_local_files '{"query": "crab submit"}'
+{{- if eq .Values.mcp.auth "none" }}
+  (mcp.auth none: only ToolHive proxy pods reach the MCP ports; use the public URLs instead:
+   https://archi-crab-v2.cern.ch/grep/mcp, /vectorstore/mcp -- CMSKubernetes mcp-gateway remoteProxies)
+{{- end }}
+
+Ingestion starts when the data-manager pod starts (archi runs it at boot):
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "archi-v2.fullname" . }}-data-manager -c data-manager -f
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "archi-v2.fullname" . }}-data-manager -c data-manager -- \
+    curl -s localhost:{{ .Values.dataManager.port }}/api/ingestion/status

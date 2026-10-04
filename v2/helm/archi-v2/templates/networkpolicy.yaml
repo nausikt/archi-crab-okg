@@ -1,0 +1,61 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $full := include "archi-v2.fullname" . -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $full }}-postgres
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "archi-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "archi-v2.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgres.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $full }}-data-manager
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "archi-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: data-manager
+  policyTypes: ["Ingress"]
+  ingress:
+    # MCP ports: with auth none ONLY ToolHive's proxy pods (the MCPRemoteProxies of the
+    # mcp-gateway chart, same namespace); with auth bearer any pod in the namespace
+    - from:
+        {{- if eq .Values.mcp.auth "none" }}
+        - podSelector:
+            matchLabels:
+              toolhive: "true"
+        {{- else }}
+        - podSelector: {}
+        {{- end }}
+      ports:
+        {{- range $family := list "grep" "vector" }}
+        {{- $m := index $.Values.mcp $family }}
+        {{- if $m.enabled }}
+        - protocol: TCP
+          port: {{ $m.port }}
+        {{- end }}
+        {{- end }}
+    # the data-manager's own API (catalog, upload UI): this namespace only; the sidecars use localhost
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.dataManager.port }}
+{{- end }}

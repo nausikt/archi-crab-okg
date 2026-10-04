@@ -1,0 +1,39 @@
+# envs/run1 — a frozen okg run for the benchmark (docs/V2-BENCH.md, phase 5). Copy to
+# values.yaml when the run starts; run2 is the same file with run2 everywhere.
+#
+# Same namespace as staging (archi-crab-staging): every object is named from
+# fullnameOverride, so nothing collides. PINNED BY HAND, never by the bot (main.yaml writes
+# envs/staging only): a run studies one knowledge commit with one engine, and stays there.
+fullnameOverride: archi-crab-okg-run1
+images:
+  okg:
+    repository: ghcr.io/nausikt/archi-crab-okg
+    tag: ""
+    digest: ""   # sha256:… — the engine of the run's day (versions.lock at that commit)
+    pullPolicy: IfNotPresent
+postgresql:
+  image:
+    repository: ghcr.io/mitdbg/okg-postgres
+    tag: ""
+    digest: ""   # sha256:… — the okg-postgres of that day
+    pullPolicy: IfNotPresent
+  storage:
+    size: 150Gi
+    storageClassName: cinder-io1-delete
+runtime:
+  storage:
+    size: 75Gi
+    storageClassName: cinder-io1-delete
+repositorySync:
+  revision: ""          # the knowledge commit this run studies
+bootstrap:
+  approvedRevision: ""  # MUST equal repositorySync.revision (chart enforces)
+mcp:
+  # Exposed as https://archi-crab-okg-staging.cern.ch/run1/mcp by the mcp-gateway remote proxy
+  # okg-run1 (CMSKubernetes). The proxy forwards to the in-cluster Service, so the Host it sends
+  # is the Service name; staging also lists its Service ClusterIP (docs/V2-BENCH.md phase 5, step 1).
+  allowedHosts:
+    - "archi-crab-okg-staging.cern.ch"
+    - "archi-crab-okg-staging.cern.ch:*"
+    - "archi-crab-okg-run1-mcp.archi-crab-staging.svc:*"
+    - "archi-crab-okg-run1-mcp:*"

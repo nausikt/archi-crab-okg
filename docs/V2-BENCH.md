@@ -316,10 +316,20 @@ and `python3 scripts/sources.py lint --base published` — the smoke proves the 
    ```
 3. `v2/envs/bench/values.yaml` already says `mcp.auth: bearer` for this phase (no
    hostname yet; phase 4 flips that one line to `none` once the remote proxies are the gate).
-4. **The Argo CD Application** in CMSKubernetes (`archi-crab-testbed`), from
-   `v2/argocd/application.example.yaml` (namespace `archi-crab-staging`: the ToolHive operator, the
-   mcp-gateway remote proxies and the Gateway's listener selector are there; every run shares it); sync. Watch the first ingest (19 sources: 285
-   pages + 18 repositories; tens of minutes):
+4. **The Argo CD Application** in CMSKubernetes (`archi-crab-testbed`). Wait first for
+   `v2-main` to commit `v2 bench: pin …` on `main`: with empty digests the chart falls back to
+   `:latest`, which v2-engine never pushes (ImagePullBackOff). Then one PR on `archi-crab-testbed`
+   with the two CMSKubernetes patches: (1) `archi-crab-paths` — path support in the mcp-gateway
+   chart, the run/v2 remote proxies all `enabled: false`, the `archi-crab-v2.cern.ch` listener
+   (safe before its cert: that listener alone goes `ResolvedRefs=False`), the run Applications as
+   `.disabled`; (2) `46-archi-v2-app.yaml` enabled. The root app picks it up (it reads `*.yaml`);
+   the chart lands in `archi-crab-staging` and claims two `cinder-io1-delete` volumes (50 + 20 Gi).
+   `v2/argocd/application.example.yaml` is the same Application, for reference. Watch the first
+   ingest (19 sources: 285 pages + 18 repositories; tens of minutes):
+   ```bash
+   kubectl -n argocd get application archi-v2      # Synced / Healthy (Progressing while ingesting)
+   kubectl -n archi-crab-staging get pvc | grep archi-v2   # both Bound
+   ```
    ```bash
    NS=archi-crab-staging
    kubectl -n $NS get pod -l app.kubernetes.io/component=data-manager
@@ -455,10 +465,12 @@ PVCs), so check the namespace quota before adding run2.
 
 | step | state | evidence |
 |---|---|---|
-| Phase 1 PR (`v2-bench`) | **open: #19** — v2-lint green; v2-smoke: in-image contract check now runs and caught quirk 4 (langgraph-prebuilt pin added), rerun pending | `main` = b534bb6 (engine PR #18 merged; touches only the okg `versions.lock`, merges cleanly) |
+| Phase 1 PR (`v2-bench`) | **merged: #19** (6d5edef) | all green |
 | §3.1 live v2 config | open | placeholder in `v2/deployments/archi-crab/config.yaml` |
-| Phase 2.1 first images (`v2-engine` by hand) | not started | |
-| Phase 2.2–2.5 Secret, sidecar deploy, smoke | not started | |
+| Phase 2.1 first images | **done** — v2-engine ran on the phase 1 merge; PR #20 merged | lock: data-manager 2a2dca78, mcp c92c5a8b, postgres cae2829b |
+| Phase 2.2 Secret `archi-v2` | **done** | |
+| Phase 2.3 bench pin (`v2-main`) | running on 2f34a5a | `v2 bench: pin …` commit on main |
+| Phase 2.4–2.5 Argo app, first ingest, smoke | next | CMSKubernetes `archi-crab-paths` (2 patches) |
 | Phase 3 daily loop | not started | |
 | CMSKubernetes `archi-crab-paths` (path support, disabled entries) | **to open** — patch delivered; inert until entries are enabled | `archi-crab-testbed` = 2b87114 |
 | Phase 4 `archi-crab-v2.cern.ch` + SSO (path prefixes) | not started | ADR-V2-5 risk to check first: `curl -sI …/grep/mcp` |

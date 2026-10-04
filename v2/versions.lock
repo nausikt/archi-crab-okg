@@ -13,21 +13,21 @@
 archi: # archi-physics/archi `main`: the v2 data-manager, tools and config templates
   repository: https://github.com/archi-physics/archi
   branch: main
-  commit: e6609f8f6ade4831453b9548d1faf7bc62d7ea2b   # main, 2026-10-04 (PR #608 merge)
-  version: "1.2.4"                                   # pyproject.toml at that commit
+  commit: e6609f8f6ade4831453b9548d1faf7bc62d7ea2b # main, 2026-10-04 (PR #608 merge)
+  version: "1.2.4" # pyproject.toml at that commit
 base: # OURS (ADR-V2-10): python:3.10 + archi's base requirements at archi.commit, v2/docker/Dockerfile.base
   ref: ghcr.io/nausikt/archi-v2-python-base
-  digest: ""                                         # written by v2-build / v2-engine
-  inputs: ""                                         # lock.sh base-inputs at build time
+  digest: "sha256:8d0c7b34a919bb2f24b411317e58edee9748ac282d69999dcd6edc201388403d" # written by v2-build / v2-engine
+  inputs: "ab21ed3376e3e7f173737247e59d1977236cfbf72df9a42efffcbf879b66a46d" # lock.sh base-inputs at build time
 images: # OURS, from base + archi.commit + v2/docker, v2/mcp (v2/docker/Dockerfile)
   data-manager:
     ref: ghcr.io/nausikt/archi-v2-data-manager
-    digest: ""
+    digest: "sha256:2a2dca78e188283988619e627743789d4dca246923fb171f5b333241bfaaed35"
   mcp:
     ref: ghcr.io/nausikt/archi-v2-mcp
-    digest: ""
+    digest: "sha256:c92c5a8bd4dfb865e5a5b14f8faf4fc880189c3613cfff2f3ee6303bc25e00a7"
   postgres:
     ref: ghcr.io/nausikt/archi-v2-postgres
-    digest: ""
-  inputs: ""                                         # lock.sh images-inputs at build time
-  built_from: ""                                     # this repository's commit the images were built from
+    digest: "sha256:cae2829b4ecb34381010b5b5b7e78dc16353acc04895d0f4152174c1dc67abc7"
+  inputs: "a57a5ef6093949945e55fca8b9c6a6853b889c3666add302c01db7a22508eae5" # lock.sh images-inputs at build time
+  built_from: "6d5edef0b0bc3c1b1a5200b85620c6d7b0a0d380" # this repository's commit the images were built from

@@ -1,0 +1,28 @@
+archi-v2 ({{ .Release.Name }} in {{ .Release.Namespace }}) -- the LangChain-era retrieval stack as a benchmark fixture.
+
+  data-manager   http://{{ include "archi-v2.fullname" . }}-data-manager:{{ .Values.dataManager.port }}   (catalog API, bearer DM_API_TOKEN)
+{{- if eq .Values.mcp.mode "toolhive" }}
+{{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}
+  mcp-{{ $family }}{{ if eq $family "grep" }}       {{ else }}     {{ end }}https://{{ $m.host }}/mcp   (CERN SSO: audience {{ $.Values.cern.audience }})
+{{- end }}{{ end }}
+
+Connect as a client (the same way the benchmark harness does), one server per family:
+{{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}
+  claude mcp add --transport http v2-{{ $family }} https://{{ $m.host }}/mcp --client-id {{ $.Values.cern.audience }}
+{{- end }}{{ end }}
+{{- else }}
+{{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}
+  mcp-{{ $family }}{{ if eq $family "grep" }}       {{ else }}     {{ end }}http://{{ include "archi-v2.fullname" $ }}-mcp-{{ $family }}:{{ $m.port }}/mcp   (bearer V2_MCP_AUTH_TOKEN, in-cluster)
+{{- end }}{{ end }}
+
+Smoke an MCP endpoint from your machine (python3 -m pip install "mcp>=1.12,<2"):
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "archi-v2.fullname" . }}-mcp-grep {{ .Values.mcp.grep.port }} &
+  python3 v2/scripts/smoke.py http://127.0.0.1:{{ .Values.mcp.grep.port }}/mcp --token "$V2_MCP_AUTH_TOKEN" \
+    --expect fetch_catalog_document,list_metadata_schema,search_local_files,search_metadata_index \
+    --call search_local_files '{"query": "crab submit"}'
+{{- end }}
+
+Ingestion starts when the data-manager pod starts (archi runs it at boot):
+  kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "archi-v2.fullname" . }}-data-manager -c data-manager -f
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "archi-v2.fullname" . }}-data-manager -c data-manager -- \
+    curl -s localhost:{{ .Values.dataManager.port }}/api/ingestion/status

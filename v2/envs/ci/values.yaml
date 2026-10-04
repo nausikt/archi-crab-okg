@@ -1,0 +1,7 @@
+# v2/envs/ci -- what `helm template` in v2-ci renders (no ToolHive, no Gateway): sidecar mode.
+mcp:
+  mode: sidecar
+images:
+  dataManager: {tag: ci}
+  mcp: {tag: ci}
+  postgres: {tag: ci}

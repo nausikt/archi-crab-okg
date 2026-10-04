@@ -1,0 +1,110 @@
+# archi-v2 -- defaults. envs/<env>/values.yaml overrides only what differs (images pinned by
+# digest, storage class, hostnames). Every value a human might reach for is here.
+#
+# Service names are baked into the generated config (files/config.yaml: services.postgres.host,
+# services.data_manager.hostname), so fullnameOverride MUST stay `archi-v2` -- one release per
+# namespace (staging / prod), never two in one namespace.
+fullnameOverride: archi-v2
+nameOverride: ""
+
+images:
+  # digest wins over tag when set; v2/versions.lock is the source, the bot copies it here
+  dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, tag: "", digest: "", pullPolicy: IfNotPresent}
+  mcp:         {repository: ghcr.io/nausikt/archi-v2-mcp,          tag: "", digest: "", pullPolicy: IfNotPresent}
+  postgres:    {repository: ghcr.io/nausikt/archi-v2-postgres,     tag: "", digest: "", pullPolicy: IfNotPresent}
+imagePullSecrets: []   # the images are public once pushed as such; otherwise a ghcr pull secret here
+
+secrets:
+  # One Opaque Secret, created out of band (never in git). Keys:
+  #   PG_PASSWORD            archi's Postgres password (data-manager + vector sidecar)
+  #   DM_API_TOKEN           bearer for the data-manager catalog API (grep + fetch tools)
+  #   DM_ADMIN_PASSWD        optional: the upload UI's admin login (nothing here needs the UI)
+  #   V2_MCP_AUTH_TOKEN      bearer MCP clients present (both sidecars)
+  #   OPENAI_API_KEY         only if data_manager.embedding_name is OpenAIEmbeddings
+  #   HUGGING_FACE_HUB_TOKEN optional (gated models)
+  #   GIT_USERNAME/GIT_TOKEN NOT for this deployment: public sources only (sources/archi-crab.yaml posture)
+  existingSecret: archi-v2
+
+verbosity: 3
+
+postgres:
+  port: 5432
+  user: archi            # == files/config.yaml services.postgres.user (render-config.py)
+  database: archi-db     # == services.postgres.database
+  storage: {size: 50Gi, storageClassName: ""}
+  resources:
+    requests: {cpu: "500m", memory: 1Gi}
+    limits: {memory: 4Gi}
+
+dataManager:
+  port: 7871
+  storage: {size: 20Gi, storageClassName: ""}   # /root/data: clones, scraped pages, catalog files
+  resources:
+    requests: {cpu: "1", memory: 2Gi}
+    limits: {memory: 6Gi}
+
+mcp:
+  # HOW the two tool families are served (docs/V2-BENCH.md ADR-V2-3/5):
+  #   toolhive  one ToolHive MCPServer per family, each in its OWN MCPGroup, fronted by its own
+  #             VirtualMCPServer with CERN SSO (incomingAuth oidc, the existing public client as
+  #             audience) and one hostname per family. This is what staging/prod run. Needs the
+  #             ToolHive operator + the shared Gateway (both already on the cluster).
+  #   sidecar   two containers in the data-manager pod behind a static bearer, ClusterIP only
+  #             (port-forward). What CI smokes and what a laptop runs; no public surface.
+  mode: toolhive
+  hfHubOffline: true     # the embedding model is baked into the image; never download at run time
+  # Tool gating is server-side (V2_MCP_TOOLS / V2_MCP_FETCH): a client never sees a tool the
+  # family does not serve, which is what the ablations rely on.
+  grep:
+    enabled: true
+    port: 8081
+    fetch: true          # fetch_catalog_document rides with the family (V2_MCP_FETCH)
+    tools: ""            # override the family's tool list, comma-separated (V2_MCP_TOOLS)
+    host: ""             # toolhive mode: the public hostname, e.g. archi-crab-v2-grep-staging.cern.ch
+    resources: {requests: {cpu: "50m", memory: 128Mi}, limits: {memory: 512Mi}}
+  vector:
+    enabled: true
+    port: 8082
+    fetch: true
+    tools: ""
+    host: ""             # e.g. archi-crab-v2-vector-staging.cern.ch
+    # the embedding model lives here (warm, once) + a psycopg2 connection per query
+    resources: {requests: {cpu: "500m", memory: 1Gi}, limits: {memory: 3Gi}}
+  logLevel: INFO
+
+# toolhive mode only. Mirrors the crab-mcp-gateway chart (CMSKubernetes, archi-crab-testbed):
+# same operator, same CERN realm, same Gateway; but its OWN groups -- a benchmark fixture is
+# not a member of the crab trust boundary (one audience = one group).
+toolhive:
+  apiVersions:   # VERIFY: kubectl api-resources --api-group=toolhive.stacklok.dev -o wide
+    mcpServer: toolhive.stacklok.dev/v1beta1
+    mcpGroup: toolhive.stacklok.dev/v1beta1
+    virtualMCPServer: toolhive.stacklok.dev/v1beta1
+    mcpOIDCConfig: toolhive.stacklok.dev/v1beta1
+  vmcpServicePort: 4483          # the operator names the Service vmcp-<name> on this port
+  trustProxyHeaders: true        # TLS terminates at the Gateway
+  proxyResources: {requests: {cpu: 50m, memory: 64Mi}, limits: {cpu: 200m, memory: 256Mi}}
+  # The backends validate nothing themselves (the vMCP cannot authenticate its own health
+  # checks to a backend that enforces OIDC -- the gateway chart has the same switch, off): the
+  # vMCP is the ONLY gate, and the NetworkPolicy keeps everything but ToolHive's proxies from
+  # reaching a backend. The MCP container therefore runs with V2_MCP_ALLOW_ANONYMOUS=1.
+cern:
+  issuer: "https://auth.cern.ch/auth/realms/cern"
+  jwksUri: "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/certs"
+  # The PUBLIC CERN client whose tokens the vMCPs accept (PKCE, localhost redirect: Claude
+  # Code, mcp-inspector). Reusing the crab gateway's public client means no new CERN
+  # application -- and that a token minted for one is valid for the other (same users, public
+  # corpus: accepted; a dedicated client is one Application Portal entry + this line).
+  audience: ""                   # REQUIRED in toolhive mode, e.g. crab-mcp-gateway-public-staging
+gateway:
+  name: archi-crab               # the shared Gateway (archi-crab-gw); each hostname needs a listener + cert there
+  namespace: archi-crab-gw
+  timeout: 3600s                 # MCP streams; the default drops SSE mid-session
+
+networkPolicy:
+  enabled: true   # postgres: this chart's pods (+ ToolHive's pods in toolhive mode); data-manager API: the namespace; sidecar MCP ports: the namespace
+
+configSeed:
+  # archi keeps its config in Postgres: a post-install/upgrade hook Job loads files/config.yaml
+  # (config_seed.py), as archi's own chart does. The data-manager waits for it.
+  backoffLimit: 6

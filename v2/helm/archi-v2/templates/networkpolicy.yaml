@@ -1,0 +1,63 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $full := include "archi-v2.fullname" . -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $full }}-postgres
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "archi-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "archi-v2.selectorLabels" . | nindent 14 }}
+        {{- if eq .Values.mcp.mode "toolhive" }}
+        # the vector MCP runs in a ToolHive-managed pod (its labels, not ours)
+        - podSelector:
+            matchLabels:
+              toolhive: "true"
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.postgres.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $full }}-data-manager
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "archi-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: data-manager
+  policyTypes: ["Ingress"]
+  ingress:
+    {{- if eq .Values.mcp.mode "sidecar" }}
+    # sidecar MCP ports: any pod in this namespace (port-forward lands here too); no public surface
+    - from:
+        - podSelector: {}
+      ports:
+        {{- range $family := list "grep" "vector" }}
+        {{- $m := index $.Values.mcp $family }}
+        {{- if $m.enabled }}
+        - protocol: TCP
+          port: {{ $m.port }}
+        {{- end }}
+        {{- end }}
+    {{- end }}
+    # the data-manager's own API (catalog, upload UI): this namespace only -- the grep MCP
+    # (a sidecar, or a ToolHive pod in toolhive mode) and nothing outside it
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.dataManager.port }}
+{{- end }}

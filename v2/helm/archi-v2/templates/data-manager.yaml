@@ -1,0 +1,206 @@
+{{- $full := include "archi-v2.fullname" . -}}
+{{- $secret := .Values.secrets.existingSecret -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $full }}-data
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.dataManager.storage.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.dataManager.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $full }}-data-manager
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "archi-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: data-manager
+  ports:
+    - name: http
+      port: {{ .Values.dataManager.port }}
+      targetPort: http
+{{- if eq .Values.mcp.mode "sidecar" }}
+{{- range $family := list "grep" "vector" }}
+{{- $m := index $.Values.mcp $family }}
+{{- if $m.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $full }}-mcp-{{ $family }}
+  labels:
+    {{- include "archi-v2.labels" $ | nindent 4 }}
+    archi-crab.cern.ch/v2-mcp: {{ $family }}
+spec:
+  selector:
+    {{- include "archi-v2.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: data-manager
+  ports:
+    - name: mcp
+      port: {{ $m.port }}
+      targetPort: mcp-{{ $family }}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $full }}-data-manager
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}   # one writer of /root/data and of the catalog
+  selector:
+    matchLabels:
+      {{- include "archi-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: data-manager
+  template:
+    metadata:
+      labels:
+        {{- include "archi-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: data-manager
+      annotations:
+        # a changed config or source list rolls the pod: the seed runs again, ingestion re-runs
+        checksum/config: {{ .Files.Get "files/config.yaml" | sha256sum }}
+        checksum/weblists: {{ (print (.Files.Glob "files/weblists/*.list").AsConfig) | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: wait-for-db
+          image: {{ include "archi-v2.image" .Values.images.postgres | quote }}
+          imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+          command: ["sh", "-c", "until pg_isready -h {{ $full }}-postgres -p {{ .Values.postgres.port }} -U {{ .Values.postgres.user }}; do echo waiting for postgres; sleep 2; done"]
+        # archi keeps its config in Postgres. Upstream's chart seeds it from a post-install hook
+        # Job; here the seed runs before EVERY data-manager start, so what runs is always what
+        # git says (config_seed.py is an upsert; the dynamic config is only initialised once).
+        - name: config-seed
+          image: {{ include "archi-v2.image" .Values.images.dataManager | quote }}
+          imagePullPolicy: {{ .Values.images.dataManager.pullPolicy }}
+          command: ["python", "-m", "src.cli.tools.config_seed"]
+          env:
+            - name: CONFIG_PATH
+              value: /rendered-config/config.yaml
+            {{- include "archi-v2.pgEnv" . | nindent 12 }}
+            - name: VERBOSITY
+              value: {{ .Values.verbosity | quote }}
+          volumeMounts:
+            - name: config
+              mountPath: /rendered-config
+              readOnly: true
+      containers:
+        # ---- archi's data-manager, as upstream's chart runs it (headless: no chat) ----
+        - name: data-manager
+          image: {{ include "archi-v2.image" .Values.images.dataManager | quote }}
+          imagePullPolicy: {{ .Values.images.dataManager.pullPolicy }}
+          env:
+            {{- include "archi-v2.pgEnv" . | nindent 12 }}
+            - name: VERBOSITY
+              value: {{ .Values.verbosity | quote }}
+            - name: HF_HUB_OFFLINE   # the model is baked into the image (Dockerfile HF_PREFETCH_MODEL)
+              value: {{ .Values.mcp.hfHubOffline | ternary "1" "0" | quote }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "DM_API_TOKEN") | nindent 12 }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "DM_ADMIN_PASSWD" "optional" true) | nindent 12 }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "OPENAI_API_KEY" "optional" true) | nindent 12 }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "HUGGING_FACE_HUB_TOKEN" "optional" true) | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dataManager.port }}
+          readinessProbe:
+            httpGet: {path: /api/health, port: http}
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet: {path: /api/health, port: http}
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.dataManager.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /root/data
+            - name: hf-cache
+              mountPath: /.cache
+            - name: accounts
+              mountPath: /root/.accounts
+            - name: config
+              mountPath: /root/archi/configs
+              readOnly: true
+            - name: weblists
+              mountPath: /root/archi/weblists
+              readOnly: true
+        {{- if eq .Values.mcp.mode "sidecar" }}
+        {{- range $family := list "grep" "vector" }}
+        {{- $m := index $.Values.mcp $family }}
+        {{- if $m.enabled }}
+        # ---- MCP sidecar: {{ $family }} family (v2/mcp/server.py) ----
+        - name: mcp-{{ $family }}
+          image: {{ include "archi-v2.image" $.Values.images.mcp | quote }}
+          imagePullPolicy: {{ $.Values.images.mcp.pullPolicy }}
+          env:
+            - name: V2_MCP_FAMILY
+              value: {{ $family | quote }}
+            - name: V2_MCP_PORT
+              value: {{ $m.port | quote }}
+            - name: V2_MCP_FETCH
+              value: {{ $m.fetch | ternary "1" "0" | quote }}
+            {{- with $m.tools }}
+            - name: V2_MCP_TOOLS
+              value: {{ . | quote }}
+            {{- end }}
+            - name: V2_MCP_LOG_LEVEL
+              value: {{ $.Values.mcp.logLevel | quote }}
+            - name: HF_HUB_OFFLINE
+              value: {{ $.Values.mcp.hfHubOffline | ternary "1" "0" | quote }}
+            - name: DM_BASE_URL
+              value: "http://127.0.0.1:{{ $.Values.dataManager.port }}"   # same pod
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "V2_MCP_AUTH_TOKEN") | nindent 12 }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "DM_API_TOKEN") | nindent 12 }}
+            {{- if eq $family "vector" }}
+            {{- include "archi-v2.pgEnv" $ | nindent 12 }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "OPENAI_API_KEY" "optional" true) | nindent 12 }}
+            {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "HUGGING_FACE_HUB_TOKEN" "optional" true) | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: mcp-{{ $family }}
+              containerPort: {{ $m.port }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: mcp-{{ $family }}}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: mcp-{{ $family }}}
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            {{- toYaml $m.resources | nindent 12 }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ $full }}-data
+        - name: hf-cache   # upstream mounts /.cache; the model itself is baked at /opt/hf (HF_HOME)
+          emptyDir: {}
+        - name: accounts
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ $full }}-config
+        - name: weblists
+          configMap:
+            name: {{ $full }}-weblists

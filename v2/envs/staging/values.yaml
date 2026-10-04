@@ -1,0 +1,22 @@
+# v2/envs/staging -- what the archi-v2 fixture RUNS in archi-crab-staging (overrides only).
+# The three image lines are written by the bot (v2-main.yaml) after a green smoke on main,
+# from v2/versions.lock; by hand only in runbook phase 2. Never a tag.
+images:
+  dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, digest: ""}   # <- bot
+  mcp:         {repository: ghcr.io/nausikt/archi-v2-mcp,          digest: ""}   # <- bot
+  postgres:    {repository: ghcr.io/nausikt/archi-v2-postgres,     digest: ""}   # <- bot
+secrets:
+  existingSecret: archi-v2          # kubectl -n archi-crab-staging create secret generic archi-v2 ... (runbook 2.2)
+postgres:
+  storage: {size: 50Gi, storageClassName: cinder-io1-delete}   # the same class the okg chart uses on this cluster
+dataManager:
+  storage: {size: 20Gi, storageClassName: cinder-io1-delete}
+mcp:
+  # phase 2: sidecar (in-cluster, bearer, port-forward) until the two hostnames exist on the
+  # Gateway; phase 4 flips this ONE line to `toolhive` (CERN SSO through ToolHive vMCPs).
+  mode: sidecar
+  grep:   {host: archi-crab-v2-grep-staging.cern.ch}
+  vector: {host: archi-crab-v2-vector-staging.cern.ch}
+cern:
+  audience: crab-mcp-gateway-public-staging   # the gateway chart's public client (values-staging.yaml); no new CERN app
+gateway: {name: archi-crab, namespace: archi-crab-gw, timeout: 3600s}

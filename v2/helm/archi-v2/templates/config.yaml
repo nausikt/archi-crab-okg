@@ -1,0 +1,26 @@
+{{- $full := include "archi-v2.fullname" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $full }}-config
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+data:
+  # GENERATED (v2/scripts/render-config.py from v2/deployments/archi-crab/config.yaml, with
+  # archi's own base-config.yaml template). Loaded into Postgres by the config-seed Job.
+  config.yaml: |
+{{ .Files.Get "files/config.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $full }}-weblists
+  labels:
+    {{- include "archi-v2.labels" . | nindent 4 }}
+data:
+  # GENERATED (scripts/sources.py render) from sources/archi-crab.yaml: the SAME selection the
+  # okg instances ingest, in the shape archi's data-manager reads (/root/archi/weblists/).
+  {{- range $path, $_ := .Files.Glob "files/weblists/*.list" }}
+  {{ base $path }}: |
+{{ $.Files.Get $path | indent 4 }}
+  {{- end }}

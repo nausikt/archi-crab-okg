@@ -6,6 +6,10 @@ images:
   dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, digest: "sha256:2a2dca78e188283988619e627743789d4dca246923fb171f5b333241bfaaed35"} # <- bot
   mcp: {repository: ghcr.io/nausikt/archi-v2-mcp, digest: "sha256:c92c5a8bd4dfb865e5a5b14f8faf4fc880189c3613cfff2f3ee6303bc25e00a7"} # <- bot
   postgres: {repository: ghcr.io/nausikt/archi-v2-postgres, digest: "sha256:cae2829b4ecb34381010b5b5b7e78dc16353acc04895d0f4152174c1dc67abc7"} # <- bot
+# The archi-v2-* GHCR packages are private (GHCR's default for a new package). This is the
+# pull secret okg staging already uses in archi-crab-staging; its classic token reads
+# nausikt packages. Drop the line if the packages are ever made public.
+imagePullSecrets: [{name: ghcr-mitdbg-pull}]
 secrets:
   existingSecret: archi-v2 # kubectl -n archi-crab-staging create secret generic archi-v2 ... (runbook 2.2)
 postgres:

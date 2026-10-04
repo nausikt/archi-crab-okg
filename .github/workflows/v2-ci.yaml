@@ -2,7 +2,7 @@
 #
 #   v2-lint    no secrets, fork-safe: the generated files equal their render (weblist from
 #              sources/, config.yaml + init.sql from archi's templates at the pinned commit),
-#              the chart lints and templates in BOTH modes, the static contract with archi
+#              the chart lints and templates (mcp.auth bearer and none), the static contract with archi
 #              holds, the vendored upstream references still match the pinned archi.
 #   v2-smoke   v2-smoke.yaml: the real thing on the runner (images from the lock when its
 #              fingerprint matches, else built), Postgres + data-manager + both MCP servers,
@@ -49,15 +49,17 @@ jobs:
           python3 v2/scripts/contract-check.py --archi .archi --markdown "$RUNNER_TEMP/contract.md"
           cat "$RUNNER_TEMP/contract.md" >> "$GITHUB_STEP_SUMMARY"
       - uses: azure/setup-helm@v5
-      - name: "helm lint + template: ci values (sidecar mode) and bench values (toolhive mode)"
+      - name: "helm lint + template: ci values (auth bearer) and bench values flipped to auth none (phase 4)"
         run: |
           helm lint v2/helm/archi-v2 -f v2/envs/ci/values.yaml
           helm lint v2/helm/archi-v2 -f v2/envs/bench/values.yaml --set images.dataManager.tag=x --set images.mcp.tag=x --set images.postgres.tag=x
           helm template archi-v2 v2/helm/archi-v2 --namespace archi-crab-staging -f v2/envs/ci/values.yaml > "$RUNNER_TEMP/ci.yaml"
           helm template archi-v2 v2/helm/archi-v2 --namespace archi-crab-staging -f v2/envs/bench/values.yaml \
-            --set images.dataManager.tag=x --set images.mcp.tag=x --set images.postgres.tag=x > "$RUNNER_TEMP/bench.yaml"
+            --set images.dataManager.tag=x --set images.mcp.tag=x --set images.postgres.tag=x --set mcp.auth=none > "$RUNNER_TEMP/bench.yaml"
           echo "ci: $(grep -c '^kind:' "$RUNNER_TEMP/ci.yaml") objects; bench: $(grep -c '^kind:' "$RUNNER_TEMP/bench.yaml") objects"
-          grep -q 'kind: VirtualMCPServer' "$RUNNER_TEMP/bench.yaml" && ! grep -q 'kind: VirtualMCPServer' "$RUNNER_TEMP/ci.yaml"
+          # auth none: no token env, anonymous on, MCP ports admitted from ToolHive pods only
+          grep -q 'V2_MCP_ALLOW_ANONYMOUS' "$RUNNER_TEMP/bench.yaml" && ! grep -q 'V2_MCP_AUTH_TOKEN' "$RUNNER_TEMP/bench.yaml"
+          grep -q 'toolhive: "true"' "$RUNNER_TEMP/bench.yaml" && grep -q 'V2_MCP_AUTH_TOKEN' "$RUNNER_TEMP/ci.yaml"
       - name: vendored upstream references still match the pinned archi
         run: |
           rc=0

@@ -4,7 +4,7 @@
 #   images   from v2/versions.lock when its fingerprint matches this tree (pulled by digest:
 #            the images the engine PR built), else built here from the lock's pins (not pushed)
 #   run      Postgres + config seed + data-manager (ingests a two-entry list at boot)
-#            + mcp-grep + mcp-vector as plain containers (sidecar mode semantics)
+#            + mcp-grep + mcp-vector as plain containers (the chart's sidecars, mcp.auth bearer)
 #   prove    contract check inside the image; MCP initialize, tools/list == the family,
 #            one call per tool family; 401 without the bearer
 name: v2-smoke

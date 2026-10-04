@@ -17,12 +17,6 @@ spec:
         - podSelector:
             matchLabels:
               {{- include "archi-v2.selectorLabels" . | nindent 14 }}
-        {{- if eq .Values.mcp.mode "toolhive" }}
-        # the vector MCP runs in a ToolHive-managed pod (its labels, not ours)
-        - podSelector:
-            matchLabels:
-              toolhive: "true"
-        {{- end }}
       ports:
         - protocol: TCP
           port: {{ .Values.postgres.port }}
@@ -40,10 +34,16 @@ spec:
       app.kubernetes.io/component: data-manager
   policyTypes: ["Ingress"]
   ingress:
-    {{- if eq .Values.mcp.mode "sidecar" }}
-    # sidecar MCP ports: any pod in this namespace (port-forward lands here too); no public surface
+    # MCP ports: with auth none ONLY ToolHive's proxy pods (the MCPRemoteProxies of the
+    # mcp-gateway chart, same namespace); with auth bearer any pod in the namespace
     - from:
+        {{- if eq .Values.mcp.auth "none" }}
+        - podSelector:
+            matchLabels:
+              toolhive: "true"
+        {{- else }}
         - podSelector: {}
+        {{- end }}
       ports:
         {{- range $family := list "grep" "vector" }}
         {{- $m := index $.Values.mcp $family }}
@@ -52,9 +52,7 @@ spec:
           port: {{ $m.port }}
         {{- end }}
         {{- end }}
-    {{- end }}
-    # the data-manager's own API (catalog, upload UI): this namespace only -- the grep MCP
-    # (a sidecar, or a ToolHive pod in toolhive mode) and nothing outside it
+    # the data-manager's own API (catalog, upload UI): this namespace only; the sidecars use localhost
     - from:
         - podSelector: {}
       ports:

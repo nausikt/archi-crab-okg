@@ -1,5 +1,6 @@
 {{- $full := include "archi-v2.fullname" . -}}
 {{- $secret := .Values.secrets.existingSecret -}}
+{{- if not (has .Values.mcp.auth (list "bearer" "none")) }}{{ fail (printf "mcp.auth must be bearer or none, got %q" (toString .Values.mcp.auth)) }}{{- end }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -29,7 +30,6 @@ spec:
     - name: http
       port: {{ .Values.dataManager.port }}
       targetPort: http
-{{- if eq .Values.mcp.mode "sidecar" }}
 {{- range $family := list "grep" "vector" }}
 {{- $m := index $.Values.mcp $family }}
 {{- if $m.enabled }}
@@ -49,7 +49,6 @@ spec:
     - name: mcp
       port: {{ $m.port }}
       targetPort: mcp-{{ $family }}
-{{- end }}
 {{- end }}
 {{- end }}
 ---
@@ -143,7 +142,6 @@ spec:
             - name: weblists
               mountPath: /root/archi/weblists
               readOnly: true
-        {{- if eq .Values.mcp.mode "sidecar" }}
         {{- range $family := list "grep" "vector" }}
         {{- $m := index $.Values.mcp $family }}
         {{- if $m.enabled }}
@@ -168,7 +166,12 @@ spec:
               value: {{ $.Values.mcp.hfHubOffline | ternary "1" "0" | quote }}
             - name: DM_BASE_URL
               value: "http://127.0.0.1:{{ $.Values.dataManager.port }}"   # same pod
+            {{- if eq $.Values.mcp.auth "none" }}
+            - name: V2_MCP_ALLOW_ANONYMOUS   # the MCPRemoteProxy is the gate; NetworkPolicy admits only it
+              value: "1"
+            {{- else }}
             {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "V2_MCP_AUTH_TOKEN") | nindent 12 }}
+            {{- end }}
             {{- include "archi-v2.secretEnv" (dict "secret" $secret "key" "DM_API_TOKEN") | nindent 12 }}
             {{- if eq $family "vector" }}
             {{- include "archi-v2.pgEnv" $ | nindent 12 }}
@@ -187,7 +190,6 @@ spec:
             periodSeconds: 30
           resources:
             {{- toYaml $m.resources | nindent 12 }}
-        {{- end }}
         {{- end }}
         {{- end }}
       volumes:

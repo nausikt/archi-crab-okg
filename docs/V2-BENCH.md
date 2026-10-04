@@ -7,28 +7,25 @@ where we are; it is updated as the runbook is walked.
 ## 0. The end game, in one picture
 
 ```
-                         knowledge: ONE list, sources/archi-crab.yaml (tiers, enabled, sensitivity)
-                                   │ scripts/sources.py render
-                 ┌─────────────────┴──────────────────────┐
-                 ▼                                        ▼
-  deployments/archi-crab/source_registry.yaml     v2/helm/archi-v2/files/weblists/archi-crab.list
-  (okg: what the v3 instances ingest)             (archi v2: what the data-manager ingests)
-                 │                                        │
-   ┌─────────────┼──────────────┐                 ┌───────┴──────────────────────────┐
-   ▼             ▼              ▼                 ▼                                  │
- run1          run2          prod        archi-v2 data-manager + Postgres            │ catalog API / SQL
- (frozen for   (best of      (promoted)  (pgvector + pg_textsearch)                  │
-  study)        knowledge)                                              ┌────────────┴────────────┐
-                                                                        ▼                         ▼
-   okg mcp-serve per instance                                    MCPServer archi-v2-grep   MCPServer archi-v2-vector
-   …/run1/mcp  …/run2/mcp  …/mcp                                 (ToolHive, group grep)    (ToolHive, group vector)
-                                                                        ▼                         ▼
-                                                                 vMCP + CERN SSO           vMCP + CERN SSO
-                                                       archi-crab-v2.cern.ch/grep/mcp         …/vectorstore/mcp
-                                                      search_local_files                 search_vectorstore_hybrid
-                                                      search_metadata_index              (+ fetch_catalog_document)
-                                                      list_metadata_schema
-                                                      (+ fetch_catalog_document)
+                    knowledge: ONE list, sources/archi-crab.yaml (tiers, enabled, sensitivity)
+                                  │ scripts/sources.py render
+                ┌─────────────────┴─────────────────────┐
+                ▼                                       ▼
+ deployments/archi-crab/source_registry.yaml   v2/helm/archi-v2/files/weblists/archi-crab.list
+                │                                       │
+   namespace archi-crab-staging (ALL of it: one namespace, one release per instance)
+   ┌────────────┼─────────────┐                         ▼
+   ▼            ▼             ▼              archi-v2 (release): Postgres + data-manager
+ okg staging  okg run1      okg run2           pod: data-manager | mcp-grep | mcp-vector
+ (best of     (frozen)      (frozen)                               :8081      :8082
+  knowledge)                                                         │          │
+   │ -mcp:8765  │ -mcp        │ -mcp                                 │          │
+   ▼            ▼             ▼                                      ▼          ▼
+ ── ToolHive MCPRemoteProxy per endpoint (CMSKubernetes mcp-gateway: CERN SSO + Cedar) ──
+   │            │             │                                      │          │
+ archi-crab-okg-staging.cern.ch                          archi-crab-v2.cern.ch
+   /mcp       /run1/mcp     /run2/mcp                    /grep/mcp   /vectorstore/mcp
+   /akmon     /run1/akmon   /run2/akmon   <- console, okg chart (oauth2-proxy per release)
 ```
 
 Ablations are composed by **which MCP servers the harness connects** — the same mechanism a
@@ -120,26 +117,22 @@ true on every restart).
 *Cost:* Firefox and geckodriver ride along (~300 MB) because upstream's image has them; keeping
 the Dockerfile verbatim beats a slimmer image we would then be benchmarking.
 
-### ADR-V2-3 — The MCP layer is one image; the cluster runs it as ToolHive servers, CI as sidecars
+### ADR-V2-3 — The MCP layer is one image, run as two sidecars; exposure is the gateway chart's job
 
 `archi-v2-mcp` = the data-manager image + `v2/mcp/server.py`. One process serves one tool
 family (`V2_MCP_FAMILY=grep|vector`); the `fetch` toggle and the tool list are **environment**
 (`V2_MCP_FETCH`, `V2_MCP_TOOLS`), so `tools/list` is the gate — a client never sees a tool the
-condition does not include. The chart runs it in one of two modes (`mcp.mode`):
+condition does not include. Both run as **sidecars of the data-manager pod**, one Service each
+(`archi-v2-mcp-grep:8081`, `archi-v2-mcp-vector:8082`): the grep server reaches the catalog API
+on localhost; the vector server holds the embedding model and a Postgres connection, as the v2
+agent did. This chart creates **no** public surface (ADR-V2-5).
 
-- **`toolhive`** (the bench): one ToolHive `MCPServer` per family, each in its **own
-  `MCPGroup`** (the trust boundary: one audience, one group), fronted by its own
-  `VirtualMCPServer` with CERN SSO, one path prefix per family on the fixture's one hostname (ADR-V2-5). The grep server
-  reaches the data-manager over its Service; the vector server holds the embedding model and a
-  Postgres connection, as the v2 agent did.
-- **`sidecar`** (CI, a laptop): two containers in the data-manager pod behind a static bearer,
-  ClusterIP only. What `v2-smoke` exercises, since a runner has neither ToolHive nor a Gateway.
-
-*Why not one server with all five tools:* conditions 1, 2, 5 and 6 need them apart, and mixed
-conditions must not become a tool-description wording contest. *Why `fetch` rides with both:*
-it is the second half of both workflows (the vector tool's own description says so).
-*Why not a member of the crab gateway's group:* a benchmark fixture is not part of that trust
-boundary (the group comment in that chart is right); separate groups cost nothing.
+*Simplified (2026-10-04):* an earlier draft ran each family as a ToolHive `MCPServer` in its own
+`MCPGroup` behind its own `VirtualMCPServer`. That is three CRDs per family to front one
+endpoint each; the okg MCP is already fronted the simpler way (one `MCPRemoteProxy` per Service),
+and that pattern is verified on this cluster. The v2 chart is now plain Kubernetes, the same in
+CI and in the cluster. *Why not one server with all five tools:* conditions 1, 2, 5 and 6 need
+them apart. *Why `fetch` rides with both:* it is the second half of both workflows.
 
 ### ADR-V2-4 — The thin layer reimplements nothing: archi's tools, exposed by introspection
 
@@ -156,36 +149,42 @@ MCP clients already namespace by server (`mcp__v2-grep__search_local_files`).
 MCP hop 1–5 ms, the LLM turn seconds — the MCP layer is noise. One warm embedding model per
 family is operationally better than v2's per-agent-replica in-process model.
 
-### ADR-V2-5 — CERN SSO now, through ToolHive vMCPs, on the existing public CERN client
+### ADR-V2-5 — One hostname per surface, a path per endpoint, CERN SSO through MCPRemoteProxy
 
-Each family's `VirtualMCPServer` has `incomingAuth: oidc` against the CERN realm with the
-**public client the crab gateway already uses in that namespace** (`crab-mcp-gateway-public-staging`) as
-audience: PKCE with a localhost redirect, so Claude Code and mcp-inspector log in at CERN SSO
-and no new CERN application is registered. **One hostname** (`archi-crab-v2.cern.ch` — the fixture
-has one environment, no staging/prod pair;
-one LanDB alias, one certificate, one Gateway listener) carries both families as **path
-prefixes**: `/grep/mcp` and `/vectorstore/mcp`. One HTTPRoute, two rules per family: the prefix
-rule rewrites `/grep/…` to `/…` for that family's vMCP, and an exact rule maps the path-aware
-OAuth discovery document (`/.well-known/oauth-protected-resource/grep/mcp`, RFC 9728 — the URL
-MCP clients try first for a resource that has a path) to that vMCP's
-`/.well-known/oauth-protected-resource`; the vMCP's `resourceUrl` is the full public URL, so the
-document's `resource` matches what the client connected to. The authorization server is CERN's
-(the client talks to auth.cern.ch directly, as with the crab gateway), so nothing else of the
-vMCP needs a path. The MCP container itself runs anonymous
-(`V2_MCP_ALLOW_ANONYMOUS=1`): the vMCP is the only gate — the gateway chart's `backendAuth:
-false` for the same reason (a vMCP cannot authenticate its own health checks to a backend that
-enforces OIDC) — and the chart's NetworkPolicy keeps everything but in-namespace pods from the
-backends. **MCP is never exposed except through a vMCP**: the bearer-token HTTPRoute of the
-first draft is gone.
+Every public MCP endpoint of this project goes through the CMSKubernetes `mcp-gateway` chart's
+`remoteProxies`: a ToolHive `MCPRemoteProxy` per endpoint (CERN SSO with the public PKCE client,
+Cedar policy, audit) in front of an in-cluster Service. MCP is never exposed any other way.
+Entries now take a **`path`**, so endpoints share hostnames instead of costing a LanDB alias,
+certificate and Gateway listener each:
 
-*Accepted:* a token minted for the crab gateway is valid for the v2 vMCPs and vice versa (same
-audience). Same users, public corpus (the sources governance gate feeds both targets, so the v2
-corpus cannot hold anything the okg instances may not). Isolation later = one Application Portal
-entry (`archi-crab-v2-public`) + one values line. *Cost:* one hostname per environment (LanDB
-alias, certificate, Gateway listener: phase 4, in the IaC repository). *Risk, checked in phase
-4:* ToolHive's 401 must name the path-aware discovery URL (its `WWW-Authenticate:
-resource_metadata=…`), or clients must fall back to it; if the operator insists on the
-root `/.well-known/…`, the fallback is one hostname per family (the first draft of this ADR).
+| URL | proxy (`remoteProxies`) | upstream Service |
+|---|---|---|
+| `archi-crab-okg-staging.cern.ch/mcp` | `okg` (no path: catch-all `/`, as today) | `archi-crab-okg-staging-mcp:8765` |
+| `archi-crab-okg-staging.cern.ch/run1/mcp` | `okg-run1`, `path: /run1` | `archi-crab-okg-run1-mcp:8765` |
+| `archi-crab-okg-staging.cern.ch/run2/mcp` | `okg-run2`, `path: /run2` | `archi-crab-okg-run2-mcp:8765` |
+| `archi-crab-v2.cern.ch/grep/mcp` | `v2-grep`, `path: /grep` | `archi-v2-mcp-grep:8081` |
+| `archi-crab-v2.cern.ch/vectorstore/mcp` | `v2-vector`, `path: /vectorstore` | `archi-v2-mcp-vector:8082` |
+
+A path entry renders two HTTPRoute rules: `PathPrefix <path>` rewritten to `/` (the proxy serves
+`/mcp`), and an `Exact` rule mapping the RFC 9728 path-aware discovery document
+(`/.well-known/oauth-protected-resource<path>/mcp`, what MCP clients try first for a resource
+that has a path) to the proxy's `/.well-known/oauth-protected-resource`; `resourceUrl` is the
+full public URL, so the document's `resource` matches what the client connected to. The
+authorization server is CERN's (clients talk to auth.cern.ch directly), so nothing else needs a
+path. Gateway API's longest-prefix match keeps everything apart on one hostname:
+`/run1/akmon` (console) > `/run1` (run1 MCP) > `/` (staging MCP catch-all).
+
+**Audience:** the okg proxy's public client `archi-crab-okg-public-staging` for all five, with
+the okg Cedar policy (`cms-members` may call tools; `query` is forbidden on okg). One login then
+covers v2 and v3 for the benchmark harness, and no new CERN application is registered.
+
+**The v2 sidecars run without an app-level token** once fronted (`mcp.auth: none`): the proxy is
+the gate, and the chart's NetworkPolicy admits only ToolHive's proxy pods (`toolhive: "true"`)
+to the MCP ports. Before that (phase 2), `mcp.auth: bearer` and port-forward.
+
+*Risk, checked in phase 4:* ToolHive's 401 must name the path-aware discovery URL, or Claude
+Code must fall back to it. If neither, the fallback is a hostname per endpoint (aliases) for the
+v2 pair; the okg runs could instead stay on their own hostnames. One `curl -sI` settles it.
 
 ### ADR-V2-6 — One source of truth, propagated: the okg list renders the v2 weblist
 
@@ -214,7 +213,7 @@ digests of our three images, each with a fingerprint of what it was built from
 the references → rebuild the base when its inputs moved → build and push the three images when
 theirs moved → contract check inside the image → re-render config/init.sql → write the lock →
 one rolling PR on `v2/upstream` (label `hold` pauses it). `v2-ci.yaml` on the PR: lint (generated
-files == render, helm lint/template in both modes, static contract, vendored references match)
+files == render, helm lint/template with `mcp.auth` bearer and none, static contract, vendored references match)
 and `v2-smoke.yaml` (pull the lock's images, run everything on the runner, MCP handshake and
 calls). `v2-main.yaml` after the merge: smoke again, then pin the digests into
 `v2/envs/bench/values.yaml` in one bot commit. The chart and its generated files follow
@@ -232,7 +231,7 @@ bearer gates the catalog API (quirk 3).
 ### ADR-V2-9 — Secrets by reference; a read-only DB role for the vector server is phase 2b
 
 One Secret (`archi-v2`) created out of band: `PG_PASSWORD`, `DM_API_TOKEN`, `V2_MCP_AUTH_TOKEN`
-(sidecar mode only), optionally `DM_ADMIN_PASSWD`, `OPENAI_API_KEY`, `HUGGING_FACE_HUB_TOKEN`.
+(while `mcp.auth: bearer`), optionally `DM_ADMIN_PASSWD`, `OPENAI_API_KEY`, `HUGGING_FACE_HUB_TOKEN`.
 The grep server holds only `DM_API_TOKEN`. The vector server holds the Postgres password today;
 a `SELECT`-only role (okg's `mcp-role` pattern) waits until the config read path is confirmed
 read-only (`ConfigService.get_static_config` may upsert) — phase 2b.
@@ -263,11 +262,8 @@ changes `requirements.txt` a few times a year).
    `dimensions: 1536`, and `HF_PREFETCH_MODEL=""` (nothing to bake).
 2. **TWiki in v2: live pages (default) or the sanitized text as local files?** Live is the
    native v2 path with real citations (ADR-V2-6); local files would be the identical text with no URL.
-3. **ToolHive CRD versions on the testbed.** The chart assumes `toolhive.stacklok.dev/v1beta1`
-   and operator 0.47.0 behaviour, as the gateway chart does; `kubectl api-resources --api-group=toolhive.stacklok.dev`
-   confirms it before phase 4.
-4. **Path-aware OAuth discovery through the vMCP** (ADR-V2-5 risk): answered by one `curl -sI`
-   in phase 4; the fallback is a hostname per family.
+3. **Path-aware OAuth discovery through MCPRemoteProxy** (ADR-V2-5 risk): one `curl -sI` in
+   phase 4. Test it first on the cheapest endpoint (`/run1/mcp` or `/grep/mcp`).
 
 ## 4. Runbook
 
@@ -278,7 +274,7 @@ check that proves it. §6 is the checklist.
 
 Adds `v2/` (above), the `scripts/sources.py` v2 target, `v2-ci.yaml`, `v2-smoke.yaml`,
 `v2-engine.yaml`, `v2-main.yaml`, this document. CI on the PR proves: generated files equal
-their render; the chart lints and templates in both modes; the static contract with archi
+their render; the chart lints and templates with `mcp.auth` bearer and none; the static contract with archi
 e6609f8f holds; the vendored references match; the smoke builds the base + three images on the
 runner (the lock has no digests yet) and talks MCP to both servers over a two-entry corpus.
 
@@ -291,7 +287,7 @@ Before or right after merging, answer §3 item 1 (the live v2 config) in
 `v2/deployments/archi-crab/config.yaml`, then `python3 v2/scripts/render-config.py --write --archi <checkout>`
 and `python3 scripts/sources.py lint --base published` — the smoke proves the new embedding.
 
-### Phase 2 — first images, first deploy (sidecar mode, namespace archi-crab-staging)
+### Phase 2 — first images, first deploy (`mcp.auth: bearer`, namespace archi-crab-staging)
 
 1. **Images.** Actions → `v2-engine` → Run workflow (leave inputs empty). It builds and pushes
    the base + three images, writes `v2/versions.lock`, and opens PR `v2/upstream`. Its `v2-ci`
@@ -305,11 +301,11 @@ and `python3 scripts/sources.py lint --base published` — the smoke proves the 
      --from-literal=V2_MCP_AUTH_TOKEN="$(openssl rand -hex 24)"
    # + OPENAI_API_KEY=… if the embedding is OpenAI; + DM_ADMIN_PASSWD=… only if you want the upload UI
    ```
-3. `v2/envs/bench/values.yaml` already says `mcp.mode: sidecar` for this phase (no
-   hostnames yet; phase 4 flips that one line to `toolhive`).
+3. `v2/envs/bench/values.yaml` already says `mcp.auth: bearer` for this phase (no
+   hostname yet; phase 4 flips that one line to `none` once the remote proxies are the gate).
 4. **The Argo CD Application** in CMSKubernetes (`archi-crab-testbed`), from
-   `v2/argocd/application.example.yaml` (namespace `archi-crab-staging`: the ToolHive operator
-   and the Gateway's listener selector are there; the fixture is one environment); sync. Watch the first ingest (19 sources: 285
+   `v2/argocd/application.example.yaml` (namespace `archi-crab-staging`: the ToolHive operator, the
+   mcp-gateway remote proxies and the Gateway's listener selector are there; every run shares it); sync. Watch the first ingest (19 sources: 285
    pages + 18 repositories; tens of minutes):
    ```bash
    NS=archi-crab-staging
@@ -344,72 +340,89 @@ Nothing to deploy: `v2-engine` runs daily from phase 1 on. What to do once:
    `default(true, true)` → `default(true)` on `reset_collection`; look dimensions up by the
    embedding's model name; check `DM_API_TOKEN` regardless of `auth.enabled`.
 
-### Phase 4 — hostnames and CERN SSO (toolhive mode)
+### Phase 4 — `archi-crab-v2.cern.ch` and CERN SSO (gateway chart)
 
-In the IaC repository (`CMSKubernetes`, `archi-crab-testbed`), the same three things the crab
-gateway's hostname needed, once:
+Two pull requests and three outside-Git items. The CMSKubernetes changes are in the
+`archi-crab-paths` patch (path support in `remoteProxies`, the v2 and run entries as
+`enabled: false`, the `archi-crab-v2.cern.ch` listener, the `archi-v2` Application as `.disabled`).
 
-1. **One LanDB alias** `archi-crab-v2` on the Gateway's VIP (the one
-   `kubectl -n archi-crab-gw get svc cilium-gateway-archi-crab` shows).
-2. **One certificate** for it in `archi-crab-gw` (however the existing listeners got theirs:
-   cert-manager or the CERN CA) and **one listener** in the gateway chart's values
-   (`listeners: - {host: archi-crab-v2.cern.ch, tlsSecret: …, env: staging}` — `env: staging`
-   because the route lives in the archi-crab-staging namespace), so
-   routes from a namespace labelled `archi-crab.cern.ch/env: staging` may claim it.
-3. Confirm the ToolHive CRD version: `kubectl api-resources --api-group=toolhive.stacklok.dev -o wide`
-   (`v1beta1` is what the chart assumes).
+1. **Outside Git:** LanDB alias `archi-crab-v2` on the Gateway's VIP (the Octavia LB's
+   `landb-alias` tag, same VIP as every other hostname); host certificate as Secret
+   `archi-crab-v2-tls` in `archi-crab-gw`; nothing in the Application Portal (the okg public client
+   is reused).
+2. **CMSKubernetes PR:** apply `archi-crab-paths`; rename `46-archi-v2-app.yaml.disabled` →
+   `.yaml` (if phase 2 did not already); set `v2-grep` / `v2-vector` `enabled: true`.
+3. **This repository, same day:** `v2/envs/bench/values.yaml` `mcp.auth: bearer` → `none`.
+   (Order does not matter much: until both land, either the proxy cannot reach the MCP port, or
+   the sidecar still wants a bearer the proxy does not send — closed, not open.)
 
-Then in this repository: `v2/envs/bench/values.yaml` `mcp.mode: sidecar` → `toolhive` (the
-host and `cern.audience` are already there). PR, merge; Argo CD syncs the groups, OIDC configs,
-MCPServers, vMCPs and the HTTPRoute. Check, in this order — the third line is the ADR-V2-5 risk:
+Check, in this order — the third command is the ADR-V2-5 risk:
 
 ```bash
-kubectl -n archi-crab-staging get mcpgroup,mcpserver,virtualmcpserver,httproute -l app.kubernetes.io/part-of=archi-crab-bench
-kubectl -n archi-crab-staging get svc | grep vmcp-archi-v2      # vmcp-archi-v2-grep / -vector on 4483
+kubectl -n archi-crab-gw get gateway archi-crab -o json | jq '.status.listeners[] | select(.hostname=="archi-crab-v2.cern.ch") | .conditions[] | {type,status}'
+kubectl -n archi-crab-staging get mcpremoteproxy,httproute | grep v2-
 curl -sI https://archi-crab-v2.cern.ch/grep/mcp | grep -i www-authenticate
 #   want: resource_metadata="https://archi-crab-v2.cern.ch/.well-known/oauth-protected-resource/grep/mcp"
 curl -s https://archi-crab-v2.cern.ch/.well-known/oauth-protected-resource/grep/mcp
 #   want: {"resource": "https://archi-crab-v2.cern.ch/grep/mcp", "authorization_servers": ["https://auth.cern.ch/auth/realms/cern"], …}
-claude mcp add --transport http v2-grep   https://archi-crab-v2.cern.ch/grep/mcp        --client-id crab-mcp-gateway-public-staging
-claude mcp add --transport http v2-vector https://archi-crab-v2.cern.ch/vectorstore/mcp --client-id crab-mcp-gateway-public-staging
+claude mcp add --transport http v2-grep   https://archi-crab-v2.cern.ch/grep/mcp        --client-id archi-crab-okg-public-staging --callback-port 8765
+claude mcp add --transport http v2-vector https://archi-crab-v2.cern.ch/vectorstore/mcp --client-id archi-crab-okg-public-staging --callback-port 8765
 ```
 
-If the 401 names the root `/.well-known/oauth-protected-resource` instead and Claude Code does
-not fall back to the path-aware URL, the fallback is a hostname per family (two aliases); say
-so and I will send that variant of `toolhive.yaml`.
+If the 401 names the root `/.well-known/oauth-protected-resource` and Claude Code does not fall
+back to the path-aware URL: say so, and the two v2 entries move to their own aliases
+(`host:` per entry, no `path:`) — a values change, no template change.
 
-There is no prod: the fixture is one environment, by decision (benchmark, not a service).
+### Phase 5 — run1/run2 (same namespace), their console paths, the harness
 
-### Phase 5 — run1/run2, the harness
+**All runs share `archi-crab-staging`** — this is the simple option, not a complication. Each run
+is one more Helm release of the same `helm/okg` chart with its own `fullnameOverride`
+(`archi-crab-okg-run1`), so every object it creates is already name-scoped (Services, StatefulSets,
+PVCs, NetworkPolicies select on the release instance label). What staying in one namespace saves:
+no ReferenceGrant, no namespace label for the Gateway's listener selector, no second Vault/VSO
+path (the runs read the same `okg-archi-crab` Secret; each run has its own Postgres, so sharing
+the role passwords crosses no data), and the proxies of the gateway chart reach every run's
+Service in-namespace. The cost is only quota: each run is a full okg (runtime + Postgres + two
+PVCs), so check the namespace quota before adding run2.
 
-**run1 / run2 as preserved okg instances.** One okg release per run in its own namespace
-(`archi-crab-run1`, `archi-crab-run2`), from `envs/run1/values.yaml` etc.: `fullnameOverride`,
-`repositorySync.revision` and `bootstrap.approvedRevision` pinned by hand to the knowledge
-commit the run studies, images pinned to the engine of that day, and **no bot pin** (the
-`main.yaml` bump writes only `envs/staging`). A per-run source list is fine
-(`sources/archi-crab-run1.yaml` → `deployments/archi-crab-run1/`: `scripts/sources.py --deployment`
-already takes the name); the best-of-knowledge list stays `sources/archi-crab.yaml`, and it is the
-one the v2 fixture follows.
-
-**Their MCP paths** — `archi-crab-okg-staging.cern.ch/run1/mcp`, `/run2/mcp`, and `/mcp` for the
-promoted one — are the same path-prefix pattern as ADR-V2-5, and simpler: okg's MCP is
-bearer-gated (`okg mcp-serve`, no OAuth discovery), so a prefix rule with `URLRewrite
-ReplacePrefixMatch /` per run is all it takes; nothing well-known to route. Two things to know
-now, both ordinary: (a) the rules go in whichever chart owns that hostname's HTTPRoute (the okg
-chart has none today — its MCP is cluster-internal and `mcp.allowedHosts` already lists the
-hostname — so the route is added to the okg chart with the runs as a `mcp.routes:` list, or to
-the gateway chart); (b) a run in its own namespace needs a `ReferenceGrant` in that namespace
-for a route in another, or the route lives in the run's namespace and claims the hostname
-through the Gateway's per-env listener selector. Either way it is HTTPRoute mapping, nothing
-custom.
-
-**The harness.** A condition is a set of MCP servers; the harness connects them exactly as
-above (`claude mcp add` per server, or the SDK), runs the question set, and records per query:
-the answer, every tool call (server, tool, arguments, result hash) for attribution, the okg
-generation id, the v2 corpus fingerprint, and the images' digests. A run whose fingerprints
-moved is discarded. Defaults are v2's (`max_documents=4`, `max_chars=800`, fetch 4000); `k`
-and `max_chars` sweeps are the tool parameters, not server changes. Lives under `bench/` in
-this repository when it exists — nothing in `v2/` constrains it.
+1. **Values:** `envs/run1/values.yaml` from `envs/run1/values.yaml.example` (in this repo): `fullnameOverride: archi-crab-okg-run1`, `repositorySync.revision` and
+   `bootstrap.approvedRevision` = the knowledge commit the run studies, `images.*` = the engine of
+   that day, storage, `mcp.allowedHosts: [archi-crab-okg-staging.cern.ch]`. Pinned by hand,
+   never by the bot (`main.yaml` writes only `envs/staging`). `sources.py lint --base published`
+   reads only staging and prod, and `ci.yaml` lints only those two, so a run's file gates
+   nothing; add `helm lint … -f envs/run1/values.yaml` to `ci.yaml` once it exists.
+   If the proxy reaches the run but the MCP answers 421/403 "invalid Host", add the Service's
+   ClusterIP to `mcp.allowedHosts` as staging does (`10.254.109.91:*`) — and note that pin is
+   debt: a recreated Service gets a new IP. The better fix is the Service DNS name, which the
+   example already lists.
+   A per-run source list is fine (`sources/archi-crab-run1.yaml`, `--deployment archi-crab-run1`);
+   the best-of-knowledge list stays `sources/archi-crab.yaml`, and v2 follows that one.
+2. **Argo:** rename `47-okg-run1-app.yaml.disabled` → `.yaml` in CMSKubernetes.
+3. **MCP:** `okg-run1` `enabled: true` in the gateway chart → `archi-crab-okg-staging.cern.ch/run1/mcp`.
+   No listener, alias or certificate: the hostname exists.
+4. **Console (`/akmon`, `/runN/akmon`):** the console series (`CONSOLE-v0.13`, not on `main`
+   yet) already supports a shared hostname with `console.basePath`. On this hostname each
+   release sets `basePath` (`/akmon` for staging, `/run1/akmon` for run1) and
+   `route.hostname: archi-crab-okg-staging.cern.ch`; its route (`PathPrefix <basePath>`) wins
+   over the MCP catch-all and over `/run1`. Three changes to that series, agreed:
+   - **Cookies:** oauth2-proxy cookie name **per release** (`_okg_console_<release>`, e.g.
+     `_okg_console_archi-crab-okg-run1`) with **path = basePath** and `--proxy-prefix=<basePath>/oauth2`.
+     Path alone already keeps `/akmon` and `/run1/akmon` apart (neither path prefixes the other);
+     the per-release name keeps them apart even if one release is ever mounted at `/`.
+   - **One Application Portal client for all consoles** on this hostname, with one redirect
+     URI per release: `https://archi-crab-okg-staging.cern.ch/akmon/oauth2/callback`,
+     `…/run1/akmon/oauth2/callback`, `…/run2/akmon/oauth2/callback`. One client secret in Vault.
+   - **One bundle per base:** the console image is built per engine run for the base its release
+     declares; a run keeps the console image of its own engine (the bundle must match the viz API
+     it reads), pinned in `envs/runN` like its runtime image.
+   To apply them I need the console series on a branch here (push it as `console`, or attach
+   its tarball): it was built in another session and is not in this repository.
+5. **The harness.** A condition is a set of MCP servers; the harness connects them exactly as
+   above (`claude mcp add` per server, or the SDK), runs the question set, and records per query:
+   the answer, every tool call (server, tool, arguments, result hash) for attribution, the okg
+   generation id, the v2 corpus fingerprint, and the images' digests. A run whose fingerprints
+   moved is discarded. Defaults are v2's (`max_documents=4`, `max_chars=800`, fetch 4000).
+   Lives under `bench/` in this repository when it exists.
 
 ## 5. What was checked here, and what was not
 
@@ -421,8 +434,8 @@ this repository when it exists — nothing in `v2/` constrains it.
   fingerprints and stale checks.
 - **Not checked here** (no Docker Hub, no helm, no cluster in this sandbox): the image builds
   (base, data-manager, mcp, postgres), the vector server against a real pgvector +
-  pg_textsearch, `helm lint`/`template`, the ToolHive CRs against the operator. The first two
-  run in `v2-ci` on the phase 1 PR; the CRs are proven by phase 4's sync.
+  pg_textsearch, `helm lint`/`template` of both charts, path-aware discovery through
+  MCPRemoteProxy. The first three run in `v2-ci` on the phase 1 PR; the last is phase 4's curl.
 
 ## 6. Where we are (updated as the runbook is walked)
 
@@ -433,5 +446,6 @@ this repository when it exists — nothing in `v2/` constrains it.
 | Phase 2.1 first images (`v2-engine` by hand) | not started | |
 | Phase 2.2–2.5 Secret, sidecar deploy, smoke | not started | |
 | Phase 3 daily loop | not started | |
+| CMSKubernetes `archi-crab-paths` (path support, disabled entries) | **to open** — patch delivered; inert until entries are enabled | `archi-crab-testbed` = 2b87114 |
 | Phase 4 `archi-crab-v2.cern.ch` + SSO (path prefixes) | not started | ADR-V2-5 risk to check first: `curl -sI …/grep/mcp` |
-| Phase 5 run1/run2, harness | not started | |
+| Phase 5 run1/run2 (same namespace), console paths, harness | not started | console series needed on a branch for the cookie/base changes |

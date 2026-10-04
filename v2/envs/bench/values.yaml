@@ -17,7 +17,8 @@ postgres:
 dataManager:
   storage: {size: 75Gi, storageClassName: cinder-io1-delete} # = okg staging runtime (75Gi)
 mcp:
-  # phase 2: bearer (port-forward smoke). Phase 4 flips this ONE line to `none`, in the same
-  # change that enables the v2-grep / v2-vector MCPRemoteProxies in CMSKubernetes: from then on
-  # https://archi-crab-v2.cern.ch/{grep,vectorstore}/mcp (CERN SSO) is the only way in.
-  auth: bearer
+  # phase 4 (2026-10-05): `none`. The v2-grep / v2-vector MCPRemoteProxies in CMSKubernetes are
+  # the gate (CERN SSO + Cedar cms-members) at https://archi-crab-v2.cern.ch/{grep,vectorstore}/mcp,
+  # and the NetworkPolicy now admits ONLY ToolHive proxy pods (label toolhive: "true") to the MCP
+  # ports. Port-forward smoke with a bearer = flip back to `bearer` (phase 2).
+  auth: none

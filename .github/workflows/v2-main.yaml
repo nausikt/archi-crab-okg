@@ -1,6 +1,6 @@
 # v2-main — after a merge that touches the v2 fixture: run the smoke again on main (pulling
 # the images the lock names), and only when it is green pin those image digests into
-# v2/envs/staging/values.yaml in one bot commit. Same shape as main.yaml for the okg engine.
+# v2/envs/bench/values.yaml in one bot commit. Same shape as main.yaml for the okg engine.
 #
 # The chart and its generated files follow `main` directly (the Argo CD Application points at
 # the path), so a merged source-list or config change rolls the data-manager at once; what
@@ -23,16 +23,16 @@ jobs:
     uses: ./.github/workflows/v2-smoke.yaml
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
-  pin-staging:
+  pin-bench:
     needs: smoke
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: staging
+    environment: staging   # the GitHub Environment that holds STAGING_BUMP_TOKEN (shared with main.yaml)
     permissions: {contents: read}
     steps:
       - uses: actions/checkout@v7
         with: {fetch-depth: 0, persist-credentials: false}
-      - name: Pin the proven images into v2/envs/staging (one commit, forward only)
+      - name: Pin the proven images into v2/envs/bench (one commit, forward only)
         env:
           GH_TOKEN: ${{ secrets.STAGING_BUMP_TOKEN }}
         run: |
@@ -51,10 +51,10 @@ jobs:
           for attempt in 1 2 3; do
             agit fetch -q "$remote" "+refs/heads/main:refs/remotes/origin/main"
             git checkout -q -B main origin/main
-            yq -i '.images.dataManager.digest = strenv(DM) | .images.mcp.digest = strenv(MCP) | .images.postgres.digest = strenv(PG)' v2/envs/staging/values.yaml
-            git diff --quiet && { echo "v2 staging already runs these images"; exit 0; }
-            git commit -q -am "v2 staging: pin ${GITHUB_SHA::9} [skip ci]"
-            if agit push -q "$remote" HEAD:refs/heads/main; then echo "v2 staging pinned: mcp ${MCP::19}"; exit 0; fi
+            yq -i '.images.dataManager.digest = strenv(DM) | .images.mcp.digest = strenv(MCP) | .images.postgres.digest = strenv(PG)' v2/envs/bench/values.yaml
+            git diff --quiet && { echo "the bench already runs these images"; exit 0; }
+            git commit -q -am "v2 bench: pin ${GITHUB_SHA::9} [skip ci]"
+            if agit push -q "$remote" HEAD:refs/heads/main; then echo "v2 bench pinned: mcp ${MCP::19}"; exit 0; fi
             echo "push raced (attempt $attempt); retrying"; sleep 5
           done
-          echo "::error::could not push the v2 staging pin"; exit 1
+          echo "::error::could not push the v2 bench pin"; exit 1

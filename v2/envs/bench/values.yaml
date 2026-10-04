@@ -1,4 +1,5 @@
-# v2/envs/staging -- what the archi-v2 fixture RUNS in archi-crab-staging (overrides only).
+# v2/envs/bench -- the ONE environment the archi-v2 fixture runs in (namespace archi-crab-staging,
+# next to the okg staging instance and the ToolHive operator). Overrides only.
 # The three image lines are written by the bot (v2-main.yaml) after a green smoke on main,
 # from v2/versions.lock; by hand only in runbook phase 2. Never a tag.
 images:
@@ -15,7 +16,7 @@ mcp:
   # phase 2: sidecar (in-cluster, bearer, port-forward) until the two hostnames exist on the
   # Gateway; phase 4 flips this ONE line to `toolhive` (CERN SSO through ToolHive vMCPs).
   mode: sidecar
-  host: archi-crab-v2-staging.cern.ch   # ONE alias; /grep/mcp and /vectorstore/mcp (chart defaults)
+  host: archi-crab-v2.cern.ch   # the ONE alias; /grep/mcp and /vectorstore/mcp (chart defaults)
 cern:
-  audience: crab-mcp-gateway-public-staging   # the gateway chart's public client (values-staging.yaml); no new CERN app
+  audience: crab-mcp-gateway-public-staging   # the public client of the gateway release in this namespace; no new CERN app
 gateway: {name: archi-crab, namespace: archi-crab-gw, timeout: 3600s}

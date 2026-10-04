@@ -7,7 +7,7 @@
 #   -> re-render config.yaml + init.sql -> write the lock -> push the branch -> open/update PR
 #
 # The pull request's own CI (v2-ci: lint + smoke, pulling the images this run pushed) proves
-# the bump BEFORE merge. Nothing here merges, and nothing here touches v2/envs/: staging
+# the bump BEFORE merge. Nothing here merges, and nothing here touches v2/envs/: the bench
 # moves only after main's smoke is green (v2-main.yaml). While the PR is open, human commits
 # on v2/upstream survive: the branch is merged forward, never reset. Label `hold` pauses it.
 #

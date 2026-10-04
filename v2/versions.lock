@@ -5,7 +5,7 @@
 #               By hand you edit only what is FOLLOWED: archi.repository, archi.branch.
 #   READ BY     v2-smoke.yaml  which images a PR is tested with (pulled when images.inputs
 #                              matches the tree, built locally otherwise)
-#               v2-main.yaml   what gets pinned into v2/envs/staging after a green smoke
+#               v2-main.yaml   what gets pinned into v2/envs/bench after a green smoke
 #               v2-build.yaml  build args (base-ref, archi.commit, the baked model)
 #
 # Fingerprints (v2/scripts/lock.sh): base.inputs / images.inputs say what the digests were

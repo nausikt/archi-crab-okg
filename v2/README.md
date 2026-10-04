@@ -3,7 +3,8 @@
 The LangChain-era retrieval stack (archi-physics/archi `main`, pinned in `versions.lock`),
 headless: Postgres (pgvector + pg_textsearch), the data-manager that ingests the SAME source
 list as the okg instances, and two MCP servers that expose its retrieval tools unchanged --
-in staging/prod as ToolHive servers behind CERN SSO (one hostname each), in CI as sidecars:
+on the cluster as ToolHive servers behind CERN SSO (archi-crab-v2.cern.ch/grep/mcp, /vectorstore/mcp),
+in CI as sidecars:
 
     grep     search_local_files, search_metadata_index, list_metadata_schema, fetch_catalog_document
     vector   search_vectorstore_hybrid, fetch_catalog_document
@@ -14,7 +15,7 @@ Decisions and runbook: docs/V2-BENCH.md.
     helm/archi-v2/                        the chart (Argo CD); files/ is GENERATED:
       files/config.yaml, files/init.sql     <- v2/scripts/render-config.py (archi's own templates)
       files/weblists/archi-crab.list        <- scripts/sources.py render (from sources/archi-crab.yaml)
-    envs/staging/values.yaml              what staging runs (image digests pinned by v2-main after a green smoke)
+    envs/bench/values.yaml                the one environment (image digests pinned by v2-main after a green smoke)
     envs/ci/values.yaml                   sidecar mode, for helm template in CI
     docker/Dockerfile.base                OUR base image (python:3.10 + archi's base requirements)
     docker/Dockerfile                     targets data-manager (model baked in), mcp; Dockerfile.postgres

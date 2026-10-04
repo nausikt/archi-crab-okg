@@ -4,7 +4,7 @@
 The MCP layer (v2/mcp/server.py) reimplements nothing: it calls archi's tool factories and
 copies the agent's tool descriptions. The chart mounts files archi's data-manager reads. Each
 of those is a contract with upstream, and archi `main` moves daily. This check names what
-moved, so the engine PR (v2-engine.yaml) carries the finding instead of a broken staging.
+moved, so the engine PR (v2-engine.yaml) carries the finding instead of a broken fixture.
 
     python3 v2/scripts/contract-check.py [--archi /root/archi] [--markdown out.md]
 

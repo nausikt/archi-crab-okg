@@ -1,5 +1,5 @@
 # v2-smoke — the archi v2 fixture, for real, on the runner (callable: v2-ci.yaml on pull
-# requests, v2-main.yaml on main before it pins staging).
+# requests, v2-main.yaml on main before it pins the bench).
 #
 #   images   from v2/versions.lock when its fingerprint matches this tree (pulled by digest:
 #            the images the engine PR built), else built here from the lock's pins (not pushed)

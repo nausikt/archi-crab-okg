@@ -3,7 +3,7 @@
 #
 # Service names are baked into the generated config (files/config.yaml: services.postgres.host,
 # services.data_manager.hostname), so fullnameOverride MUST stay `archi-v2` -- one release per
-# namespace (staging / prod), never two in one namespace.
+# namespace; the fixture has ONE environment (v2/envs/bench).
 fullnameOverride: archi-v2
 nameOverride: ""
 
@@ -47,7 +47,7 @@ mcp:
   # HOW the two tool families are served (docs/V2-BENCH.md ADR-V2-3/5):
   #   toolhive  one ToolHive MCPServer per family, each in its OWN MCPGroup, fronted by its own
   #             VirtualMCPServer with CERN SSO (incomingAuth oidc, the existing public client as
-  #             audience) and one hostname per family. This is what staging/prod run. Needs the
+  #             audience), one hostname, one path per family. This is what the cluster runs. Needs the
   #             ToolHive operator + the shared Gateway (both already on the cluster).
   #   sidecar   two containers in the data-manager pod behind a static bearer, ClusterIP only
   #             (port-forward). What CI smokes and what a laptop runs; no public surface.
@@ -57,7 +57,7 @@ mcp:
   # aliases): https://<host><path>/mcp. The HTTPRoute rewrites the prefix away, and routes the
   # path-aware OAuth discovery document (RFC 9728, /.well-known/oauth-protected-resource<path>/mcp)
   # to the same vMCP, whose resourceUrl is the full public URL.
-  host: ""               # e.g. archi-crab-v2-staging.cern.ch
+  host: ""               # archi-crab-v2.cern.ch
   # Tool gating is server-side (V2_MCP_TOOLS / V2_MCP_FETCH): a client never sees a tool the
   # family does not serve, which is what the ablations rely on.
   grep:

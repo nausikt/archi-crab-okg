@@ -24,7 +24,7 @@ where we are; it is updated as the runbook is walked.
    …/run1/mcp  …/run2/mcp  …/mcp                                 (ToolHive, group grep)    (ToolHive, group vector)
                                                                         ▼                         ▼
                                                                  vMCP + CERN SSO           vMCP + CERN SSO
-                                                      archi-crab-v2-grep-<env>.cern.ch   archi-crab-v2-vector-<env>.cern.ch
+                                                       archi-crab-v2-<env>.cern.ch/grep/mcp   …/vectorstore/mcp
                                                       search_local_files                 search_vectorstore_hybrid
                                                       search_metadata_index              (+ fetch_catalog_document)
                                                       list_metadata_schema
@@ -128,7 +128,7 @@ condition does not include. The chart runs it in one of two modes (`mcp.mode`):
 
 - **`toolhive`** (staging, prod): one ToolHive `MCPServer` per family, each in its **own
   `MCPGroup`** (the trust boundary: one audience, one group), fronted by its own
-  `VirtualMCPServer` with CERN SSO and one hostname per family (ADR-V2-5). The grep server
+  `VirtualMCPServer` with CERN SSO, one path prefix per family on the fixture's one hostname (ADR-V2-5). The grep server
   reaches the data-manager over its Service; the vector server holds the embedding model and a
   Postgres connection, as the v2 agent did.
 - **`sidecar`** (CI, a laptop): two containers in the data-manager pod behind a static bearer,
@@ -138,7 +138,7 @@ condition does not include. The chart runs it in one of two modes (`mcp.mode`):
 conditions must not become a tool-description wording contest. *Why `fetch` rides with both:*
 it is the second half of both workflows (the vector tool's own description says so).
 *Why not a member of the crab gateway's group:* a benchmark fixture is not part of that trust
-boundary (the group comment in that chart is right); separate groups cost nothing but hostnames.
+boundary (the group comment in that chart is right); separate groups cost nothing.
 
 ### ADR-V2-4 — The thin layer reimplements nothing: archi's tools, exposed by introspection
 
@@ -160,9 +160,16 @@ family is operationally better than v2's per-agent-replica in-process model.
 Each family's `VirtualMCPServer` has `incomingAuth: oidc` against the CERN realm with the
 **public client the crab gateway already uses** (`crab-mcp-gateway-public[-staging]`) as
 audience: PKCE with a localhost redirect, so Claude Code and mcp-inspector log in at CERN SSO
-and no new CERN application is registered. Each family gets one hostname on the shared Gateway
-(`archi-crab-v2-grep-<env>.cern.ch`, `archi-crab-v2-vector-<env>.cern.ch`), exactly as the
-gateway chart adds a hostname per client family. The MCP container itself runs anonymous
+and no new CERN application is registered. **One hostname** (`archi-crab-v2-<env>.cern.ch`,
+one LanDB alias, one certificate, one Gateway listener) carries both families as **path
+prefixes**: `/grep/mcp` and `/vectorstore/mcp`. One HTTPRoute, two rules per family: the prefix
+rule rewrites `/grep/…` to `/…` for that family's vMCP, and an exact rule maps the path-aware
+OAuth discovery document (`/.well-known/oauth-protected-resource/grep/mcp`, RFC 9728 — the URL
+MCP clients try first for a resource that has a path) to that vMCP's
+`/.well-known/oauth-protected-resource`; the vMCP's `resourceUrl` is the full public URL, so the
+document's `resource` matches what the client connected to. The authorization server is CERN's
+(the client talks to auth.cern.ch directly, as with the crab gateway), so nothing else of the
+vMCP needs a path. The MCP container itself runs anonymous
 (`V2_MCP_ALLOW_ANONYMOUS=1`): the vMCP is the only gate — the gateway chart's `backendAuth:
 false` for the same reason (a vMCP cannot authenticate its own health checks to a backend that
 enforces OIDC) — and the chart's NetworkPolicy keeps everything but in-namespace pods from the
@@ -172,8 +179,11 @@ first draft is gone.
 *Accepted:* a token minted for the crab gateway is valid for the v2 vMCPs and vice versa (same
 audience). Same users, public corpus (the sources governance gate feeds both targets, so the v2
 corpus cannot hold anything the okg instances may not). Isolation later = one Application Portal
-entry (`archi-crab-v2-public`) + one values line. *Cost:* two hostnames per environment: LanDB
-alias, certificate, Gateway listener (phase 4, in the IaC repository).
+entry (`archi-crab-v2-public`) + one values line. *Cost:* one hostname per environment (LanDB
+alias, certificate, Gateway listener: phase 4, in the IaC repository). *Risk, checked in phase
+4:* ToolHive's 401 must name the path-aware discovery URL (its `WWW-Authenticate:
+resource_metadata=…`), or clients must fall back to it; if the operator insists on the
+root `/.well-known/…`, the fallback is one hostname per family (the first draft of this ADR).
 
 ### ADR-V2-6 — One source of truth, propagated: the okg list renders the v2 weblist
 
@@ -254,6 +264,8 @@ changes `requirements.txt` a few times a year).
 3. **ToolHive CRD versions on the testbed.** The chart assumes `toolhive.stacklok.dev/v1beta1`
    and operator 0.47.0 behaviour, as the gateway chart does; `kubectl api-resources --api-group=toolhive.stacklok.dev`
    confirms it before phase 4.
+4. **Path-aware OAuth discovery through the vMCP** (ADR-V2-5 risk): answered by one `curl -sI`
+   in phase 4; the fallback is a hostname per family.
 
 ## 4. Runbook
 
@@ -332,30 +344,37 @@ Nothing to deploy: `v2-engine` runs daily from phase 1 on. What to do once:
 ### Phase 4 — hostnames and CERN SSO (toolhive mode)
 
 In the IaC repository (`CMSKubernetes`, `archi-crab-testbed`), the same three things the crab
-gateway's hostnames needed:
+gateway's hostname needed, once:
 
-1. **LanDB aliases** `archi-crab-v2-grep-staging` and `archi-crab-v2-vector-staging` on the
-   Gateway's VIP (the one `kubectl -n archi-crab-gw get svc cilium-gateway-archi-crab` shows).
-2. **Certificates** for both names in `archi-crab-gw` (however the existing listeners got
-   theirs: cert-manager or the CERN CA), and **two listeners** in the gateway chart's values
-   (`listeners: - {host: …, tlsSecret: …, env: staging}`), so routes from a namespace labelled
-   `archi-crab.cern.ch/env: staging` may claim them.
+1. **One LanDB alias** `archi-crab-v2-staging` on the Gateway's VIP (the one
+   `kubectl -n archi-crab-gw get svc cilium-gateway-archi-crab` shows).
+2. **One certificate** for it in `archi-crab-gw` (however the existing listeners got theirs:
+   cert-manager or the CERN CA) and **one listener** in the gateway chart's values
+   (`listeners: - {host: archi-crab-v2-staging.cern.ch, tlsSecret: …, env: staging}`), so
+   routes from a namespace labelled `archi-crab.cern.ch/env: staging` may claim it.
 3. Confirm the ToolHive CRD version: `kubectl api-resources --api-group=toolhive.stacklok.dev -o wide`
    (`v1beta1` is what the chart assumes).
 
 Then in this repository: `v2/envs/staging/values.yaml` `mcp.mode: sidecar` → `toolhive` (the
-hosts and `cern.audience` are already there). PR, merge; Argo CD syncs the groups, OIDC configs,
-MCPServers, vMCPs and HTTPRoutes. Check:
+host and `cern.audience` are already there). PR, merge; Argo CD syncs the groups, OIDC configs,
+MCPServers, vMCPs and the HTTPRoute. Check, in this order — the third line is the ADR-V2-5 risk:
 
 ```bash
 kubectl -n archi-crab-staging get mcpgroup,mcpserver,virtualmcpserver,httproute -l app.kubernetes.io/part-of=archi-crab-bench
 kubectl -n archi-crab-staging get svc | grep vmcp-archi-v2      # vmcp-archi-v2-grep / -vector on 4483
-curl -sI https://archi-crab-v2-grep-staging.cern.ch/mcp | head -3   # 401 + WWW-Authenticate from the vMCP
-claude mcp add --transport http v2-grep   https://archi-crab-v2-grep-staging.cern.ch/mcp   --client-id crab-mcp-gateway-public-staging
-claude mcp add --transport http v2-vector https://archi-crab-v2-vector-staging.cern.ch/mcp --client-id crab-mcp-gateway-public-staging
+curl -sI https://archi-crab-v2-staging.cern.ch/grep/mcp | grep -i www-authenticate
+#   want: resource_metadata="https://archi-crab-v2-staging.cern.ch/.well-known/oauth-protected-resource/grep/mcp"
+curl -s https://archi-crab-v2-staging.cern.ch/.well-known/oauth-protected-resource/grep/mcp
+#   want: {"resource": "https://archi-crab-v2-staging.cern.ch/grep/mcp", "authorization_servers": ["https://auth.cern.ch/auth/realms/cern"], …}
+claude mcp add --transport http v2-grep   https://archi-crab-v2-staging.cern.ch/grep/mcp        --client-id crab-mcp-gateway-public-staging
+claude mcp add --transport http v2-vector https://archi-crab-v2-staging.cern.ch/vectorstore/mcp --client-id crab-mcp-gateway-public-staging
 ```
 
-Prod is the same with `v2/envs/prod/values.yaml` (`-staging` dropped from the hosts, audience
+If the 401 names the root `/.well-known/oauth-protected-resource` instead and Claude Code does
+not fall back to the path-aware URL, the fallback is a hostname per family (two aliases); say
+so and I will send that variant of `toolhive.yaml`.
+
+Prod is the same with `v2/envs/prod/values.yaml` (`archi-crab-v2.cern.ch`, audience
 `crab-mcp-gateway-public`), promoted the way the okg chart is.
 
 ### Phase 5 — run1/run2, the harness
@@ -367,10 +386,19 @@ commit the run studies, images pinned to the engine of that day, and **no bot pi
 `main.yaml` bump writes only `envs/staging`). A per-run source list is fine
 (`sources/archi-crab-run1.yaml` → `deployments/archi-crab-run1/`: `scripts/sources.py --deployment`
 already takes the name); the best-of-knowledge list stays `sources/archi-crab.yaml`, and it is the
-one the v2 fixture follows. Their MCP paths (`archi-crab-okg-staging.cern.ch/run1/mcp`, …) are
-one HTTPRoute with path prefixes in the okg chart (`PathPrefix /run1` → that release's `-mcp`
-Service, `URLRewrite` to `/mcp`); bearer-gated as okg's MCP is today, or behind a vMCP per run
-if they are to be used by people — the same two choices as ADR-V2-5.
+one the v2 fixture follows.
+
+**Their MCP paths** — `archi-crab-okg-staging.cern.ch/run1/mcp`, `/run2/mcp`, and `/mcp` for the
+promoted one — are the same path-prefix pattern as ADR-V2-5, and simpler: okg's MCP is
+bearer-gated (`okg mcp-serve`, no OAuth discovery), so a prefix rule with `URLRewrite
+ReplacePrefixMatch /` per run is all it takes; nothing well-known to route. Two things to know
+now, both ordinary: (a) the rules go in whichever chart owns that hostname's HTTPRoute (the okg
+chart has none today — its MCP is cluster-internal and `mcp.allowedHosts` already lists the
+hostname — so the route is added to the okg chart with the runs as a `mcp.routes:` list, or to
+the gateway chart); (b) a run in its own namespace needs a `ReferenceGrant` in that namespace
+for a route in another, or the route lives in the run's namespace and claims the hostname
+through the Gateway's per-env listener selector. Either way it is HTTPRoute mapping, nothing
+custom.
 
 **The harness.** A condition is a set of MCP servers; the harness connects them exactly as
 above (`claude mcp add` per server, or the SDK), runs the question set, and records per query:
@@ -402,5 +430,5 @@ this repository when it exists — nothing in `v2/` constrains it.
 | Phase 2.1 first images (`v2-engine` by hand) | not started | |
 | Phase 2.2–2.5 Secret, sidecar deploy, smoke | not started | |
 | Phase 3 daily loop | not started | |
-| Phase 4 hostnames + SSO | not started | |
+| Phase 4 one hostname + SSO (path prefixes) | not started | ADR-V2-5 risk to check first: `curl -sI …/grep/mcp` |
 | Phase 5 run1/run2, harness | not started | |

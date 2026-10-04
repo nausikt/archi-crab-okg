@@ -3,12 +3,12 @@ archi-v2 ({{ .Release.Name }} in {{ .Release.Namespace }}) -- the LangChain-era 
   data-manager   http://{{ include "archi-v2.fullname" . }}-data-manager:{{ .Values.dataManager.port }}   (catalog API, bearer DM_API_TOKEN)
 {{- if eq .Values.mcp.mode "toolhive" }}
 {{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}
-  mcp-{{ $family }}{{ if eq $family "grep" }}       {{ else }}     {{ end }}https://{{ $m.host }}/mcp   (CERN SSO: audience {{ $.Values.cern.audience }})
+  mcp-{{ $family }}{{ if eq $family "grep" }}       {{ else }}     {{ end }}https://{{ $.Values.mcp.host }}{{ $m.path }}/mcp   (CERN SSO: audience {{ $.Values.cern.audience }})
 {{- end }}{{ end }}
 
 Connect as a client (the same way the benchmark harness does), one server per family:
 {{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}
-  claude mcp add --transport http v2-{{ $family }} https://{{ $m.host }}/mcp --client-id {{ $.Values.cern.audience }}
+  claude mcp add --transport http v2-{{ $family }} https://{{ $.Values.mcp.host }}{{ $m.path }}/mcp --client-id {{ $.Values.cern.audience }}
 {{- end }}{{ end }}
 {{- else }}
 {{- range $family := list "grep" "vector" }}{{ $m := index $.Values.mcp $family }}{{ if $m.enabled }}

@@ -53,6 +53,11 @@ mcp:
   #             (port-forward). What CI smokes and what a laptop runs; no public surface.
   mode: toolhive
   hfHubOffline: true     # the embedding model is baked into the image; never download at run time
+  # toolhive mode: ONE hostname for the fixture, one path prefix per family (no extra LanDB
+  # aliases): https://<host><path>/mcp. The HTTPRoute rewrites the prefix away, and routes the
+  # path-aware OAuth discovery document (RFC 9728, /.well-known/oauth-protected-resource<path>/mcp)
+  # to the same vMCP, whose resourceUrl is the full public URL.
+  host: ""               # e.g. archi-crab-v2-staging.cern.ch
   # Tool gating is server-side (V2_MCP_TOOLS / V2_MCP_FETCH): a client never sees a tool the
   # family does not serve, which is what the ablations rely on.
   grep:
@@ -60,14 +65,14 @@ mcp:
     port: 8081
     fetch: true          # fetch_catalog_document rides with the family (V2_MCP_FETCH)
     tools: ""            # override the family's tool list, comma-separated (V2_MCP_TOOLS)
-    host: ""             # toolhive mode: the public hostname, e.g. archi-crab-v2-grep-staging.cern.ch
+    path: /grep          # toolhive mode: https://<mcp.host>/grep/mcp
     resources: {requests: {cpu: "50m", memory: 128Mi}, limits: {memory: 512Mi}}
   vector:
     enabled: true
     port: 8082
     fetch: true
     tools: ""
-    host: ""             # e.g. archi-crab-v2-vector-staging.cern.ch
+    path: /vectorstore   # toolhive mode: https://<mcp.host>/vectorstore/mcp
     # the embedding model lives here (warm, once) + a psycopg2 connection per query
     resources: {requests: {cpu: "500m", memory: 1Gi}, limits: {memory: 3Gi}}
   logLevel: INFO
@@ -97,7 +102,7 @@ cern:
   # corpus: accepted; a dedicated client is one Application Portal entry + this line).
   audience: ""                   # REQUIRED in toolhive mode, e.g. crab-mcp-gateway-public-staging
 gateway:
-  name: archi-crab               # the shared Gateway (archi-crab-gw); each hostname needs a listener + cert there
+  name: archi-crab               # the shared Gateway (archi-crab-gw); mcp.host needs ONE listener + cert there
   namespace: archi-crab-gw
   timeout: 3600s                 # MCP streams; the default drops SSE mid-session
 

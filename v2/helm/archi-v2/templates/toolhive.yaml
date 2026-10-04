@@ -12,11 +12,12 @@ ToolHive's proxies from reaching it.
 {{- $full := include "archi-v2.fullname" . -}}
 {{- $secret := .Values.secrets.existingSecret -}}
 {{- $audience := required "cern.audience is required in toolhive mode (the public CERN client, e.g. crab-mcp-gateway-public-staging)" .Values.cern.audience -}}
+{{- $host := required "mcp.host is required in toolhive mode (the fixture's one hostname)" .Values.mcp.host -}}
 {{- range $family := list "grep" "vector" }}
 {{- $m := index $.Values.mcp $family }}
 {{- if $m.enabled }}
 {{- $name := printf "%s-%s" $full $family }}
-{{- $host := required (printf "mcp.%s.host is required in toolhive mode" $family) $m.host }}
+{{- $path := required (printf "mcp.%s.path is required in toolhive mode" $family) $m.path | trimSuffix "/" }}
 ---
 # The trust boundary: one family, one audience, one vMCP. Nothing else joins it.
 apiVersion: {{ $.Values.toolhive.apiVersions.mcpGroup }}
@@ -115,35 +116,62 @@ spec:
     oidcConfigRef:
       name: {{ $full }}-cern-{{ $family }}
       audience: {{ $audience | quote }}
-      # advertised in OAuth discovery; bare :443 through the Octavia LB
-      resourceUrl: "https://{{ $host }}/mcp"
+      # advertised in OAuth discovery (the `resource` a client must present); the public URL
+      resourceUrl: "https://{{ $host }}{{ $path }}/mcp"
   outgoingAuth:
     source: discovered
     backends:
       {{ $name }}:
         type: discovered
+{{- end }}
+{{- end }}
 ---
+# ONE hostname, one path prefix per family. Two rules per family:
+#   <path>/…                                      -> the vMCP, prefix rewritten away (/grep/mcp -> /mcp)
+#   /.well-known/oauth-protected-resource<path>/mcp -> the vMCP's /.well-known/oauth-protected-resource
+# The second is RFC 9728 path-aware discovery, which MCP clients try first for a resource with a
+# path; the document's `resource` is the vMCP's resourceUrl above, so it matches what the client
+# connected to. VERIFY on first sync (runbook phase 4): the vMCP's 401 must point at that URL.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ $name }}
+  name: {{ $full }}-mcp
   annotations: {argocd.argoproj.io/sync-wave: "4"}
   labels:
-    {{- include "archi-v2.labels" $ | nindent 4 }}
-    archi-crab.cern.ch/v2-mcp: {{ $family }}
+    {{- include "archi-v2.labels" . | nindent 4 }}
 spec:
   parentRefs:
-    - name: {{ $.Values.gateway.name }}
-      namespace: {{ $.Values.gateway.namespace }}
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
   hostnames:
     - {{ $host | quote }}
   rules:
-    - backendRefs:
+    {{- range $family := list "grep" "vector" }}
+    {{- $m := index $.Values.mcp $family }}
+    {{- if $m.enabled }}
+    {{- $name := printf "%s-%s" $full $family }}
+    {{- $path := $m.path | trimSuffix "/" }}
+    - matches:
+        - path: {type: Exact, value: "/.well-known/oauth-protected-resource{{ $path }}/mcp"}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: {type: ReplaceFullPath, replaceFullPath: /.well-known/oauth-protected-resource}
+      backendRefs:
+        - name: vmcp-{{ $name }}
+          port: {{ $.Values.toolhive.vmcpServicePort }}
+    - matches:
+        - path: {type: PathPrefix, value: {{ $path | quote }}}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: {type: ReplacePrefixMatch, replacePrefixMatch: /}
+      backendRefs:
         - name: vmcp-{{ $name }}
           port: {{ $.Values.toolhive.vmcpServicePort }}
       timeouts:
         backendRequest: {{ $.Values.gateway.timeout }}
         request: {{ $.Values.gateway.timeout }}
-{{- end }}
-{{- end }}
+    {{- end }}
+    {{- end }}
 {{- end }}

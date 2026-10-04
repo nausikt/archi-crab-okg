@@ -15,8 +15,7 @@ mcp:
   # phase 2: sidecar (in-cluster, bearer, port-forward) until the two hostnames exist on the
   # Gateway; phase 4 flips this ONE line to `toolhive` (CERN SSO through ToolHive vMCPs).
   mode: sidecar
-  grep:   {host: archi-crab-v2-grep-staging.cern.ch}
-  vector: {host: archi-crab-v2-vector-staging.cern.ch}
+  host: archi-crab-v2-staging.cern.ch   # ONE alias; /grep/mcp and /vectorstore/mcp (chart defaults)
 cern:
   audience: crab-mcp-gateway-public-staging   # the gateway chart's public client (values-staging.yaml); no new CERN app
 gateway: {name: archi-crab, namespace: archi-crab-gw, timeout: 3600s}

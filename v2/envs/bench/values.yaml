@@ -9,9 +9,9 @@ images:
 secrets:
   existingSecret: archi-v2 # kubectl -n archi-crab-staging create secret generic archi-v2 ... (runbook 2.2)
 postgres:
-  storage: {size: 50Gi, storageClassName: cinder-io1-delete} # the same class the okg chart uses on this cluster
+  storage: {size: 150Gi, storageClassName: cinder-io1-delete} # = okg staging postgres (150Gi): same disk budget for the comparison
 dataManager:
-  storage: {size: 20Gi, storageClassName: cinder-io1-delete}
+  storage: {size: 75Gi, storageClassName: cinder-io1-delete}    # = okg staging runtime (75Gi)
 mcp:
   # phase 2: bearer (port-forward smoke). Phase 4 flips this ONE line to `none`, in the same
   # change that enables the v2-grep / v2-vector MCPRemoteProxies in CMSKubernetes: from then on

@@ -29,6 +29,10 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve()
 REPO = HERE.parents[2]
+# Two layouts: the repository (v2/scripts/ next to v2/mcp/server.py) and the mcp image, where
+# the Dockerfile copies server.py and this script side by side into /root/archi/v2mcp/.
+IN_IMAGE = (HERE.parent / "server.py").is_file()
+SERVER_PY = HERE.parent / "server.py" if IN_IMAGE else REPO / "v2" / "mcp" / "server.py"
 
 
 class Findings:
@@ -61,11 +65,11 @@ class Findings:
 
 def our_descriptions():
     """DESCRIPTIONS from v2/mcp/server.py, without importing it (no mcp package needed)."""
-    tree = ast.parse((REPO / "v2" / "mcp" / "server.py").read_text(encoding="utf-8"))
+    tree = ast.parse(SERVER_PY.read_text(encoding="utf-8"))
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "DESCRIPTIONS" for t in node.targets):
             return ast.literal_eval(node.value)
-    raise SystemExit("v2/mcp/server.py: no DESCRIPTIONS dict")
+    raise SystemExit("%s: no DESCRIPTIONS dict" % SERVER_PY)
 
 
 def agent_descriptions(agent_py: Path):
@@ -113,6 +117,9 @@ def check_factories(archi, f):
     try:
         from src.archi.pipelines.agents.tools import local_files, retriever  # noqa
     except Exception as exc:  # the image is the only place these imports are guaranteed
+        if IN_IMAGE:
+            f.error("factories", "archi's tool modules do not import in the image: %s: %s" % (type(exc).__name__, exc))
+            return
         f.warn("factories", "cannot import archi's tool modules here (%s: %s); run inside the image" % (type(exc).__name__, exc))
         return
     want = {
@@ -149,6 +156,42 @@ def check_factories(archi, f):
             f.error("factories", "PostgresServiceFactory.from_env is gone (server.py builds config from it)")
     except Exception as exc:
         f.error("factories", "vector-side imports: %s: %s" % (type(exc).__name__, exc))
+
+
+def server_imports():
+    """(module, [names]) for every `from X import …` in server.py, at any depth (the archi
+    imports are inside functions, so a top-level-only scan would miss them)."""
+    tree = ast.parse(SERVER_PY.read_text(encoding="utf-8"))
+    out = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0 and node.module != "__future__":
+            out.append((node.module, [a.name for a in node.names]))
+        elif isinstance(node, ast.Import):
+            out.extend((a.name, []) for a in node.names)
+    return out
+
+
+def check_runtime(archi, f):
+    """Inside the image only: every import server.py makes resolves, names included."""
+    if not IN_IMAGE:
+        f.ok("runtime", "skipped outside the image (v2-smoke runs it in v2-mcp)")
+        return
+    import importlib
+    if str(archi) not in sys.path:
+        sys.path.insert(0, str(archi))
+    bad = 0
+    for mod, names in server_imports():
+        try:
+            m = importlib.import_module(mod)
+            missing = [n for n in names if not hasattr(m, n)]
+            if missing:
+                bad += 1
+                f.error("runtime", "%s no longer provides %s" % (mod, ", ".join(missing)))
+        except Exception as exc:
+            bad += 1
+            f.error("runtime", "import %s: %s: %s" % (mod, type(exc).__name__, exc))
+    if not bad:
+        f.ok("runtime", "%d imports of server.py resolve" % len(server_imports()))
 
 
 def check_catalog_api(archi, f):
@@ -205,6 +248,7 @@ def main() -> int:
         check_factories(archi, f)
         check_catalog_api(archi, f)
         check_config(archi, f)
+        check_runtime(archi, f)
     if a.markdown:
         Path(a.markdown).write_text(f.markdown(archi, a.commit), encoding="utf-8")
     print("v2 contract: %s" % ("FAIL" if f.failed else "ok"))

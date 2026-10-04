@@ -448,7 +448,7 @@ PVCs), so check the namespace quota before adding run2.
 
 | step | state | evidence |
 |---|---|---|
-| Phase 1 PR (`v2-bench`) | **to open** — patches delivered, nothing on `main` yet | `main` = 3430a78 (`staging: pin ffbe61dae`) |
+| Phase 1 PR (`v2-bench`) | **open: #19** — v2-lint green; v2-smoke fixed in-image contract check (server.py path), rerun pending | `main` = b534bb6 (engine PR #18 merged; touches only the okg `versions.lock`, merges cleanly) |
 | §3.1 live v2 config | open | placeholder in `v2/deployments/archi-crab/config.yaml` |
 | Phase 2.1 first images (`v2-engine` by hand) | not started | |
 | Phase 2.2–2.5 Secret, sidecar deploy, smoke | not started | |

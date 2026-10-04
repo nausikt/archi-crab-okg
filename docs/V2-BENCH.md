@@ -279,9 +279,16 @@ e6609f8f holds; the vendored references match; the smoke builds the base + three
 runner (the lock has no digests yet) and talks MCP to both servers over a two-entry corpus.
 
 ```bash
-git switch -c v2-bench origin/main && git am archi-crab-okg-v2-bench-phase1/*.patch
+git switch -c v2-bench origin/main && git am archi-crab-okg-v2-bench/*.patch   # folder in the delivered tarball
 git push -u origin v2-bench            # open the PR; read v2-ci's two jobs; merge
 ```
+
+`git am` warns about trailing whitespace in `v2/vendor/reference/**` and
+`v2/helm/archi-v2/files/init.sql`. Expected: the first is upstream's files verbatim, the second
+is rendered from upstream's template, and CI diffs both byte for byte against archi
+(`vendor-sync.sh`, `render-config.py --check`). Do **not** use `--whitespace=fix`; it would make
+those checks fail. `.gitattributes` marks both paths so later patches and `git diff --check`
+stay quiet.
 
 Before or right after merging, answer §3 item 1 (the live v2 config) in
 `v2/deployments/archi-crab/config.yaml`, then `python3 v2/scripts/render-config.py --write --archi <checkout>`

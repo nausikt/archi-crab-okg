@@ -23,10 +23,11 @@ base_inputs() {
 }
 
 hf_model() {
-  yq -r '
-    if .data_manager.embedding_name == "HuggingFaceEmbeddings"
-    then .data_manager.embedding_class_map.HuggingFaceEmbeddings.kwargs.model_name // ""
-    else "" end' v2/deployments/archi-crab/config.yaml
+  # mikefarah yq v4 (the runner's): no if/then/else in its lexer -- select() prints nothing
+  # when the embedding is not a HuggingFace one, which is the empty answer we want
+  yq -r 'select(.data_manager.embedding_name == "HuggingFaceEmbeddings")
+         | .data_manager.embedding_class_map.HuggingFaceEmbeddings.kwargs.model_name // ""' \
+    v2/deployments/archi-crab/config.yaml
 }
 
 images_inputs() {

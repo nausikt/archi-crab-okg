@@ -15,6 +15,9 @@ RUN mkdir -p /root/archi
 WORKDIR /root/archi
 COPY v2/vendor/reference/dockerfiles/python-base-requirements.txt requirements.txt
 COPY v2/docker/base-requirements.extra.txt requirements.extra.txt
-RUN pip install --upgrade pip && pip install -r requirements.txt && pip install -r requirements.extra.txt
+# ONE resolve over both files, so an extra pin constrains the transitive picks instead of being
+# installed over them afterwards (a second `pip install` would leave the broken pair importable
+# only by luck of ordering)
+RUN pip install --upgrade pip && pip install -r requirements.txt -r requirements.extra.txt
 LABEL org.opencontainers.image.source="https://github.com/nausikt/archi-crab-okg" \
       org.opencontainers.image.title="archi-v2-python-base"

@@ -73,7 +73,7 @@ Claude Code user has (`claude mcp add` per server) — so the merged-toolset con
   `k`, `bm25_weight`, `semantic_weight` from `data_manager.retrievers.hybrid_retriever`
   (config default 0.6/0.4; the code default is 0.5/0.5).
 
-Three upstream quirks that matter here (each reported in phase 3):
+Four upstream quirks that matter here (each reported in phase 3):
 
 1. `base-config.yaml` renders `reset_collection: {{ … | default(true, true) }}` — a `false` is
    treated as unset, so the template can only say `true`, and `true` truncates `document_chunks`
@@ -83,6 +83,11 @@ Three upstream quirks that matter here (each reported in phase 3):
    embedding entry. With OpenAI's 1536-dimensional model and no `dimensions:`, ingestion fails.
 3. The catalog API checks `DM_API_TOKEN` only when `services.data_manager.auth.enabled` is true;
    with auth off it answers anyone who can reach the pod.
+4. The base requirements pin `langgraph==1.0.2` but not `langgraph-prebuilt`; langgraph accepts
+   `prebuilt>=1.0.2,<1.1`, and prebuilt ≥ 1.0.9 imports `ExecutionInfo`, which langgraph 1.0.2
+   lacks. A fresh build resolves 1.0.10 and **no archi tool imports** (found by v2-smoke's
+   in-image contract check, 2026-10-04). Our base pins `langgraph-prebuilt==1.0.8` in
+   `base-requirements.extra.txt`, resolved together with upstream's file.
 
 ## 2. Decisions (ADR-V2-1 … 10)
 
@@ -240,7 +245,8 @@ read-only (`ConfigService.get_static_config` may upsert) — phase 2b.
 
 `v2/docker/Dockerfile.base` is upstream's base recipe (`python:3.10` + `requirements.txt`, both
 vendored under `v2/vendor/reference/dockerfiles/` and re-vendored on every engine PR) plus one
-file of our own, `v2/docker/base-requirements.extra.txt`, empty unless a pin must be patched.
+file of our own, `v2/docker/base-requirements.extra.txt`, empty unless a pin must be patched
+(today one line: `langgraph-prebuilt==1.0.8`, quirk 4), resolved in the same `pip install`.
 `v2-engine` rebuilds and pushes `ghcr.io/nausikt/archi-v2-python-base` only when the fingerprint
 of those inputs changes (`lock.sh base-stale`), and records digest + fingerprint in the lock; the
 data-manager and mcp images build `FROM` it by digest. Nothing in `v2/` depends on `a2rchi/*`
@@ -343,9 +349,10 @@ Nothing to deploy: `v2-engine` runs daily from phase 1 on. What to do once:
    the repository secrets the okg engine already uses (they are; same names).
 2. Watch the first scheduled PR: its diff of `v2/vendor/reference/` is the upstream change; the
    contract report in the PR body says whether archi moved anything we borrow.
-3. File the three quirks (§1) against archi-physics/archi, each with the one-line fix:
+3. File the four quirks (§1) against archi-physics/archi, each with the one-line fix:
    `default(true, true)` → `default(true)` on `reset_collection`; look dimensions up by the
-   embedding's model name; check `DM_API_TOKEN` regardless of `auth.enabled`.
+   embedding's model name; check `DM_API_TOKEN` regardless of `auth.enabled`; pin
+   `langgraph-prebuilt` (or bump `langgraph`) in the base requirements.
 
 ### Phase 4 — `archi-crab-v2.cern.ch` and CERN SSO (gateway chart)
 
@@ -448,7 +455,7 @@ PVCs), so check the namespace quota before adding run2.
 
 | step | state | evidence |
 |---|---|---|
-| Phase 1 PR (`v2-bench`) | **open: #19** — v2-lint green; v2-smoke fixed in-image contract check (server.py path), rerun pending | `main` = b534bb6 (engine PR #18 merged; touches only the okg `versions.lock`, merges cleanly) |
+| Phase 1 PR (`v2-bench`) | **open: #19** — v2-lint green; v2-smoke: in-image contract check now runs and caught quirk 4 (langgraph-prebuilt pin added), rerun pending | `main` = b534bb6 (engine PR #18 merged; touches only the okg `versions.lock`, merges cleanly) |
 | §3.1 live v2 config | open | placeholder in `v2/deployments/archi-crab/config.yaml` |
 | Phase 2.1 first images (`v2-engine` by hand) | not started | |
 | Phase 2.2–2.5 Secret, sidecar deploy, smoke | not started | |

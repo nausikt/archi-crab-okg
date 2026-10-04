@@ -3,13 +3,13 @@
 # The three image lines are written by the bot (v2-main.yaml) after a green smoke on main,
 # from v2/versions.lock; by hand only in runbook phase 2. Never a tag.
 images:
-  dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, digest: ""}   # <- bot
-  mcp:         {repository: ghcr.io/nausikt/archi-v2-mcp,          digest: ""}   # <- bot
-  postgres:    {repository: ghcr.io/nausikt/archi-v2-postgres,     digest: ""}   # <- bot
+  dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, digest: "sha256:2a2dca78e188283988619e627743789d4dca246923fb171f5b333241bfaaed35"} # <- bot
+  mcp: {repository: ghcr.io/nausikt/archi-v2-mcp, digest: "sha256:c92c5a8bd4dfb865e5a5b14f8faf4fc880189c3613cfff2f3ee6303bc25e00a7"} # <- bot
+  postgres: {repository: ghcr.io/nausikt/archi-v2-postgres, digest: "sha256:cae2829b4ecb34381010b5b5b7e78dc16353acc04895d0f4152174c1dc67abc7"} # <- bot
 secrets:
-  existingSecret: archi-v2          # kubectl -n archi-crab-staging create secret generic archi-v2 ... (runbook 2.2)
+  existingSecret: archi-v2 # kubectl -n archi-crab-staging create secret generic archi-v2 ... (runbook 2.2)
 postgres:
-  storage: {size: 50Gi, storageClassName: cinder-io1-delete}   # the same class the okg chart uses on this cluster
+  storage: {size: 50Gi, storageClassName: cinder-io1-delete} # the same class the okg chart uses on this cluster
 dataManager:
   storage: {size: 20Gi, storageClassName: cinder-io1-delete}
 mcp:

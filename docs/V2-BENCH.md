@@ -73,7 +73,7 @@ Claude Code user has (`claude mcp add` per server) — so the merged-toolset con
   `k`, `bm25_weight`, `semantic_weight` from `data_manager.retrievers.hybrid_retriever`
   (config default 0.6/0.4; the code default is 0.5/0.5).
 
-Four upstream quirks that matter here (each reported in phase 3):
+Five upstream quirks that matter here (each reported in phase 3):
 
 1. `base-config.yaml` renders `reset_collection: {{ … | default(true, true) }}` — a `false` is
    treated as unset, so the template can only say `true`, and `true` truncates `document_chunks`
@@ -88,6 +88,15 @@ Four upstream quirks that matter here (each reported in phase 3):
    lacks. A fresh build resolves 1.0.10 and **no archi tool imports** (found by v2-smoke's
    in-image contract check, 2026-10-04). Our base pins `langgraph-prebuilt==1.0.8` in
    `base-requirements.extra.txt`, resolved together with upstream's file.
+5. `/api/ingestion/status` takes the same lock the initial ingest holds for its whole run, so the
+   call **hangs until the ingest ends** (found 2026-10-04: it looked like a stuck pod). Watch the
+   log (`Embedding file N/M`, `Vectorstore update has been completed`) or count
+   `document_chunks` in Postgres instead.
+
+Two findings that are not archi bugs, recorded for the corpus: the first ingest crashed Postgres
+at file 5020/6133 on the container's 64 MiB `/dev/shm` (fixed in the chart, 5ffadf9: a 2 GiB
+Memory emptyDir, as okg's); and archi logs per-file store errors and carries on, so compare
+`Files in vectorstore` with the catalog count (6133) before trusting a corpus.
 
 ## 2. Decisions (ADR-V2-1 … 10)
 
@@ -359,10 +368,11 @@ Nothing to deploy: `v2-engine` runs daily from phase 1 on. What to do once:
    the repository secrets the okg engine already uses (they are; same names).
 2. Watch the first scheduled PR: its diff of `v2/vendor/reference/` is the upstream change; the
    contract report in the PR body says whether archi moved anything we borrow.
-3. File the four quirks (§1) against archi-physics/archi, each with the one-line fix:
+3. File the five quirks (§1) against archi-physics/archi, each with the one-line fix:
    `default(true, true)` → `default(true)` on `reset_collection`; look dimensions up by the
    embedding's model name; check `DM_API_TOKEN` regardless of `auth.enabled`; pin
-   `langgraph-prebuilt` (or bump `langgraph`) in the base requirements.
+   `langgraph-prebuilt` (or bump `langgraph`) in the base requirements; serve
+   `/api/ingestion/status` without the ingest lock.
 
 ### Phase 4 — `archi-crab-v2.cern.ch` and CERN SSO (gateway chart)
 
@@ -466,12 +476,12 @@ PVCs), so check the namespace quota before adding run2.
 | step | state | evidence |
 |---|---|---|
 | Phase 1 PR (`v2-bench`) | **merged: #19** (6d5edef) | all green |
-| §3.1 live v2 config | open | placeholder in `v2/deployments/archi-crab/config.yaml` |
+| §3.1 live v2 config | **mostly answered** — preprod's config: prod = MiniLM 384, k=5, 0.6/0.4 (= ours); chunk size/overlap to confirm | 2026-10-05 |
 | Phase 2.1 first images | **done** — v2-engine ran on the phase 1 merge; PR #20 merged | lock: data-manager 2a2dca78, mcp c92c5a8b, postgres cae2829b |
 | Phase 2.2 Secret `archi-v2` | **done** | |
-| Phase 2.3 bench pin (`v2-main`) | running on 2f34a5a | `v2 bench: pin …` commit on main |
-| Phase 2.4–2.5 Argo app, first ingest, smoke | next | CMSKubernetes `archi-crab-paths` (2 patches) |
+| Phase 2.3 bench pin (`v2-main`) | **done** | `v2 bench: pin 2f34a5a51`; pull secret `ghcr-mitdbg-pull` (packages private) |
+| Phase 2.4–2.5 Argo app, first ingest | **ingesting** — run 1 crashed Postgres (/dev/shm, fixed 5ffadf9); the auth flip (cfcf18a) rolled the pod again | 6133 files in the catalog; compare `Files in vectorstore` when done |
 | Phase 3 daily loop | not started | |
-| CMSKubernetes `archi-crab-paths` (path support, disabled entries) | **to open** — patch delivered; inert until entries are enabled | `archi-crab-testbed` = 2b87114 |
-| Phase 4 `archi-crab-v2.cern.ch` + SSO (path prefixes) | not started | ADR-V2-5 risk to check first: `curl -sI …/grep/mcp` |
+| CMSKubernetes `archi-crab-paths` (path support, disabled entries, archi-v2 app) | **merged** | `archi-crab-testbed` = 8cfbb98 |
+| Phase 4 `archi-crab-v2.cern.ch` + SSO (path prefixes) | **half** — alias, cert `archi-crab-v2-tls`, listener done; `mcp.auth: none` merged (cfcf18a); `v2-grep`/`v2-vector` `enabled: true` = CMSKubernetes patch `v2-expose` | then the phase 4 checks; ADR-V2-5 risk first |
 | Phase 5 run1/run2 (same namespace), console paths, harness | not started | console series needed on a branch for the cookie/base changes |

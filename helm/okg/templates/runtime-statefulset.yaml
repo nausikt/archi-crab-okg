@@ -6,6 +6,9 @@
 {{- fail (printf "secrets.extraEnv name %s is reserved by the chart" .name) }}
 {{- end }}
 {{- end }}
+{{- if and .Values.frozen.enabled .Values.mirror.enabled }}
+{{- fail "frozen.enabled serves an already-published generation and nothing else: mirror.enabled must be false" }}
+{{- end }}
 {{- if .Values.bootstrap.requireApprovalRevision }}
 {{- if not .Values.repositorySync.enabled }}
 {{- fail "bootstrap.requireApprovalRevision requires repositorySync.enabled=true" }}
@@ -146,6 +149,14 @@ spec:
               readOnly: true
             {{- end }}
         {{- end }}
+        {{- /* archi-crab delta 10 (frozen instance, e.g. run1). frozen.enabled renders none of the
+               writers below -- no catalog claim, no provision/publish, no runtime bootstrap -- and
+               no worker container: the pod serves, read-only, the generation its database already
+               published. A run is BUILT with frozen.enabled=false (an ordinary bootstrap + first
+               publish) and then frozen by flipping it (docs/RUN1-FREEZE.md). repository-sync and
+               mcp-role still run: mcp-serve reads the manifest from the checkout, and the read
+               role's password comes from this release's Secret. */}}
+        {{- if not .Values.frozen.enabled }}
         {{- if .Values.bootstrap.requireApprovalRevision }}
         # archi-crab delta 9 (not in upstream's chart). okg binds a database to the
         # manifest it was claimed with and refuses to publish once deployment.yaml or the
@@ -246,6 +257,7 @@ spec:
               mountPath: {{ .Values.okg.environmentDataRoot }}
             - name: tmp
               mountPath: /tmp
+        {{- end }}{{/* not frozen: the writers */}}
         {{- if .Values.mcp.manageRole }}
         - name: mcp-role
           image: {{ include "okg.runtimeImage" . | quote }}
@@ -285,6 +297,7 @@ spec:
               mountPath: /tmp
         {{- end }}
       containers:
+        {{- if not .Values.frozen.enabled }}
         - name: worker
           image: {{ include "okg.runtimeImage" . | quote }}
           imagePullPolicy: {{ .Values.images.okg.pullPolicy }}
@@ -343,6 +356,7 @@ spec:
               subPath: {{ .name }}
               readOnly: true
             {{- end }}
+        {{- end }}{{/* not frozen: the worker keeps sources in sync */}}
         - name: mcp
           image: {{ include "okg.runtimeImage" . | quote }}
           imagePullPolicy: {{ .Values.images.okg.pullPolicy }}

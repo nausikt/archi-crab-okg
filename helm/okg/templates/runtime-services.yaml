@@ -20,6 +20,12 @@ metadata:
     app.kubernetes.io/component: mcp
 spec:
   type: ClusterIP
+  {{- with .Values.mcp.serviceClusterIP }}
+  # archi-crab delta 11: a FIXED address. ToolHive's MCPRemoteProxy connects to the address
+  # it resolved and sends it as the Host header, so mcp.allowedHosts has to name the
+  # ClusterIP; a fixed one survives the Service being recreated. Immutable once created.
+  clusterIP: {{ . | quote }}
+  {{- end }}
   publishNotReadyAddresses: true   # interim: worker readiness blocked upstream
   selector:
     {{- include "okg.selectorLabels" . | nindent 4 }}

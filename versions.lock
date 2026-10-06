@@ -18,22 +18,22 @@ upstream: # okg — the engine (private repository, private images)
   # <image>:sha-<commit> for the tip of `dev` after every merge.
   track: dev
   # Read from the image (label org.opencontainers.image.revision), never chosen by hand.
-  commit: f40415477856a15de2ee47771df28d1d7e0aed29
+  commit: 3d6cb3e8c2c2c81336eafe0768c40134a95b2797
 images:
   okg:
-    ref: ghcr.io/mitdbg/okg@sha256:f142177c39af151c83fe89b4809ac75d27817e79b298af0634f448dea8d24435
+    ref: ghcr.io/mitdbg/okg@sha256:74e9f846af5495a045cdcf431036853e0afff99ddbad031b6816ba119a5a668b
   okg-postgres:
-    ref: ghcr.io/mitdbg/okg-postgres@sha256:39d60d883d1fcc9796b82a66c89e76d7efac8d057db7249d3834f66e68dc6e20
+    ref: ghcr.io/mitdbg/okg-postgres@sha256:b6cd6a0d74789d45c2c208f2e9c8522e0c1120841a51f8f7f17e74fc7a1f9e88
 archi: # archi-okg — the HEP distribution (public): connectors, bundle, schemas, skills
   repository: https://github.com/archi-physics/archi-okg
   branch: main # archi-okg has no `dev`; merges land on main
-  commit: 46d3daef5813678fd530ffe72dc1f14dcd8e68a7
+  commit: faa731ff5e335c0d329356d4d1bcb2ab7340eb16
 runtime: # OUR image = okg base + archi. Every line below is written by engine.yaml.
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: sha256:9e05c239e0c6abbbbb8b830af6043cb8a7186b9e92bb18d24684afabf061699d
-  built_from: 3430a781579dd0846165d5aed591f40fb44056e7
+  digest: sha256:edfe5cad544636ec725354de3e410b59b9c0c7bc91ddc62aad9de5012957fbec
+  built_from: 4ea0f638b921455b458399ba1cf9875455fd9e28
   base_user: "10001:10001" # the base image's USER, read from its config
   # Fingerprints of what `digest` was built from (scripts/engine-lock.sh). CI fails when
   # `inputs` no longer matches the pins above: someone moved a pin without rebuilding.
-  inputs: 198b41fafc5a40082afbf056adcebb667c72a99940e87b36b3f638efd2df130f
-  dockerfile: 42f24c886ed2e9b2797042a73801593403d5f7f45cb509030bf032785fe3c5a5
+  inputs: ae0d9a48e21277a3b1e98b8eb314b5227c2a3291d3153ac091abd4cbe379be4a
+  dockerfile: 6fa443313b4027eb439674684633178e7cd5a0e51be5620cb4b39d104d311061

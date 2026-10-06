@@ -58,6 +58,22 @@ RUN --mount=type=secret,id=okg_pat set -eux; \
     echo "framework authority: $(git rev-parse --short HEAD)"
 
 # ---------------------------------------------------------------------------
+# 1b. The venv's okg IS this checkout. Since okg dev 3d6cb3e8 the CLI refuses to start
+# from inside a source checkout whose code is not what is installed ("bare okg is not
+# running this checkout's code": the chart's containers start in /opt/okg, the image's
+# working directory). An editable install of the checkout into the base image's venv
+# makes the installed package the checkout itself: same commit, one copy of the code.
+# --no-deps: the base image already resolved okg's dependencies; nothing else moves.
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    PY=/opt/okg/.venv/bin/python; test -x "$PY"; \
+    if command -v uv >/dev/null; then uv pip install --python "$PY" --no-cache --no-deps --editable /opt/okg; \
+    else "$PY" -m pip install --no-cache-dir --no-deps --editable /opt/okg; fi; \
+    "$PY" -c "import okg, pathlib; p = pathlib.Path(okg.__file__).resolve(); \
+assert str(p).startswith('/opt/okg/') and '/.venv/' not in str(p), p; print('okg runs from', p)"; \
+    cd /opt/okg && okg --help > /dev/null && echo "okg starts from its checkout"
+
+# ---------------------------------------------------------------------------
 # 2. archi, at one exact commit. PUBLIC: plain https, no secret. NEVER
 # `pip install archi` (an unrelated PyPI package squats the name). Keep the
 # checkout: the bundle lives in /opt/archi/bundles and vendor-sync.sh reads it.

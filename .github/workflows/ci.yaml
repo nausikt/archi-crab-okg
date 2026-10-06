@@ -27,13 +27,30 @@ jobs:
           test -f deployments/archi-crab/extractors.yaml || { echo "::error::deployments/archi-crab/extractors.yaml missing (vendor-sync --apply)"; exit 1; }
           test -f deployments/archi-crab/schemas/bridges/extraction_to_git_files.yaml || { echo "::error::code-graph bridge missing (vendor-sync --apply)"; exit 1; }
           test -f deployments/archi-crab/VENDOR.yaml || { echo "::error::deployments/archi-crab/VENDOR.yaml missing"; exit 1; }
-      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml deployments envs helm/okg/values.yaml versions.lock
+      - run: pip install --quiet yamllint && yamllint -c .yamllint.yaml deployments envs ops helm/okg/values.yaml versions.lock
       - name: Engine pins match the image they claim (no pin moved without a rebuild)
         run: scripts/engine-lock.sh check
       - run: helm lint helm/okg -f envs/staging/values.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - run: helm lint helm/okg -f envs/prod/values.yaml    --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - run: helm lint helm/okg -f envs/staging/values.yaml -f helm/okg/ci/git-credentials-on.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
-      - name: kubeconform (both envs)
+      - run: helm lint helm/okg -f envs/run1/values.yaml  # pinned by hand: its own revision, no --set
+      - name: runs have their own Secret; frozen renders MCP only (chart delta 10)
+        run: |
+          # okg-archi-crab's DSNs name staging's Postgres: a run reading it would write staging.
+          for f in envs/run*/values.yaml; do
+            [ "$(yq -r '.secrets.existingSecret // ""' "$f")" != "okg-archi-crab" ] || { echo "::error file=$f::a run uses staging's Secret"; exit 1; }
+            [ -n "$(yq -r '.secrets.existingSecret // ""' "$f")" ] || { echo "::error file=$f::a run must set secrets.existingSecret"; exit 1; }
+          done
+          shape() {
+            helm template t helm/okg -f "envs/$1/values.yaml" --set repositorySync.revision=x --set bootstrap.approvedRevision=x "${@:2}" \
+            | yq -r 'select(.kind == "StatefulSet" and (.metadata.name | test("-runtime$"))) | .spec.template.spec
+                     | ([.initContainers[].name] + ["|"] + [.containers[].name]) | join(",")' | grep -F ',|,'
+          }
+          frozen="$(shape run1 --set frozen.enabled=true)"; staging="$(shape staging)"
+          echo "frozen:  $frozen"; echo "staging: $staging"; echo "run1:    $(shape run1)"
+          [ "$frozen" = "repository-sync,mcp-role,|,mcp" ] || { echo "::error::frozen.enabled renders more than the MCP"; exit 1; }
+          case "$staging" in *bootstrap*worker*) ;; *) echo "::error::staging lost its bootstrap or worker"; exit 1 ;; esac
+      - name: kubeconform (staging, prod, run1 building and frozen, the staging backup)
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
           for e in staging prod; do
@@ -46,6 +63,9 @@ jobs:
           helm template t helm/okg -f envs/staging/values.yaml -f helm/okg/ci/git-credentials-on.yaml \
             --set repositorySync.revision=${{ github.sha }} --set bootstrap.approvedRevision=${{ github.sha }} \
           | ./kubeconform -strict -summary -schema-location default
+          helm template t helm/okg -f envs/run1/values.yaml | ./kubeconform -strict -summary -schema-location default
+          helm template t helm/okg -f envs/run1/values.yaml --set frozen.enabled=true | ./kubeconform -strict -summary -schema-location default
+          ./kubeconform -strict -summary -schema-location default ops/staging-backup/*.yaml   # applied by hand
 
   pins:
     needs: lint

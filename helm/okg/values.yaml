@@ -117,11 +117,25 @@ mcp:
   manageRole: true                    # mcp-role init container: ALTER ROLE okg_mcp LOGIN ...
   port: 8765
   allowedHosts: []                    # cluster-internal Service only; vMCP fronts it
+  # archi-crab delta 11: fixed ClusterIP for the -mcp Service ("" = allocated). Pick a free
+  # address in the Service CIDR's static band (10.254.0.0/24 on this cluster) and list it
+  # in allowedHosts as "<ip>:*". Immutable: changing it means deleting the Service.
+  serviceClusterIP: ""
   resources: {}
 
 tests:
   readiness: {resources: {}}
   mcp: {resources: {}}
+
+# Frozen instance (archi-crab delta 10; a study run like run1): serve, read-only, the generation
+# the database already published -- no catalog-claim, bootstrap (provision/publish),
+# runtime-bootstrap or worker, so nothing changes the data any more. A run is BUILT with
+# false (ordinary bootstrap and first publish), then frozen by setting true; staging can be
+# frozen the same way for a bench window. repository-sync and mcp-role still run. A RUN's
+# secrets.existingSecret MUST be its own Secret: okg-archi-crab's DSNs name staging's Postgres
+# (CI refuses any envs/run*/ that uses it).
+frozen:
+  enabled: false
 
 mirror:
   enabled: false

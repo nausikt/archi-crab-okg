@@ -413,13 +413,22 @@ back to the path-aware URL: say so, and the two v2 entries move to their own ali
 is one more Helm release of the same `helm/okg` chart with its own `fullnameOverride`
 (`archi-crab-okg-run1`), so every object it creates is already name-scoped (Services, StatefulSets,
 PVCs, NetworkPolicies select on the release instance label). What staying in one namespace saves:
-no ReferenceGrant, no namespace label for the Gateway's listener selector, no second Vault/VSO
-path (the runs read the same `okg-archi-crab` Secret; each run has its own Postgres, so sharing
-the role passwords crosses no data), and the proxies of the gateway chart reach every run's
-Service in-namespace. The cost is only quota: each run is a full okg (runtime + Postgres + two
-PVCs), so check the namespace quota before adding run2.
+no ReferenceGrant, no namespace label for the Gateway's listener selector, and the proxies of the
+gateway chart reach every run's Service in-namespace. The cost is only quota: each run is a full
+okg (runtime + Postgres + two PVCs), so check the namespace quota before adding run2.
 
-1. **Values:** `envs/run1/values.yaml` from `envs/run1/values.yaml.example` (in this repo): `fullnameOverride: archi-crab-okg-run1`, `repositorySync.revision` and
+**Corrected 2026-10-06:** a run does NOT read staging's `okg-archi-crab` Secret. Its `okg-dsn` and
+`mcp-dsn` name staging's Postgres host, so a run using it would serve (and its init containers
+write) staging's database. Each run gets `okg-archi-crab-<run>`: same keys and passwords, DSN host
+rewritten (`scripts/okg-run-secret.sh <run>`).
+
+**run1: [RUN1-FREEZE.md](RUN1-FREEZE.md).** okg v3, built from scratch on its own volumes with
+staging's current pins, then frozen (`frozen.enabled`, chart delta 10: no worker, no bootstrap);
+staging is then rebuilt from scratch on okg v4. A revision pin alone does not freeze okg (the
+worker re-ingests moving upstreams), hence the freeze flip once the first publish is verified.
+Steps 1–3 below are the generic recipe; RUN1-FREEZE has run1's exact values and order.
+
+1. **Values:** `envs/runN/values.yaml` (start from `envs/run1/values.yaml` without `frozen`): `fullnameOverride: archi-crab-okg-runN`, `repositorySync.revision` and
    `bootstrap.approvedRevision` = the knowledge commit the run studies, `images.*` = the engine of
    that day, storage, `mcp.allowedHosts: [archi-crab-okg-staging.cern.ch]`. Pinned by hand,
    never by the bot (`main.yaml` writes only `envs/staging`). `sources.py lint --base published`
@@ -484,4 +493,5 @@ PVCs), so check the namespace quota before adding run2.
 | Phase 3 daily loop | not started | |
 | CMSKubernetes `archi-crab-paths` (path support, disabled entries, archi-v2 app) | **merged** | `archi-crab-testbed` = 8cfbb98 |
 | Phase 4 `archi-crab-v2.cern.ch` + SSO (path prefixes) | **half** — alias, cert `archi-crab-v2-tls`, listener done; `mcp.auth: none` merged (cfcf18a); `v2-grep`/`v2-vector` `enabled: true` = CMSKubernetes patch `v2-expose` | then the phase 4 checks; ADR-V2-5 risk first |
-| Phase 5 run1/run2 (same namespace), console paths, harness | not started | console series needed on a branch for the cookie/base changes |
+| Phase 5 run1 (okg v3 frozen) + staging → v4 | **runbook + patches ready** — [RUN1-FREEZE.md](RUN1-FREEZE.md) (PR `run1-freeze`; CMSKubernetes `okg-run1-on`, `okg-run1-done`) | its §5 tracks the steps |
+| Phase 5 run2, console paths, harness | not started | console series needed on a branch for the cookie/base changes |

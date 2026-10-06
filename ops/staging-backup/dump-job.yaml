@@ -1,0 +1,216 @@
+# Insurance before staging's volumes are wiped for okg v4 (docs/RUN1-FREEZE.md, step 4):
+# a read-only dump of every database on staging's Postgres into the PVC archi-crab-okg-staging-backup.
+# Nothing restores it in the plan; it exists so that okg v3's accumulated data is not gone for good.
+#
+# READ-ONLY against staging: every session runs with default_transaction_read_only=on, and the
+# tools only read (pg_dumpall --globals-only, pg_dump, SELECT).
+#   - one database per file, custom format (okg.dump, and any other database on the server,
+#     e.g. a DBOS system database), the roles (globals.sql: password hashes -- treat as secret)
+#     and each database's own settings and grants (<db>.props.sql)
+#   - okg from an EXPORTED SNAPSHOT: pg_dump starts on it at once, then the same transaction
+#     records okg's fingerprint (live nodes per subtype, edges) and index list -- what a restore
+#     would have to reproduce (ops/staging-backup/README.md)
+#   - MANIFEST + SHA256SUMS last; staging-v3.partial is renamed staging-v3 only then
+# Refuses to run when /backup/staging-v3/MANIFEST exists.
+#
+# Pod labels = staging's selector labels: the staging Postgres NetworkPolicy admits only pods of
+# its own release. component: backup matches no Service and no StatefulSet.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: archi-crab-okg-staging-backup
+  namespace: archi-crab-staging
+  labels:
+    app.kubernetes.io/part-of: archi-crab-okg
+    archi-crab/backup: staging-v3
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 21600   # 6 h
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: okg
+        app.kubernetes.io/instance: archi-crab-okg-staging
+        app.kubernetes.io/component: backup
+        archi-crab/backup: staging-v3
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: ghcr-mitdbg-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: node-role.kubernetes.io/master, operator: DoesNotExist}
+                  - {key: node-role.kubernetes.io/control-plane, operator: DoesNotExist}
+      containers:
+        - name: dump
+          # staging's okg-postgres: the client tools match the server that wrote the data
+          image: ghcr.io/mitdbg/okg-postgres@sha256:39d60d883d1fcc9796b82a66c89e76d7efac8d057db7249d3834f66e68dc6e20
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          env:
+            - {name: PGHOST, value: archi-crab-okg-staging-postgres}
+            - {name: PGPORT, value: "5432"}
+            - {name: PGUSER, value: postgres}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef: {name: okg-archi-crab, key: postgres-password}
+            # read-only sessions; the snapshot session may sit idle in its transaction for hours
+            - {name: PGOPTIONS, value: "-c default_transaction_read_only=on -c idle_in_transaction_session_timeout=0"}
+            - {name: PGCONNECT_TIMEOUT, value: "10"}
+            - {name: HOME, value: /tmp}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef: {fieldPath: metadata.namespace}
+            # What staging runs before the wipe (envs/staging/values.yaml on main at ed24df2):
+            # recorded in the MANIFEST. Check them against the live StatefulSets (runbook 0.2).
+            - {name: SOURCE_RELEASE, value: archi-crab-okg-staging}
+            - {name: SOURCE_ENGINE_IMAGE, value: "ghcr.io/nausikt/archi-crab-okg@sha256:9e05c239e0c6abbbbb8b830af6043cb8a7186b9e92bb18d24684afabf061699d"}
+            - {name: SOURCE_POSTGRES_IMAGE, value: "ghcr.io/mitdbg/okg-postgres@sha256:39d60d883d1fcc9796b82a66c89e76d7efac8d057db7249d3834f66e68dc6e20"}
+            - {name: SOURCE_REVISION, value: "6d5edef0b0bc3c1b1a5200b85620c6d7b0a0d380"}
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              OUT=/backup/staging-v3
+              if [ -e "$OUT/MANIFEST" ]; then
+                echo "$OUT/MANIFEST exists: this backup was already taken:" >&2
+                cat "$OUT/MANIFEST" >&2
+                echo "Keep it. To take it again ON PURPOSE, delete $OUT first." >&2
+                exit 1
+              fi
+              until pg_isready -q -d postgres; do echo "waiting for $PGHOST"; sleep 5; done
+              rm -rf "$OUT.partial"; mkdir -p "$OUT.partial"; cd "$OUT.partial"
+
+              psql -XAtq -v ON_ERROR_STOP=1 -d postgres -c 'SHOW server_version' > server_version.txt
+              psql -XAtq -v ON_ERROR_STOP=1 -d postgres -c "
+                SELECT datname, pg_encoding_to_char(encoding), datcollate, datctype, pg_database_size(datname)
+                  FROM pg_database
+                 WHERE datallowconn AND NOT datistemplate AND datname <> 'postgres'
+                 ORDER BY datname" > databases.txt
+              grep -q '^okg|' databases.txt || { echo "no database okg on $PGHOST" >&2; exit 1; }
+              echo "== PostgreSQL $(cat server_version.txt); databases (name|encoding|collate|ctype|bytes):"
+              cat databases.txt
+              total=$(awk -F'|' '{s += $5} END {print s + 0}' databases.txt)
+              free=$(df -B1 --output=avail /backup | tail -1)
+              echo "on disk $((total / 1048576)) MiB; free on /backup $((free / 1048576)) MiB"
+              [ "$free" -gt $((total / 2)) ] || echo "WARNING: less free space than half the databases' size" >&2
+
+              echo "== roles"
+              pg_dumpall --globals-only --no-tablespaces -f globals.sql
+              echo "$(grep -cE '^CREATE ROLE' globals.sql || true) roles"
+
+              dump_okg() {
+                # One REPEATABLE READ transaction exports its snapshot; pg_dump imports it and starts
+                # AT ONCE (its locks then cover every table it dumps), and only then does the same
+                # transaction read the fingerprint and the index list. All three describe the same
+                # published generation. The session stays open until pg_dump is done.
+                rm -f /tmp/sql /tmp/snapshot /tmp/snapshot_at /tmp/ready1 /tmp/ready2
+                mkfifo /tmp/sql
+                psql -XAtq -v ON_ERROR_STOP=1 -d "dbname=okg keepalives_idle=60 keepalives_interval=10" \
+                  < /tmp/sql > /tmp/holder.log 2>&1 &
+                holder=$!
+                exec 3> /tmp/sql
+                wait_for() {
+                  until [ -s "$1" ]; do
+                    if ! kill -0 "$holder" 2>/dev/null; then
+                      cat /tmp/holder.log >&2; echo "the snapshot session ended early" >&2; exit 1
+                    fi
+                    sleep 1
+                  done
+                }
+                printf '%s\n' \
+                  'BEGIN ISOLATION LEVEL REPEATABLE READ, READ ONLY;' \
+                  '\o /tmp/snapshot' \
+                  'SELECT pg_export_snapshot();' \
+                  '\o /tmp/snapshot_at' \
+                  "SELECT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"');" \
+                  '\o /tmp/ready1' \
+                  "SELECT 'ready';" \
+                  '\o' >&3
+                wait_for /tmp/ready1
+                echo "okg: snapshot $(cat /tmp/snapshot) taken at $(cat /tmp/snapshot_at)"
+                pg_dump -d okg -Fc --snapshot="$(cat /tmp/snapshot)" --lock-wait-timeout=10min -f okg.dump &
+                dumper=$!
+                printf '%s\n' \
+                  '\o okg.fingerprint.txt' \
+                  "SELECT 'node ' || subtype || ' ' || count(*) FROM okg.v_nodes GROUP BY subtype ORDER BY 1;" \
+                  "SELECT 'edges ' || count(*) FROM okg.v_edges;" \
+                  '\o okg.indexes.txt' \
+                  "SELECT schemaname || '.' || indexname FROM pg_indexes
+                    WHERE schemaname NOT IN ('pg_catalog', 'information_schema') ORDER BY 1;" \
+                  '\o /tmp/ready2' \
+                  "SELECT 'ready';" \
+                  '\o' >&3
+                wait_for /tmp/ready2
+                echo "fingerprint (in the snapshot): $(paste -sd' ' okg.fingerprint.txt); $(wc -l < okg.indexes.txt) indexes"
+                wait "$dumper"
+                echo 'COMMIT;' >&3
+                exec 3>&-
+                wait "$holder"
+              }
+
+              while IFS='|' read -r db _ _ _ size <&4; do
+                echo "== $db ($((size / 1048576)) MiB on disk) $(date -u +%T)"
+                if [ "$db" = okg ]; then
+                  dump_okg
+                else
+                  pg_dump -d "$db" -Fc --lock-wait-timeout=10min -f "$db.dump"
+                fi
+                psql -XAtq -v ON_ERROR_STOP=1 -d "$db" \
+                  -c "SELECT extname || ' ' || extversion FROM pg_extension ORDER BY 1" > "$db.extensions.txt"
+                # Database-level settings and grants live in the archive; pg_restore emits them only
+                # with --create. Keep them as SQL the restore applies after the data.
+                pg_restore --create --schema-only -f /tmp/schema.sql "$db.dump"
+                db_level='^(ALTER DATABASE|ALTER ROLE .* IN DATABASE|(GRANT|REVOKE) .* ON DATABASE|COMMENT ON DATABASE|SECURITY LABEL ON DATABASE) '
+                { grep -E "$db_level" /tmp/schema.sql | grep -v 'timescaledb.restoring' || true; } > "$db.props.sql"
+                echo "$(du -h "$db.dump" | cut -f1) dump; extensions: $(paste -sd, "$db.extensions.txt");" \
+                  "$(wc -l < "$db.props.sql") database-level statements"
+              done 4< databases.txt
+
+              sha256sum -- *.dump *.sql *.txt > /tmp/SHA256SUMS && mv /tmp/SHA256SUMS SHA256SUMS
+              cat > MANIFEST <<EOF
+              backup: staging-v3
+              source_release: $SOURCE_RELEASE
+              source_namespace: $POD_NAMESPACE
+              source_host: $PGHOST
+              source_engine_image: $SOURCE_ENGINE_IMAGE
+              source_postgres_image: $SOURCE_POSTGRES_IMAGE
+              source_knowledge_revision: $SOURCE_REVISION
+              server_version: $(cat server_version.txt)
+              databases: $(cut -d'|' -f1 databases.txt | paste -sd' ')
+              okg_fingerprint: $(awk '$1 == "node" {n += $3} $1 == "edges" {e = $2} END {print n + 0 " nodes, " e + 0 " edges"}' okg.fingerprint.txt)
+              dumped_at: $(cat /tmp/snapshot_at)
+              finished_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+              sha256sums: $(sha256sum SHA256SUMS | cut -c1-64)
+              EOF
+              sed -i 's/^ *//' MANIFEST
+              sync
+              cd /backup && mv staging-v3.partial staging-v3 && sync
+              echo "== /backup/staging-v3/MANIFEST (sha256 $(sha256sum staging-v3/MANIFEST | cut -c1-64))"
+              cat staging-v3/MANIFEST
+              ls -la staging-v3
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {memory: 2Gi}
+          volumeMounts:
+            - {name: backup, mountPath: /backup}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: backup
+          persistentVolumeClaim: {claimName: archi-crab-okg-staging-backup}
+        - name: tmp
+          emptyDir: {}

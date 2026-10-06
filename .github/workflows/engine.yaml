@@ -184,9 +184,13 @@ jobs:
           out="$RUNNER_TEMP/report"; mkdir -p "$out/c"; chmod 777 "$out/c"
           # The container runs as the image's user and owns what it writes in /out. The
           # report is taken from its stdout, so the file the host appends to is the host's.
+          # Same env and cwd as ci.yaml's contract check (see the note there).
           check() {
             docker run --rm --network none \
               -v "$PWD/deployments:/w/deployments:ro" -v "$PWD/scripts:/w/scripts:ro" -v "$out/c:/out" \
+              -e OKG_RUNTIME_ENVIRONMENT=kubernetes -e OKG_RUNTIME_SUPERVISOR=container -e OKG_DEPLOYMENT=archi-crab \
+              -e OKG_NOMOS_SUBJECT=archi-crab-runtime -e OKG_REPO_ROOT=/w -e OKG_DEPLOYMENTS_DIR=/w/deployments \
+              -e OKG_ENVIRONMENT_DATA_ROOT=/tmp/okg-data -e ARCHI_DATA_ROOT=/tmp/okg-data -w /w \
               --entrypoint python "$IMG" /w/scripts/contract-check.py \
               --deployment /w/deployments/archi-crab --fixes /out/fixes.json > "$out/contract.md"
           }

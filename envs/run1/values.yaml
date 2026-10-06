@@ -1,0 +1,59 @@
+# envs/run1 — okg v3, built FROM SCRATCH on its own volumes, then FROZEN. Served read-only at
+# https://archi-crab-okg-staging.cern.ch/run1/mcp (mcp-gateway remote proxy okg-run1).
+# Runbook: docs/RUN1-FREEZE.md.
+#
+# Two phases, one line: frozen.enabled false = an ordinary okg (bootstrap ingests and publishes,
+# the worker syncs); once the first publish is verified, true = no worker, no bootstrap, the
+# MCP serves that generation and nothing changes it again.
+#
+# Same namespace as staging (archi-crab-staging); every object is named from fullnameOverride.
+# PINNED BY HAND, never by the bot (main.yaml writes envs/staging only), and DEPLOYED FROM THE TAG
+# okg-run1, not from main: editing this file on main changes nothing until the tag is moved
+# (docs/RUN1-FREEZE.md). okg v3 = what staging ran for the evaluation of 2026-10-01: pin
+# "staging: pin 11ede756b" (bb79172, Thu 1 Oct 07:55 UTC, live until Sat 3 Oct 21:51 UTC):
+#   engine     ghcr.io/nausikt/archi-crab-okg = okg 0a8e0cd4 + archi-okg 1bb7e703 (versions.lock @ bb79172)
+#   knowledge  11ede756 (sources/ and deployments/ byte-identical to main today and to v4's)
+fullnameOverride: archi-crab-okg-run1
+images:
+  okg:
+    repository: ghcr.io/nausikt/archi-crab-okg
+    tag: ""
+    digest: "sha256:f7ffb358b07f191ce2cf91df3d2d43322a0a9d7124a60dd7ca4d336a2db130b3"
+    pullPolicy: IfNotPresent
+postgresql:
+  image:
+    repository: ghcr.io/mitdbg/okg-postgres
+    tag: ""
+    digest: "sha256:b5b6eb8ca70a960d643e9117ac73d05d75899aa42018065b666d8f4bdae8fe36"
+    pullPolicy: IfNotPresent
+  storage:
+    size: 150Gi                          # same class and size as staging: the bench compares latency
+    storageClassName: cinder-io1-delete
+runtime:
+  storage:
+    size: 75Gi                           # = staging: the build clones the code repositories here
+    storageClassName: cinder-io1-delete  # = staging (ingest speed); cinder-standard if io1 quota is short
+secrets:
+  existingSecret: okg-archi-crab-run1    # run1's OWN Secret: DSN host archi-crab-okg-run1-postgres
+repositorySync:
+  revision: "11ede756bb057d7ae782b3da68f0563e20736593"
+bootstrap:
+  approvedRevision: "11ede756bb057d7ae782b3da68f0563e20736593"  # MUST equal repositorySync.revision
+frozen:
+  enabled: false                         # true once the first publish is verified (RUN1-FREEZE step 4)
+mcp:
+  # Fixed ClusterIP (chart delta 11): the remote proxy sends the address it dialled as Host.
+  # Check it is free before the first sync (docs/RUN1-FREEZE.md, preflight).
+  serviceClusterIP: "10.254.0.201"
+  allowedHosts:
+    - "archi-crab-okg-staging.cern.ch"
+    - "archi-crab-okg-staging.cern.ch:*"
+    - "10.254.0.201:*"
+# Keep the runtime pod off the control plane (the master is small and has run out of memory).
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - {key: node-role.kubernetes.io/master, operator: DoesNotExist}
+            - {key: node-role.kubernetes.io/control-plane, operator: DoesNotExist}

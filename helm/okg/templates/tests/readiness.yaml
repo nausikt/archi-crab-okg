@@ -27,7 +27,7 @@ spec:
           attempt=0
           while [ "$attempt" -lt 30 ]; do
             if okg deployment ready {{ .Values.okg.deployment | quote }} \
-              --profile {{ .Values.okg.readinessProfile | quote }} --json; then
+              {{- with .Values.okg.readinessProfile }} --profile {{ . | quote }}{{ end }} --json; then
               exit 0
             fi
             attempt=$((attempt + 1))

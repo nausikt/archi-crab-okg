@@ -7,6 +7,8 @@
 # To change the engine, merge the `engine` workflow's pull request; CI reads
 # versions.lock (not this file) to pick the image it tests.
 fullnameOverride: archi-crab-okg-staging
+okg:
+  readinessProfile: ""   # okg v4 (dev >= 3d6cb3e8) has no `deployment ready --profile`; run1 (v3) keeps it
 images:
   okg:
     repository: ghcr.io/nausikt/archi-crab-okg

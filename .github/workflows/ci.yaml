@@ -167,8 +167,15 @@ jobs:
         run: |
           out="$RUNNER_TEMP/contract"; mkdir -p "$out"; chmod 777 "$out"
           rc=0
+          # The chart's declared environment (okg.commonEnv) and a cwd outside the image's own
+          # checkout: since okg dev 3d6cb3e8 the CLI refuses to run from inside /opt/okg (its
+          # source checkout) unless it is told it is a deployed container, and reports every
+          # command as "gone or renamed". The other steps of this job already pass this env.
           docker run --rm --network none \
             -v "$PWD/deployments:/w/deployments:ro" -v "$PWD/scripts:/w/scripts:ro" -v "$out:/out" \
+            -e OKG_RUNTIME_ENVIRONMENT=kubernetes -e OKG_RUNTIME_SUPERVISOR=container -e OKG_DEPLOYMENT=archi-crab \
+            -e OKG_NOMOS_SUBJECT=archi-crab-runtime -e OKG_REPO_ROOT=/w -e OKG_DEPLOYMENTS_DIR=/w/deployments \
+            -e OKG_ENVIRONMENT_DATA_ROOT=/tmp/okg-data -e ARCHI_DATA_ROOT=/tmp/okg-data -w /w \
             --entrypoint python "$OKG_IMG" /w/scripts/contract-check.py \
             --deployment /w/deployments/archi-crab --markdown /out/contract.md || rc=$?
           cat "$out/contract.md" >> "$GITHUB_STEP_SUMMARY" || true

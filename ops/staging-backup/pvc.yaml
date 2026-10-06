@@ -1,0 +1,17 @@
+# Insurance before staging is wiped (ops/staging-backup/dump-job.yaml). Applied by hand,
+# never by Argo CD. Size it from the preflight (pg_database_size of every database on staging): a
+# custom-format dump drops the indexes but embeddings compress poorly; 50Gi covers ~80 GB on disk.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: archi-crab-okg-staging-backup
+  namespace: archi-crab-staging
+  labels:
+    app.kubernetes.io/part-of: archi-crab-okg
+    archi-crab/backup: staging-v3
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: cinder-standard
+  resources:
+    requests:
+      storage: 50Gi

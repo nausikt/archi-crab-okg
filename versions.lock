@@ -30,8 +30,8 @@ archi: # archi-okg — the HEP distribution (public): connectors, bundle, schema
   commit: faa731ff5e335c0d329356d4d1bcb2ab7340eb16
 runtime: # OUR image = okg base + archi. Every line below is written by engine.yaml.
   ref: ghcr.io/nausikt/archi-crab-okg
-  digest: sha256:57adbfe757d6ac8e3a0a89f0a012b38285c1edd869e2c0625bc3fedc19a8dad0
-  built_from: e9b715135638c152fe8f800d5e3d36a9820e5d47
+  digest: sha256:4cfd0d05bc8c264f5678a92b7c406b0d534ab2ba9d9657667cc2b55e7ace5c91
+  built_from: 95de640b73e92035db498b05e73a49539707868b
   base_user: "10001:10001" # the base image's USER, read from its config
   # Fingerprints of what `digest` was built from (scripts/engine-lock.sh). CI fails when
   # `inputs` no longer matches the pins above: someone moved a pin without rebuilding.

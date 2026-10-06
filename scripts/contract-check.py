@@ -54,7 +54,7 @@ CLI_CONTRACT: list[tuple[str, list[str]]] = [
     ("provision", ["--deployment", "--publish-once", "--source-workers", "--include", "--json"]),
     ("runtime bootstrap", ["--deployment", "--json"]),
     ("runtime worker", ["--deployment"]),
-    ("deployment ready", ["--profile", "--json"]),
+    ("deployment ready", ["--json"]),   # --profile: gone since okg 3d6cb3e8 (chart: okg.readinessProfile "")
     ("status", ["--deployment", "--json"]),
     ("search", ["--deployment", "--query"]),
     ("mcp-serve", ["--deployment", "--transport", "--host", "--port", "--allowed-host", "--auth-token-env"]),

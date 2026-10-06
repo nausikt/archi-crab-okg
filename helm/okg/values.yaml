@@ -13,7 +13,9 @@ okg:
   deployment: archi-crab
   # Env var name the deployment manifest's `postgres.dsn: ${OKG_DSN}` reads.
   deploymentDsnEnv: OKG_DSN
-  readinessProfile: general          # general | dogfood | ci
+  # `okg deployment ready --profile <this>` (the worker's probes). "" = no --profile flag:
+  # okg dev >= 3d6cb3e8 (okg v4) dropped the flag; engines up to f4041547 (v3, run1) need it.
+  readinessProfile: general          # general | dogfood | ci | ""
   runtimeNomosSubject: archi-crab-runtime
   mcpNomosSubject: archi-crab-mcp
   # Both roots live on the runtime-data PVC (see Runbook footnote F1).
@@ -76,7 +78,7 @@ postgresql:
 runtime:
   terminationGracePeriodSeconds: 60
   probes:
-    # Startup probe IS `okg deployment ready --profile <readinessProfile>`.
+    # Startup probe IS `okg deployment ready [--profile <readinessProfile>]`.
     # Cold bootstrap (clone + ingest + publish) happens in init containers,
     # so this budget only covers the worker coming up afterwards.
     startup: {periodSeconds: 30, timeoutSeconds: 20, failureThreshold: 60}

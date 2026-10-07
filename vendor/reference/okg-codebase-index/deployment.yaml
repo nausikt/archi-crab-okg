@@ -88,19 +88,18 @@ viz:
 # starter: a local, no-export personal deployment that keeps source text
 # (store_raw: true).
 #
-# `audit` records every runtime Nomos decision but does not block. A policy
-# bundle is seeded by `okg up` and `okg provision` (in audit or enforce mode),
-# by `okg deployment nomos-rollout-audit --apply-baseline`, and by `okg init`'s
-# own first publish only when this block says `enforce`. `okg init --no-publish`
-# followed by a manual `okg ingest` seeds none, so under `enforce` that first
-# ingest would stop at `nomos.default_deny.no_active_bundle`; under `audit` it
-# runs and the refusal is recorded. `audit` matches the academic-researcher
-# profile's identical block. It cannot pass as a production setting:
-# readiness for the ci, dogfood and production profiles refuses audit mode
-# (`nomos.runtime.mode_not_blocking`). Switch to `enforce` once a bundle is
-# seeded to have denied effects refused.
+# Runtime enforcement is `off`: a fresh install leaves Nomos runtime checks
+# off when the deployment declares no access rules (issue #3414, Jason
+# 2026-10-05 `nomosdefault A`). The posture and source policies below still
+# apply in every mode: `okg ingest` audits each source against them. Audit
+# and enforce are opt-in. `audit` records every runtime decision without
+# blocking; `enforce` refuses denied effects and needs a policy bundle, which
+# `okg up`, `okg provision`, `okg deployment nomos-rollout-audit
+# --apply-baseline` and `okg init`'s first publish seed in either mode.
+# Readiness for the ci, dogfood and production profiles requires `enforce`
+# (`nomos.runtime.mode_not_blocking`).
 nomos:
-  runtime_enforcement: audit
+  runtime_enforcement: "off"
   deployment_posture:
     deployment_class: personal_okg
     read_principals: [human_operator, agent, okg_service, mcp_client]

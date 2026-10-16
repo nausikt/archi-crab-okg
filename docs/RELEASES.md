@@ -15,6 +15,15 @@ proxies), never a second instance. Prod has its own instance of the best pair (F
 - run1 is retired: its app, proxy, volumes and Secret are gone.
 - The ToolHive operator is **still up**, on purpose, for C.
 
+**Done (phase 1, so far):**
+- Engine `v0.2.0-rc1` is built (run 38938717337):
+  - okg `06a4771945e2` + archi-okg `e1c2886064b2`;
+  - runtime `sha256:b96c7167…`, postgres `sha256:fca7ed27…`.
+- The contract report shows 0 errors and 0 warnings.
+- The tag `engine/v0.2.0-rc1` points at `9a0e533`. It carries corpus v0.1.0, and an adapter
+  identical to 43f459c6's, so A and C differ only by engine.
+- C's release patch is next (step 5 below).
+
 **Patches:**
 
 | Patch | State | When |

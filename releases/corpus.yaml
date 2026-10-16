@@ -41,8 +41,12 @@ corpora:
       Tiers 10+20 enabled, 19 sources rendered (18 git repositories + twiki-sanitized, 285 CMSPublic
       pages), 10 pending (enabled: false, or tier 30). cmssw-releases retired 2026-10-01.
     materialized:
-      okg/43f459c6: {generation: "…T090506643459Z:c895f8d81486", nodes: 326241, edges: 419177, built: "2026-10-06"}
-      okg/v3-run1: {generation: "…T085914702200Z:8bea09e15268", nodes: 326241, edges: 419177, built: "2026-10-06"}
+      # A: built 2026-10-06; its worker re-published nightly until the freeze (2026-10-16 ~19:00
+      # CEST). Frozen generation below; same counts as the 2026-10-06 build.
+      okg/43f459c6: {generation: "okg:archi-crab:branch:default:gen:20261016T000015717215Z:eee6c09f3655", nodes: 326241, edges: 419177, built: "2026-10-06"}
+      # C: built 2026-10-16 (ingest ~58 min); +178 nodes / +190 edges vs A = 10 days of git drift + engine.
+      okg/v0.2.0-rc1: {generation: "okg:archi-crab:branch:default:gen:20261016T184727098429Z:dbc96e1b4a8d", nodes: 326419, edges: 419367, built: "2026-10-16"}
+      okg/v3-run1: {generation: "…T085914702200Z:8bea09e15268", nodes: 326241, edges: 419177, built: "2026-10-06", retired: "2026-10-16"}
       # TODO: the data-manager counts (docs/RELEASES.md 0.5).
       v2/archi-e6609f8f: {documents: null, chunks: null, raw_bytes: null, built: "2026-10-05"}
 

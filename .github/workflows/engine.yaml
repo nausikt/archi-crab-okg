@@ -98,7 +98,7 @@ jobs:
         env:
           GHCR_PAT: ${{ secrets.GHCR_PAT }} # read:packages (mitdbg images) + write:packages (ours)
         run: echo "$GHCR_PAT" | docker login ghcr.io -u nausikt --password-stdin
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.gate.outputs.go == 'true'
 
       - id: pins

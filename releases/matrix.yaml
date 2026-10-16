@@ -34,6 +34,11 @@
 # hit) and ONE standard volume (okg: the build checkout; v2: the raw files grep reads, 0.3 GB,
 # served from page cache once warm). A and v2 v0.1.0 predate this and keep io1 for both.
 #
+# A SLOT instance (`slot: <name>`, staging only) takes ALL its names from the slot: release
+# archi-crab-okg-<slot>, Secret okg-archi-crab-<slot>, path /releases/<slot>, values
+# envs/releases/<slot>/values.yaml, proxy okg-<slot>. Engine and corpus move under it; its
+# deploy tag okg/releases/<engine>/<corpus> names what one build served.
+#
 #   status  planned   in the matrix, nothing deployed (render may write its values)
 #           building  Argo app exists, frozen.enabled false, first publish not verified yet
 #           live      published, verified, frozen; served at its path
@@ -76,6 +81,19 @@ okg:
       corpus: v0.2.0-rc1
       status: planned
       clusterIP: 10.254.0.204
+    #
+    # SLOT dev: okg's newest `dev` x the NEWEST released corpus, STAGING ONLY. A slot is ONE
+    # instance whose engine moves every week (engines.yaml dev-<ISO week>) and whose corpus moves
+    # when a new corpus is cut (lint warns until it does). Its release (archi-crab-okg-dev),
+    # Secret, volumes, URL (/releases/dev/mcp) and proxy are named after the slot and never
+    # change. Each weekly build is wiped and re-ingested from scratch, frozen, and tagged
+    # okg/releases/dev-<week>/<corpus> (docs/RELEASES.md, weekly dev). The only instance rebuilt
+    # in place; only the newest week is served.
+    - slot: dev
+      engine: dev-2026w42
+      corpus: v0.1.0
+      status: planned
+      clusterIP: 10.254.0.205
     #
     # run1 (okg v3, the 2026-10-01 evaluation, /run1/mcp) was retired on 2026-10-16: its app,
     # proxy, volumes and Secret are deleted (docs/RELEASES.md 0.4). The tag okg-run1 and

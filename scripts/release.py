@@ -11,6 +11,7 @@
     python3 scripts/release.py budget                   # Cinder volumes per type
     python3 scripts/release.py adapter ENGINE [REV]      # where ENGINE's adapter is at REV (default HEAD)
     python3 scripts/release.py freeze-adapter ENGINE COMMIT   # copy an older engine's adapter to deployments/compat/ENGINE
+    python3 scripts/release.py engine-entry ENGINE COMMIT     # the engines.yaml entry of an engine build (versions.lock at COMMIT)
 
 Read-only except `render`, which writes one values file and refuses a live instance.
 Needs PyYAML and a git checkout. lint resolves commits locally: `git fetch --tags` first.
@@ -188,6 +189,36 @@ exclude: {{}}
 """
 
 
+def engine_entry(eid, commit):
+    """Print the releases/engines.yaml entry of an engine build: versions.lock at COMMIT (the
+    engine workflow's build commit, e.g. the tag engine/<eid>) and the adapter it carries."""
+    full = git("rev-parse", "%s^{commit}" % commit)
+    lock = yaml.safe_load(git("show", "%s:versions.lock" % full)) or {}
+    up, ar, rt = lock.get("upstream") or {}, lock.get("archi") or {}, lock.get("runtime") or {}
+    pg = str(((lock.get("images") or {}).get("okg-postgres") or {}).get("ref") or "")
+    if "@" not in pg or not str(rt.get("digest", "")).startswith("sha256:"):
+        raise SystemExit("versions.lock at %s has no built runtime/postgres digest: not an engine build" % full[:12])
+    pg_repo, pg_digest = pg.split("@", 1)
+    fp = adapter_fingerprint(full, "deployments")
+    print('''  "%s":
+    status: released
+    released: "%s"
+    note: >-
+      okg %s (track %s) + archi-okg %s, built by the engine workflow; tag engine/%s = %s.
+    okg: %s
+    archi_okg: %s
+    runtime: {repository: %s, digest: "%s"}
+    postgres: {repository: %s, digest: "%s"}
+    readinessProfile: ""
+    adapter:
+      native: %s
+      compat: ""
+      fingerprint: "%s"''' % (eid, git("log", "-1", "--format=%cs", full), str(up.get("commit", ""))[:12],
+                              up.get("track", "?"), str(ar.get("commit", ""))[:12], eid, full[:12],
+                              up.get("commit"), ar.get("commit"), rt.get("ref"), rt.get("digest"),
+                              pg_repo, pg_digest, full, fp))
+
+
 # ---------------------------------------------------------------- the model
 class Matrix:
     def __init__(self):
@@ -199,13 +230,22 @@ class Matrix:
         out = []
         for i in self.m["okg"]["instances"]:
             e, c = str(i["engine"]), str(i["corpus"])
-            key = "%s-%s" % (slug(e), slug(c))
-            d = dict(i, engine=e, corpus=c, kind="okg", id="okg:%s/%s" % (e, c), namespace=ns, host=host)
-            d.setdefault("path", "/releases/%s/%s" % (e, c))
+            # A SLOT (e.g. dev) is ONE fixed instance whose engine AND corpus move: every name
+            # below comes from the slot alone, so its volumes, Secret, URL and proxy survive the
+            # weekly rebuild. Only the deploy tag names what it currently serves.
+            slot = i.get("slot")
+            if slot:
+                key, pair, path, vals = slug(str(slot)), str(slot), "/releases/%s" % slot, "envs/releases/%s/values.yaml" % slot
+            else:
+                key, pair = "%s-%s" % (slug(e), slug(c)), "%s/%s" % (e, c)
+                path, vals = "/releases/%s/%s" % (e, c), "envs/releases/%s/%s/values.yaml" % (e, c)
+            d = dict(i, engine=e, corpus=c, kind="okg", id="okg:" + pair, namespace=ns, host=host,
+                     slot=slot, pair=pair)
+            d.setdefault("path", path)
             d.setdefault("release", "archi-crab-okg-" + key)
             d.setdefault("secret", "okg-archi-crab-" + key)
             d.setdefault("argoApp", d["release"])
-            d.setdefault("values", "envs/releases/%s/%s/values.yaml" % (e, c))
+            d.setdefault("values", vals)
             d.setdefault("deployTag", "okg/releases/%s/%s" % (e, c))
             d.setdefault("proxy", "okg-" + key)
             d["storage"] = storage(self.m["okg"]["storage"], i.get("storage"))
@@ -215,7 +255,10 @@ class Matrix:
         p = (self.m.get("prod") or {}).get("okg")
         if p:
             e, c = str(p["engine"]), str(p["corpus"])
-            d = dict(p, engine=e, corpus=c, kind="okg", id="prod:%s/%s" % (e, c), env="prod", path="")
+            d = dict(p, engine=e, corpus=c, kind="okg", id="prod:%s/%s" % (e, c), env="prod", path="",
+                     slot=None, pair="%s/%s" % (e, c))
+            if p.get("slot"):
+                raise SystemExit("matrix.yaml prod.okg: slots live in staging only")
             d.setdefault("deployTag", "okg/prod/%s/%s" % (e, c))
             d["storage"] = storage(self.m["okg"]["storage"], p.get("storage"))
             d["url"] = "https://%s/mcp" % d["host"]
@@ -329,6 +372,17 @@ def lint(mx, tags):
                 r.err("%s is %s but engine %s is pending" % (d["id"], d["status"], d["engine"]))
             if c and c["status"] == "pending":
                 r.err("%s is %s but corpus %s is pending" % (d["id"], d["status"], d["corpus"]))
+        if d.get("slot"):
+            sl = str(d["slot"])
+            if not d["engine"].startswith(sl + "-"):
+                r.err("%s: slot %s serves engine %s; a slot's engines are named %s-<build> (e.g. %s-2026w42)"
+                      % (d["id"], sl, d["engine"], sl, sl))
+            if sl in mx.engines["okg"]:
+                r.err("%s: slot name %s is also an engine id (their URLs would collide)" % (d["id"], sl))
+            rel = sorted((str(c_.get("released")), v) for v, c_ in mx.corpus["corpora"].items() if c_["status"] == "released")
+            if rel and d["corpus"] != rel[-1][1] and d["status"] != "retired":
+                r.warn("%s serves corpus %s; the newest released corpus is %s (move it at the next weekly build)"
+                       % (d["id"], d["corpus"], rel[-1][1]))
         if d["status"] == "retired":
             continue
         unique("argo app", d["argoApp"], d["id"])
@@ -365,12 +419,12 @@ def lint(mx, tags):
                     elif at_tag.strip() != f.read().strip():
                         r.warn("%s: %s differs from tag %s -- the tag is what runs" % (d["id"], d["values"], d["deployTag"]))
     # aliases
-    okg_live = {"%s/%s" % (d["engine"], d["corpus"]): d for d in mx.okg() if d["status"] == "live" and d["env"] == "staging"}
+    okg_live = {d["pair"]: d for d in mx.okg() if d["status"] == "live" and d["env"] == "staging"}
     prod = [d for d in mx.okg() if d["env"] == "prod"]
     for a in mx.m["okg"].get("aliases", []):
         tgt = str(a["target"])
         t = (prod[0] if prod else None) if tgt == "prod" else okg_live.get(tgt) or next(
-            (x for x in mx.okg() if x["env"] == "staging" and "%s/%s" % (x["engine"], x["corpus"]) == tgt), None)
+            (x for x in mx.okg() if x["env"] == "staging" and x["pair"] == tgt), None)
         if t is None:
             r.err("okg alias %r -> %s: no such instance" % (a["path"] or "/mcp", tgt))
         elif a.get("status", "live") == "live" and t["status"] != "live":
@@ -476,7 +530,7 @@ OKG_VALUES = """\
 #   corpus  {corpus} = tag corpus/{corpus}; this revision carries its fingerprint
 # Built FROM SCRATCH on its own two volumes with frozen.enabled false (bootstrap ingests and
 # publishes); once the first publish is verified, frozen.enabled true and the matrix says live.
-# Deployed from the tag {deploy_tag}, never from main (docs/RELEASES.md).
+# Deployed from the tag {deploy_tag}, never from main (docs/RELEASES.md).{slot_note}
 fullnameOverride: {release}
 okg:
   readinessProfile: "{profile}"
@@ -563,7 +617,13 @@ def render(mx, ident, revision):
         if dp is None:
             raise SystemExit("revision %s carries no adapter of engine %s (native or compat): "
                              "freeze-adapter, or pick another revision" % (full[:12], d["engine"]))
-        text = OKG_VALUES.format(deployments_path=dp,
+        slot_note = ""
+        if d.get("slot"):
+            slot_note = ("\n# SLOT %s: this release, its volumes, Secret and URL stay; the engine (and, when a new one\n"
+                         "# is cut, the corpus) moves every week.\n"
+                         "# Each build is wiped and re-ingested from scratch (docs/RELEASES.md, weekly %s)."
+                         % (d["slot"], d["slot"]))
+        text = OKG_VALUES.format(deployments_path=dp, slot_note=slot_note,
             values=d["values"], id=ident, engine=d["engine"], corpus=d["corpus"], url=d["url"],
             eng_note=" ".join(str(e.get("note", "")).split())[:150], deploy_tag=d["deployTag"],
             release=d["release"], profile=e["readinessProfile"], rt_repo=e["runtime"]["repository"],
@@ -708,6 +768,9 @@ def main():
     p = sub.add_parser("freeze-adapter")
     p.add_argument("engine")
     p.add_argument("commit")
+    p = sub.add_parser("engine-entry")
+    p.add_argument("engine")
+    p.add_argument("commit")
     p = sub.add_parser("lint")
     p.add_argument("--tags", action="store_true", help="also require the corpus and deploy tags")
     p = sub.add_parser("fingerprint")
@@ -732,6 +795,8 @@ def main():
         print("-> %s" % (adapter_path_for(e, a.rev) or "none at %s" % a.rev))
     elif a.cmd == "freeze-adapter":
         freeze_adapter(mx, a.engine, a.commit)
+    elif a.cmd == "engine-entry":
+        engine_entry(a.engine, a.commit)
     elif a.cmd == "budget":
         budget(mx)
     elif a.cmd == "fingerprint":

@@ -1,62 +1,43 @@
-# Releases: engine × corpus shipping (v0.16)
+# Releases: engine × corpus shipping (v0.17)
 
 One **instance** per (engine, corpus) pair, built from scratch, frozen, deployed from an immutable
 git **tag**, and served at a URL that names the pair. "Latest" URLs are **pointers** (thin
 proxies), never a second instance. Prod has its own instance of the best pair (F).
 
-## Where we are, and what is left (2026-10-16 20:45)
+## Where we are, and what is left (2026-10-16 23:00)
 
 **Live on staging** (`archi-crab-okg-staging.cern.ch`, `archi-crab-v2.cern.ch`), all deployed from
-tags or merge commits, never `main`:
+tags, never `main`:
 
 | Instance | Engine | Corpus | URL | State |
 |---|---|---|---|---|
 | A | okg `43f459c6` (v4 dev, 3d6cb3e8) | `v0.1.0` | `/releases/43f459c6/v0.1.0/mcp` (+ `/mcp` pointer) | live, frozen (gen `eee6c09f3655`, 326,241 / 419,177) |
-| C | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | published 2026-10-16 (gen `dbc96e1b4a8d`, 326,419 / 419,367) → freeze (below) |
+| C | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff` |
 | v2 | archi `e6609f8f` | `v0.1.0` | `/{grep,vectorstore}/releases/v0.1.0/mcp` (+ pointers) | live |
+| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | planned: first build after the 2026-10-17 daily run |
 
-- run1 is retired.
+- run1 is retired. The ToolHive operator is paused (0) until the dev slot's proxy is created.
 - A and C share their corpus and adapter (fingerprints `3d37187c…` and `46227d04…`); only the
   engine differs.
-- The ToolHive operator is up until C is frozen.
 - `okg status` on a FROZEN instance exits 1 with `permission denied for table node_facts`. Only
   the `mcp` container runs, with the read-only role. `publishing` and `database_readiness` still
   report; `stage` and `sources` don't. Capture a full status before freezing.
 
-**Left for corpus v0.1.0: freezing C.** The patches are ready: `archi-crab-okg-6-freeze-c` and
-`CMSKubernetes-4-freeze-c`.
-1. Wait for C's `bootstrap` to finish its first publish, then save both status files:
-   ```bash
-   kubectl -n archi-crab-staging exec archi-crab-okg-v0-2-0-rc1-v0-1-0-runtime-0 -c mcp -- okg status --deployment archi-crab --json > C.status.json
-   kubectl -n archi-crab-staging exec archi-crab-okg-staging-runtime-0 -c mcp -- okg status --deployment archi-crab --json > A.status.json
-   ```
-2. Merge `freeze-c` (`[skip ci]` in the merge title is fine; its PR CI checks C's values).
-   Then tag the merge commit:
-   ```bash
-   git fetch origin && M2=$(git rev-parse origin/main)    # AFTER the merge
-   git show $M2:releases/matrix.yaml | grep -A2 'engine: v0.2.0-rc1' | grep -q 'status: live' && echo "M2 is the freeze merge"
-   git tag -a okg/releases/v0.2.0-rc1/v0.1.0 "$M2" -m "okg C: engine v0.2.0-rc1 x corpus v0.1.0, frozen"
-   git push origin okg/releases/v0.2.0-rc1/v0.1.0 && python3 scripts/release.py lint --tags
-   ```
-3. Merge `CMSKubernetes-4-freeze-c`. It moves C's app to that tag and sets the operator to 0.
-   ```bash
-   kubectl -n argocd annotate application archi-crab argocd.argoproj.io/refresh=hard --overwrite
-   kubectl -n argocd annotate application archi-crab-okg-v0-2-0-rc1-v0-1-0 argocd.argoproj.io/refresh=hard --overwrite
-   kubectl -n archi-crab-staging delete pod archi-crab-okg-v0-2-0-rc1-v0-1-0-runtime-0   # StatefulSets don't roll an unready pod
-   kubectl -n archi-crab-staging get pod archi-crab-okg-v0-2-0-rc1-v0-1-0-runtime-0 -w   # 1/1, mcp only
-   ```
-4. Bench: A vs C (and v2). Add each URL with
+**Next:**
+1. Bench A vs C (and v2). Add each URL with
    `--client-id archi-crab-okg-public-staging --callback-port 8765`, and record runs by okg commit.
-5. Optional: put the counts from step 1 and v2's data-manager counts into `releases/corpus.yaml`
-   (`materialized`), in any later PR.
+2. The dev slot, first build (section "Weekly dev slot" below): patch `archi-crab-okg-7-dev-slot`
+   (tooling + matrix, merge any time), then D0 to D6 after the 2026-10-17 03:17 UTC daily run.
 
 **Engine track** (nothing blocks the bench):
-- Do **not** merge the `engine/upstream` PR. The tag `engine/v0.2.0-rc1` holds the rc1 build,
-  and the daily run moves that branch back to okg `dev`.
+- Do **not** merge the `engine/upstream` PR. It is now the **dev channel**: the daily run keeps it
+  on okg `dev` + archi-okg `main`, and the dev slot pins one of its builds per week
+  (`engine/dev-<week>`). The tag `engine/v0.2.0-rc1` holds the rc1 build.
 - After 2026-10-17 (v0.2.0 is public):
-  - patch `archi-crab-okg-2-okg-release-engine` (release tags and wheel installs);
-  - then `versions.lock` `track: release`;
-  - a new engine is a new id in `engines.yaml` (`v0.2.0`, …), built and tagged like rc1.
+  - patch `archi-crab-okg-2-okg-release-engine` (release tags and wheel installs), REVISED for the
+    dev slot: `versions.lock` stays on `track: dev`, and a release engine (`v0.2.0`, later weekly
+    tags) is a ONE-SHOT dispatch (`okg_track: v0.2.0`) that does not change the track;
+  - a new release engine is a new id in `engines.yaml` (`v0.2.0`, …), built and tagged like rc1.
 - Housekeeping:
   - accept okg's chart PR (deltas 10, 11, 13);
   - drop the okg pull secret and token only once our images are public;
@@ -65,7 +46,8 @@ tags or merge commits, never `main`:
   - pin `runs-on: ubuntu-24.04` (`ubuntu-latest` becomes Ubuntu 26 on 2026-10-19).
 
 **Corpus v0.2.0-rc1** (the next real step: B, D, F, v2 `v0.2.0-rc1`). It starts when your sources
-list and docs exist. Prerequisites:
+list and docs exist. The dev slot moves to it at its next weekly build (one `corpus:` line).
+Prerequisites:
 - de-hardcode the v2 chart's Service names (a second v2 release in the same namespace);
 - prod F: certificate, LanDB alias and gateway listener for `archi-crab-okg.cern.ch`; a prod SSO
   app; Secret `okg-archi-crab` in `archi-crab`; StorageClass `cinder-io1`;
@@ -100,6 +82,8 @@ python3 scripts/release.py budget          # Cinder volumes per type
 python3 scripts/release.py fingerprint REV # corpus fingerprint of any commit
 python3 scripts/release.py render okg:<engine>/<corpus> --revision REV   # a new instance's values
 python3 scripts/release.py iac okg:<engine>/<corpus> [--target SHA]      # its Argo app + proxy entry
+python3 scripts/release.py render okg:dev --revision engine/dev-<week>  # the dev slot: by slot name
+python3 scripts/release.py engine-entry dev-<week> engine/dev-<week>     # an engine build's engines.yaml entry
 ```
 
 ## The matrix
@@ -109,7 +93,12 @@ python3 scripts/release.py iac okg:<engine>/<corpus> [--target SHA]      # its A
 | engine ↓ · corpus → | `v0.1.0` | `v0.2.0-rc1` |
 |---|---|---|
 | `43f459c6` (okg v4, 2026-10-06) | **A** `/releases/43f459c6/v0.1.0/mcp` (live) | **B** `/releases/43f459c6/v0.2.0-rc1/mcp` (later) |
-| `v0.2.0-rc1` (okg release candidate) | **C** `/releases/v0.2.0-rc1/v0.1.0/mcp` (**this weekend**) | **D** `/releases/v0.2.0-rc1/v0.2.0-rc1/mcp` (later) |
+| `v0.2.0-rc1` (okg release candidate) | **C** `/releases/v0.2.0-rc1/v0.1.0/mcp` (live) | **D** `/releases/v0.2.0-rc1/v0.2.0-rc1/mcp` (later) |
+| slot `dev` (okg `dev`, re-pinned weekly) | **dev** `/releases/dev/mcp`: this week | → next week, and after |
+
+- The dev slot is ONE instance, **staging only**: okg's newest `dev` × the newest released corpus.
+  It is the only instance rebuilt in place (section "Weekly dev slot"). Its URL always serves the
+  newest weekly build; the deploy tag `okg/releases/dev-<week>/<corpus>` names which one.
 
 - `/mcp` points at A; later it points at D.
 - `/run1/mcp` (okg v3, the 2026-10-01 evaluation) is **retired** in phase 0. Its app, proxy,
@@ -127,12 +116,20 @@ python3 scripts/release.py iac okg:<engine>/<corpus> [--target SHA]      # its A
 
 `/grep/mcp` and `/vectorstore/mcp` point at `v0.1.0`; later they point at `v0.2.0-rc1`.
 
-**Volumes:**
+**Volumes** (`release.py budget`):
 - A and v2 `v0.1.0` predate the layout and hold 2 io1 each.
-- Every new instance (B, C, D, F, v2 `v0.2.0-rc1`) adds 1 io1 (database) + 1 standard
-  (build checkout or raw files). That is 5 + 5 new.
-- Quota checked on 2026-10-16: 15 volumes left overall, 8 io1 and 7 standard. Retiring run1
-  returns 2 io1, which makes 17 overall and 10 io1.
+- Every new instance (B, C, D, F, v2 `v0.2.0-rc1`, each dev slot) adds 1 io1 (database) +
+  1 standard (build checkout or raw files). A slot keeps its count across weekly rebuilds.
+- Quota on 2026-10-16: 17 left after run1 (10 io1, 7 standard). C took 1 + 1.
+
+| | io1 | standard | left overall |
+|---|---|---|---|
+| after C | 9 | 6 | 15 |
+| B, D, F, v2 `v0.2.0-rc1` | −4 | −4 | 7 |
+| dev slot (any corpus) | −1 | −1 | **5 (4 io1, 2 standard)** |
+
+  Only the volume COUNT is checked. Check the GB quota before B, D and F
+  (`openstack quota show`): each okg instance asks 150Gi io1 + 75Gi standard.
 
 ## Rules
 
@@ -396,6 +393,104 @@ and engine id `v0.2.0`.
 
 ---
 
+## Weekly dev slot: okg `dev` × the newest corpus (staging only)
+
+**What it is.** One fixed instance, `okg:dev`, whose ENGINE moves once a week and whose CORPUS
+moves when a new corpus is cut:
+- this week it serves `dev-2026w42` × `v0.1.0`; once `corpus/v0.2.0-rc1` exists, the next weekly
+  build serves dev × `v0.2.0-rc1`, and so on (`release.py lint` warns while it lags);
+- names come from the slot and never change: release `archi-crab-okg-dev`, Secret
+  `okg-archi-crab-dev`, values `envs/releases/dev/values.yaml`, ClusterIP `10.254.0.205`, proxy
+  `okg-dev`, URL `https://archi-crab-okg-staging.cern.ch/releases/dev/mcp`;
+- every weekly pin is an engine id `dev-<ISO year>w<ISO week>` in `engines.yaml` (released =
+  fixed digests; last week's becomes `retired`), built by the daily engine run on
+  `engine/upstream` and tagged `engine/dev-<week>`. `engine/upstream` merges `main` forward, so it
+  carries `main`'s corpus: its build commit is the instance's revision, no side commits;
+- every weekly build is wiped and re-ingested from scratch (about an hour), frozen, and tagged
+  `okg/releases/dev-<week>/<corpus>`. Only the newest week is served; the tags are the record;
+- a good week can be **promoted**: its engine id is already released, so a normal instance
+  `engine: dev-<week>` (no slot) keeps it at `/releases/dev-<week>/<corpus>/mcp`.
+
+Rules it bends, on purpose: it is the only instance rebuilt in place, and its URL serves a
+different build each week. Everything else (immutable deploy tags, built from scratch, frozen
+before it serves) still holds. Lint refuses a slot engine not named `dev-…`.
+
+Shell variables used below (set them once per session):
+```bash
+W=2026w42                       # ISO week of the pin: date -u +%Gw%V
+C=v0.1.0                        # the newest released corpus (releases/corpus.yaml)
+NS=archi-crab-staging; R=archi-crab-okg-dev
+```
+
+**D0. First time only** (before the first IaC PR):
+```bash
+kubectl get svc -A -o jsonpath='{range .items[*]}{.spec.clusterIP}{"\n"}{end}' | grep -qx 10.254.0.205 && echo TAKEN || echo free
+scripts/okg-run-secret.sh dev          # -> Secret okg-archi-crab-dev, DSN host archi-crab-okg-dev-postgres (kept across weeks)
+kubectl -n $NS get secret okg-archi-crab-dev -o jsonpath='{.data.okg-dsn}' \
+  | base64 -d | grep -oE '^[a-z+]+://[^:@/]+|user=[^ ]+' | sed -E 's#^[a-z+]+://#user=#'   # expect user=postgres
+```
+The first IaC PR (`CMSKubernetes-5-dev-slot`) also adds the Argo app and the proxy, and sets the
+ToolHive operator to 1; the first freeze IaC PR sets it back to 0. Later weeks never touch the
+proxy, so they don't need the operator.
+
+**D1. Pin the engine.** After a daily engine run (03:17 UTC), open the `engine/upstream` PR and read
+its contract report: 0 errors, or skip this week (the slot keeps last week's build).
+```bash
+git fetch origin --tags && git log -1 --format='%h %cd %s' origin/engine/upstream     # today's run, not rc1's 9a0e533
+git tag -a engine/dev-$W origin/engine/upstream -m "okg dev weekly pin $W" && git push origin engine/dev-$W
+python3 scripts/release.py fingerprint engine/dev-$W | head -1     # must equal corpus.yaml $C fingerprint
+python3 scripts/release.py engine-entry dev-$W engine/dev-$W       # paste into engines.yaml (next step)
+```
+**D2. Build PR** (branch `dev-$W` from `main`):
+- `releases/engines.yaml`: replace the `dev-$W` entry (or add it) with the `engine-entry` output;
+  last week's `dev-…` id → `status: retired`;
+- `releases/matrix.yaml`, slot dev: `engine: dev-$W`, `corpus: $C`, `status: building`;
+- then:
+```bash
+python3 scripts/release.py render okg:dev --revision engine/dev-$W && python3 scripts/release.py lint
+git add -A && git commit -m "dev slot: build dev-$W x corpus $C" && git push -u origin dev-$W
+```
+   Open the PR, let CI pass, merge. `git fetch origin && MB=$(git rev-parse origin/main)`.
+
+**D3. IaC PR** (CMSKubernetes, from `archi-crab-testbed`): `argocd/archi-crab/staging/48-archi-crab-okg-dev-app.yaml`
+`targetRevision: $MB` (first week: apply `CMSKubernetes-5-dev-slot` with `__MB__` replaced). Merge, then:
+```bash
+kubectl -n argocd annotate application archi-crab archi-crab-okg-dev argocd.argoproj.io/refresh=hard --overwrite
+kubectl -n argocd get application archi-crab-okg-dev -o jsonpath='{.spec.source.targetRevision} {.status.sync.status}{"\n"}'   # $MB Synced
+```
+**D4. Wipe** (skip on the first week: the volumes are new). Last week's database goes; its tag stays
+as the record. A pod recreated before its claim is gone stays Pending: delete it again.
+```bash
+kubectl -n $NS delete pvc postgres-data-$R-postgres-0 runtime-data-$R-runtime-0 --wait=false
+kubectl -n $NS delete pod $R-postgres-0 $R-runtime-0
+kubectl -n $NS wait --for=delete pvc/postgres-data-$R-postgres-0 pvc/runtime-data-$R-runtime-0 --timeout=5m
+kubectl -n $NS delete pod $R-postgres-0 $R-runtime-0 --ignore-not-found
+kubectl -n $NS get pvc | grep $R      # two NEW claims, Bound
+```
+**D5. Watch the build** (about an hour, worker nodes only):
+```bash
+kubectl -n $NS get pods,pvc | grep $R
+kubectl -n $NS logs $R-runtime-0 -c bootstrap -f          # until the first generation is published
+kubectl -n $NS exec $R-runtime-0 -c mcp -- okg status --deployment archi-crab --json > dev-$W.status.json   # BEFORE freezing
+```
+**D6. Freeze and tag.** PR on `main`: `envs/releases/dev/values.yaml` `frozen.enabled: true`; matrix
+slot `status: live`; `corpus.yaml` `$C` `materialized` `okg/dev-$W: {generation, nodes, edges, built}`
+(from `dev-$W.status.json`). `release.py lint`, merge, then:
+```bash
+git fetch origin && MF=$(git rev-parse origin/main)
+git show $MF:envs/releases/dev/values.yaml | grep -A1 '^frozen:' | grep -q 'enabled: true' && echo "MF is the freeze merge"
+git tag -a okg/releases/dev-$W/$C "$MF" -m "okg dev slot: engine dev-$W x corpus $C, frozen"
+git push origin okg/releases/dev-$W/$C && python3 scripts/release.py lint --tags
+```
+   IaC PR: the app's `targetRevision: okg/releases/dev-$W/$C` (first week: also the operator back
+   to 0). Merge, refresh as in D3, then `kubectl -n $NS delete pod $R-runtime-0` → 1/1, mcp only.
+
+**Moving the corpus.** The first weekly build after `corpus/v0.2.0-rc1` is cut uses `C=v0.2.0-rc1`
+in D1 to D6: `engine/upstream` has merged `main` forward by then (check the D1 fingerprint line).
+Nothing else changes: same slot, same URL, same volumes.
+
+---
+
 ## Phase 2: corpus v0.2.0-rc1 (B, D, F, v2), later
 
 Prerequisites:
@@ -439,7 +534,7 @@ Prerequisites:
 |---|---|---|---|---|
 | 1 | Public tagged release images (verified wheel) | `install: wheel`: no `/opt/okg/.git`, no okg token, no editable install. The build fails if archi touches `site-packages/okg`. Not needed for rc1 (no images; built the existing way). | `okg-release-engine` | after 10-17, with v0.2.0's images |
 | 1 | …then drop `ghcr-mitdbg-pull`, `OKG_PAT`, private runtime image | Only once **our** images are public too: v2's `nausikt` images use the same pull secret. | later | after 10-17 |
-| 2 | Weekly release tags, not `dev` | Resolver `track: release` / `vX.Y.Z[-rcN]`. Set main to `track: release` after the bench. | `okg-release-engine` | after 10-17 |
+| 2 | Weekly release tags, not `dev` | Resolver `track: release` / `vX.Y.Z[-rcN]`, as ONE-SHOT dispatches for release engines. `versions.lock` stays on `track: dev`: `engine/upstream` is the dev channel that feeds the weekly dev slot. | `okg-release-engine` (revised) | after 10-17 |
 | 3 | `--profile` becomes `--checks` | Chart `okg.readinessChecks` (helper `okg.readyFlags`). e2e and contract-check already pass no flag. | `okg-ready-checks` | any time: instances deploy from tags |
 | 4 | Roles start without login | Writer DSN is `postgres`, not `app_rw` (checked in step 1.5). `okg_mcp` is handled by `mcp-role`. Nothing to change. For prod, consider a non-superuser writer. | — | — |
 | 5 | Unknown registry keys refused | Our registry passes. `sources.py lint` keeps it so. | — | — |

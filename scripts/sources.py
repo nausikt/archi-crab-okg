@@ -145,6 +145,7 @@ class Ctx:
         self.kinds_path = self.repo / "sources" / "kinds.yaml"
         self.dep_dir = self.repo / "deployments" / self.deployment
         self.registry_path = self.dep_dir / "source_registry.yaml"
+        self.excluded = {}  # {source id: reason}: a compat target's sources its engine cannot ingest
         b64 = getattr(args, "manifest_b64", None)
         text = base64.b64decode(b64).decode("utf-8") if b64 else None
         self.manifest = load_yaml(self.manifest_path, text)
@@ -164,10 +165,13 @@ class Ctx:
 
     def selected(self, sid):
         s = self.sources[sid]
-        return isinstance(s, dict) and s.get("tier") in self.tiers() and s.get("enabled", True) is not False
+        return (isinstance(s, dict) and s.get("tier") in self.tiers() and s.get("enabled", True) is not False
+                and sid not in self.excluded)
 
     def why_not(self, sid):
         s = self.sources[sid]
+        if sid in self.excluded:
+            return "not for this engine: %s" % self.excluded[sid]
         if s.get("tier") not in self.tiers():
             return "tier %s not enabled" % s.get("tier")
         if s.get("enabled", True) is False:
@@ -953,6 +957,23 @@ def cmd_lint(ctx, args):
                         "edited the registry (e.g. a mechanical class rename on the engine PR), make the same edit in "
                         "sources/kinds.yaml instead, then render" % ctx.registry_path.relative_to(ctx.repo))
 
+    # ---- compat targets: an older engine's adapter renders the same list its own way ----
+    try:
+        targets = compat_targets(ctx)
+    except InputError as exc:
+        f.error(str(exc))
+        targets = []
+    for engine, c in targets:
+        try:
+            _, creg = render_text(c)
+        except (RenderError, KeyError) as exc:
+            f.error("render (compat %s): %s" % (engine, exc))
+            continue
+        cur = load_yaml(c.registry_path) if c.registry_path.exists() else None
+        if cur != creg:
+            f.error("%s differs from the render -- run: python3 scripts/sources.py render --write"
+                    % c.registry_path.relative_to(ctx.repo))
+
     # ---- the v2 target (archi data-manager weblist), when the v2 tree exists ----
     if ctx.kinds and v2_list_path(ctx).parent.parent.is_dir():
         try:
@@ -1061,6 +1082,31 @@ def cmd_lint(ctx, args):
         sum(ctx.selected(s) for s in ctx.sources), sum(not ctx.selected(s) for s in ctx.sources)))
 
 
+# ------------------------------------------------------- compat targets ----
+# deployments/compat/<engine>/ holds an OLDER engine's adapter, frozen (docs/RELEASES.md,
+# "Engine adapters"): its kinds.yaml, and <deployment>/ with its deployment.yaml, extractors,
+# invariants, schemas, skills, a `data` symlink to the live corpus and ITS OWN render of the
+# current source list. compat.yaml may exclude sources that engine cannot ingest.
+
+def compat_targets(ctx):
+    root = ctx.repo / "deployments" / "compat"
+    out = []
+    for d in sorted(root.iterdir()) if root.is_dir() else []:
+        kinds, dep = d / "kinds.yaml", d / ctx.deployment
+        if not (kinds.is_file() and dep.is_dir()):
+            continue
+        meta = load_yaml(d / "compat.yaml") if (d / "compat.yaml").is_file() else {}
+        c = copy.copy(ctx)
+        c.kinds_path, c.kinds = kinds, load_yaml(kinds)
+        c.dep_dir, c.registry_path = dep, dep / "source_registry.yaml"
+        c.excluded = {str(k): str(v) for k, v in ((meta or {}).get("exclude") or {}).items()}
+        unknown = sorted(set(c.excluded) - set(ctx.sources))
+        if unknown:
+            raise InputError("%s: exclude names unknown source(s) %s" % ((d / "compat.yaml").relative_to(ctx.repo), unknown))
+        out.append((d.name, c))
+    return out
+
+
 # ----------------------------------------------------------------- render ----
 
 def cmd_render(ctx, args):
@@ -1078,6 +1124,15 @@ def cmd_render(ctx, args):
             v2_list_path(ctx).write_text(v2_text, encoding="utf-8")
             print("wrote %s%s" % (v2_list_path(ctx).relative_to(ctx.repo).as_posix(),
                                   " (not in v2: %s)" % ", ".join(skipped) if skipped else ""))
+        for engine, c in compat_targets(ctx):
+            try:
+                ctext, _ = render_text(c)
+            except RenderError as exc:
+                print("render (compat %s): %s" % (engine, exc), file=sys.stderr)
+                return 1
+            c.registry_path.write_text(ctext, encoding="utf-8")
+            print("wrote %s%s" % (c.registry_path.relative_to(ctx.repo).as_posix(),
+                                  " (excluded: %s)" % ", ".join(sorted(c.excluded)) if c.excluded else ""))
     else:
         sys.stdout.write(text)
     return 0

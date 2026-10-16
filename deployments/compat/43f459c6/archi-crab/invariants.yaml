@@ -1,0 +1,35 @@
+# archi-crab invariants — CRAB-truthful core floor (bundle + code graph).
+# Replaces the generator's cern_team_core_pages_floor, which requires
+# documentation_page and jira_issue — subtypes this instance does not produce.
+invariants:
+  - name: archi_crab_core_floor
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      Core archi-crab subtypes must have at least one live row each:
+      source_file / code_symbol (code graph), document_chunk (doc-corpus),
+      (cmssw_release left the floor 2026-10-01 while cmssw-releases is off;
+      put it back with the source). Cold-start note: fires until the first
+      ingest has published.
+    sql: |
+      WITH required(subtype) AS (
+        VALUES ('source_file'), ('code_symbol'), ('document_chunk')
+      ),
+      counts AS (SELECT subtype, count(*) AS n FROM okg.v_nodes GROUP BY subtype)
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0
+  - name: archi_crab_docs_floor
+    severity: error
+    scope: cross
+    timeout_ms: 5000
+    description: >-
+      The documentation sources (twiki-sanitized, ...) must have at least one live
+      documentation_page. Its own floor, so a docs failure names itself.
+    sql: |
+      WITH required(subtype) AS (VALUES ('documentation_page')),
+      counts AS (SELECT subtype, count(*) AS n FROM okg.v_nodes GROUP BY subtype)
+      SELECT r.subtype, coalesce(c.n, 0) AS live_count
+        FROM required r LEFT JOIN counts c USING (subtype)
+       WHERE coalesce(c.n, 0) = 0

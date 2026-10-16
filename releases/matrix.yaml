@@ -1,0 +1,135 @@
+# releases/matrix.yaml — every served instance, its URL, and which URL is "latest".
+#
+#   okg   https://archi-crab-okg-staging.cern.ch/releases/<engine>/<corpus>/mcp   STAGING: every release
+#   v2    https://archi-crab-v2.cern.ch/<family>/releases/<corpus>/mcp           STAGING: every release
+#   prod  https://archi-crab-okg.cern.ch/mcp                                      PROD: F, its own instance
+#
+# Within an environment there is ONE instance per pair; "latest" is a pointer. Prod (F) is the
+# exception by design: a separate instance of staging's best pair (D), so users never share
+# an instance with the bench.
+#
+# ONE instance per engine x corpus pair, and nothing is ever duplicated. "Latest"
+# (okg /mcp, v2 /grep/mcp and /vectorstore/mcp) is an ALIAS: a second, thin ToolHive proxy
+# that points at the latest instance's Service. It has to be its own proxy, not just a second
+# HTTPRoute path, because the OAuth resource URL (RFC 9728) must equal the URL the client
+# dialled. Moving "latest" = editing one `target:` here and one `url:` in CMSKubernetes. No data moves.
+#
+# Everything else is DERIVED by scripts/release.py from the ids, so names cannot drift:
+#   okg  release (helm fullnameOverride)   archi-crab-okg-<engine>-<corpus>   (dots -> dashes)
+#        Secret                            okg-archi-crab-<engine>-<corpus>
+#        values file                       envs/releases/<engine>/<corpus>/values.yaml
+#        deploy tag (Argo targetRevision)  okg/releases/<engine>/<corpus>
+#        Argo app                          = release
+#        proxy (CMSKubernetes mcp-gateway) okg-<engine>-<corpus>
+#   v2   release (helm fullnameOverride)   archi-v2-<corpus>
+#        values file                       v2/envs/releases/<corpus>/values.yaml
+#        deploy tag                        v2/releases/<corpus>
+#        Argo app                          = release
+#        proxies                           v2-grep-<corpus>, v2-vector-<corpus>
+# An override (`release:`, `secret:`, `argoApp:`, `storage:`, ...) exists only where an instance
+# was built BEFORE this convention. NEVER rename a live instance's release: object names are
+# PVC names, and both classes delete the volume with its claim.
+#
+# STORAGE. A new instance gets ONE io1 volume (the database: graph or vectors, what queries
+# hit) and ONE standard volume (okg: the build checkout; v2: the raw files grep reads, 0.3 GB,
+# served from page cache once warm). A and v2 v0.1.0 predate this and keep io1 for both.
+#
+#   status  planned   in the matrix, nothing deployed (render may write its values)
+#           building  Argo app exists, frozen.enabled false, first publish not verified yet
+#           live      published, verified, frozen; served at its path
+#           retired   proxy, app and volumes removed; kept here for the record
+version: 1
+
+hosts:
+  okg: archi-crab-okg-staging.cern.ch
+  v2: archi-crab-v2.cern.ch
+
+okg:
+  namespace: archi-crab-staging
+  storage:   # default for new instances: {volume: [size, StorageClass]}
+    postgres: [150Gi, cinder-io1-delete]
+    runtime: [75Gi, cinder-standard]
+  instances:
+    # A: the instance staging built on 2026-10-06. Same engine and corpus, so it is not rebuilt.
+    # It keeps its names. Only the Argo app's targetRevision/valueFiles and the proxy path are new.
+    - engine: "43f459c6"
+      corpus: v0.1.0
+      status: live
+      release: archi-crab-okg-staging
+      secret: okg-archi-crab
+      argoApp: archi-crab-okg-staging
+      clusterIP: ""                # dynamic (10.254.109.91), already in its allowedHosts
+      storage: {postgres: [150Gi, cinder-io1-delete], runtime: [75Gi, cinder-io1-delete]}
+    # B: the v4 engine on the next corpus (what did the corpus change, engine held fixed?)
+    - engine: "43f459c6"
+      corpus: v0.2.0-rc1
+      status: planned
+      clusterIP: 10.254.0.202
+    # C: the new engine on the old corpus (what did the engine change, corpus held fixed?)
+    - engine: v0.2.0-rc1
+      corpus: v0.1.0
+      status: planned
+      clusterIP: 10.254.0.203
+    # D: latest engine x latest corpus, the best version. Staging's /mcp points here once it is live.
+    # Prod runs the SAME pair as its own instance F (below): users never share D with the bench.
+    - engine: v0.2.0-rc1
+      corpus: v0.2.0-rc1
+      status: planned
+      clusterIP: 10.254.0.204
+    #
+    # run1 (okg v3, the 2026-10-01 evaluation, /run1/mcp) was retired on 2026-10-16: its app,
+    # proxy, volumes and Secret are deleted (docs/RELEASES.md 0.4). The tag okg-run1 and
+    # docs/RUN1-FREEZE.md are the record.
+  aliases:
+    # status: planned = not rendered yet; live = its proxy exists. Target: <engine>/<corpus>.
+    #
+    # https://archi-crab-okg-staging.cern.ch/mcp = "staging latest", a pointer, never an instance.
+    # Moves to v0.2.0-rc1/v0.2.0-rc1 (D) when D is live.
+    - {path: "", proxy: okg, target: "43f459c6/v0.1.0", status: live}
+
+v2:
+  namespace: archi-crab-staging
+  engine: archi-e6609f8f
+  storage:
+    postgres: [150Gi, cinder-io1-delete]
+    dataManager: [75Gi, cinder-standard]
+  families:   # Service = <release>-<service suffix>
+    grep: {service: mcp-grep, port: 8081, proxy: v2-grep}
+    vectorstore: {service: mcp-vector, port: 8082, proxy: v2-vector}
+  instances:
+    # The archi-v2 fixture built on 2026-10-05 from the v0.1.0 sources list. Keeps its names.
+    - corpus: v0.1.0
+      status: live
+      release: archi-v2
+      argoApp: archi-v2
+      storage: {postgres: [150Gi, cinder-io1-delete], dataManager: [75Gi, cinder-io1-delete]}
+    # Same namespace: needs the chart's Service names de-hardcoded (docs/RELEASES.md, phase 1).
+    - corpus: v0.2.0-rc1
+      status: planned
+  aliases:
+    # https://archi-crab-v2.cern.ch/grep/mcp and /vectorstore/mcp. Move to v0.2.0-rc1 when it is live.
+    - {family: grep, target: v0.1.0}
+    - {family: vectorstore, target: v0.1.0}
+
+prod:
+  # F: prod's OWN instance of the best pair, https://archi-crab-okg.cern.ch/mcp. Same engine and
+  # corpus as staging's D, built separately in namespace archi-crab with its own database,
+  # Secret, SSO audience and volumes: nothing done to staging reaches users.
+  # Build D and F back to back: a corpus tag pins the source LIST, git sources are cloned at
+  # branch HEAD, so D and F only hold the same commits if they are built the same day.
+  # Promoting a later pair = rebuilding F from that pair's tags, after its staging twin is live.
+  okg:
+    engine: v0.2.0-rc1
+    corpus: v0.2.0-rc1
+    status: planned
+    host: archi-crab-okg.cern.ch      # listener commented out today; cert + LanDB alias needed
+    namespace: archi-crab
+    release: archi-crab-okg
+    secret: okg-archi-crab            # in archi-crab, its OWN passwords (not staging's)
+    argoApp: archi-crab-okg
+    values: envs/prod/values.yaml     # stale today (old mitdbg image, no revision); render rewrites it
+    proxy: okg                        # prod mcp-gateway (values.yaml), audience archi-crab-okg-public
+    clusterIP: 10.254.0.210
+    # cinder-io1 (not -delete): prod's database must survive a deleted claim. Check the class
+    # exists (kubectl get sc) before the first sync; envs/prod names it already.
+    storage: {postgres: [150Gi, cinder-io1], runtime: [75Gi, cinder-standard]}

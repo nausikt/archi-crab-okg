@@ -1,0 +1,58 @@
+# releases/corpus.yaml — the CORPUS axis of a release: what is ingested.
+#
+# A corpus is the engine-independent part of the source of truth, `paths` below:
+#   sources/archi-crab.yaml        which sources, tiers, scopes (the one file people edit)
+#   deployments/archi-crab/data/   data shipped in this repository (sanitized TWiki records)
+# Not part of it, because they change with the ENGINE: sources/kinds.yaml (how a kind becomes
+# okg registry YAML), deployments/archi-crab/{deployment,extractors,invariants}.yaml, schemas/,
+# skills/. The renders in `derived` come from corpus + kinds.yaml.
+#
+# A corpus release is an annotated git tag corpus/<version> on a commit whose `paths` hash to
+# `fingerprint` (scripts/release.py fingerprint <rev>). An instance serves corpus X when its
+# repositorySync.revision has the same fingerprint, so an instance may be built from ANY commit
+# that carries those files, e.g. a newer engine's adapter with an older corpus.
+#
+# A tag pins the LIST of sources, not the bytes behind them. Git sources are cloned at their
+# branch HEAD and v2 fetches TWiki pages live when an instance is BUILT. `materialized` records
+# what each instance actually holds, and it is fixed only once that instance is frozen.
+#
+#   status   pending   being assembled (sources list + docs not dropped in yet)
+#            released  tag cut, fingerprint fixed: never edit `paths` content under it again
+version: 1
+
+paths:
+  - sources/archi-crab.yaml
+  - deployments/archi-crab/data
+
+derived:
+  - deployments/archi-crab/source_registry.yaml
+  - v2/helm/archi-v2/files/weblists/archi-crab.list
+
+corpora:
+  v0.1.0:
+    status: released
+    released: "2026-10-16"
+    tag: corpus/v0.1.0
+    # = staging's repositorySync.revision (okg v4, built 2026-10-06). The same corpus files are at
+    # run1's 11ede756 (v3, the 2026-10-01 evaluation) and at main 1e64643.
+    commit: 43f459c6bceac6bd26376d8d1db5a89fdd697da1
+    fingerprint: "sha256:3d37187c9b1862a81a297407bb25711cf220208d77b60cdbc3a53c50ef878444"  # release.py fingerprint 43f459c6
+    summary: >-
+      Tiers 10+20 enabled, 19 sources rendered (18 git repositories + twiki-sanitized, 285 CMSPublic
+      pages), 10 pending (enabled: false, or tier 30). cmssw-releases retired 2026-10-01.
+    materialized:
+      okg/43f459c6: {generation: "…T090506643459Z:c895f8d81486", nodes: 326241, edges: 419177, built: "2026-10-06"}
+      okg/v3-run1: {generation: "…T085914702200Z:8bea09e15268", nodes: 326241, edges: 419177, built: "2026-10-06"}
+      # TODO: the data-manager counts (docs/RELEASES.md 0.5).
+      v2/archi-e6609f8f: {documents: null, chunks: null, raw_bytes: null, built: "2026-10-05"}
+
+  v0.2.0-rc1:
+    status: pending
+    note: >-
+      Waiting for the sources list and docs. Drop them into sources/archi-crab.yaml and
+      deployments/archi-crab/data/ on main, then cut the tag (docs/RELEASES.md, phase 2).
+      Decide cmssw-releases first: it needs okg#3317 + archi-okg#32, so engine 43f459c6 (B)
+      could not publish a corpus that includes it.
+    tag: corpus/v0.2.0-rc1
+    commit: ""
+    fingerprint: ""

@@ -1,0 +1,28 @@
+# v2/envs/releases/v0.1.0 -- archi v2 engine archi-e6609f8f x corpus v0.1.0 (releases/matrix.yaml).
+# https://archi-crab-v2.cern.ch/{grep,vectorstore}/releases/v0.1.0/mcp, and /{grep,vectorstore}/mcp
+# while it is "latest". Namespace archi-crab-staging, release archi-v2.
+#
+# The fixture built on 2026-10-05 from the v0.1.0 sources list (the weblist rendered from
+# sources/archi-crab.yaml), served as it is: values identical to v2/envs/bench/values.yaml at
+# main 1e64643. From here on the Argo app archi-v2 deploys THIS file from the tag
+# v2/releases/v0.1.0, so neither the bot's image pins nor a corpus change on main reach it.
+images:
+  dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, digest: "sha256:2a2dca78e188283988619e627743789d4dca246923fb171f5b333241bfaaed35"}
+  mcp: {repository: ghcr.io/nausikt/archi-v2-mcp, digest: "sha256:c92c5a8bd4dfb865e5a5b14f8faf4fc880189c3613cfff2f3ee6303bc25e00a7"}
+  postgres: {repository: ghcr.io/nausikt/archi-v2-postgres, digest: "sha256:cae2829b4ecb34381010b5b5b7e78dc16353acc04895d0f4152174c1dc67abc7"}
+# The archi-v2-* GHCR packages are private (GHCR's default for a new package). This is the
+# pull secret okg staging already uses in archi-crab-staging; its classic token reads
+# nausikt packages. Drop the line if the packages are ever made public.
+imagePullSecrets: [{name: ghcr-mitdbg-pull}]
+secrets:
+  existingSecret: archi-v2 # kubectl -n archi-crab-staging create secret generic archi-v2 ... (runbook 2.2)
+postgres:
+  storage: {size: 150Gi, storageClassName: cinder-io1-delete} # = okg staging postgres (150Gi): same disk budget for the comparison
+dataManager:
+  storage: {size: 75Gi, storageClassName: cinder-io1-delete} # = okg staging runtime (75Gi)
+mcp:
+  # phase 4 (2026-10-05): `none`. The v2-grep / v2-vector MCPRemoteProxies in CMSKubernetes are
+  # the gate (CERN SSO + Cedar cms-members) at https://archi-crab-v2.cern.ch/{grep,vectorstore}/mcp,
+  # and the NetworkPolicy now admits ONLY ToolHive proxy pods (label toolhive: "true") to the MCP
+  # ports. Port-forward smoke with a bearer = flip back to `bearer` (phase 2).
+  auth: none

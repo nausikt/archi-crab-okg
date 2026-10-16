@@ -8,7 +8,10 @@ data:
   deployment: {{ .Values.okg.deployment | quote }}
   repo-root: {{ ternary (printf "%s/repository" (trimSuffix "/" .Values.okg.environmentDataRoot)) .Values.okg.repoRoot .Values.repositorySync.enabled | quote }}
   {{- if .Values.repositorySync.enabled }}
-  deployments-dir: {{ printf "%s/repository/deployments" (trimSuffix "/" .Values.okg.environmentDataRoot) | quote }}
+  {{- /* archi-crab delta 12: okg.deploymentsPath picks the engine adapter inside the checkout:
+         "deployments" (native) or "deployments/compat/<engine>" (an older engine's frozen
+         adapter; archi-crab-okg docs/RELEASES.md). Default renders exactly as before. */}}
+  deployments-dir: {{ printf "%s/repository/%s" (trimSuffix "/" .Values.okg.environmentDataRoot) (trimAll "/" (.Values.okg.deploymentsPath | default "deployments")) | quote }}
   {{- end }}
   environment-data-root: {{ .Values.okg.environmentDataRoot | quote }}
   runtime-environment: "kubernetes"
@@ -20,3 +23,4 @@ data:
   runtime-nomos-subject: {{ .Values.okg.runtimeNomosSubject | quote }}
   mcp-nomos-subject: {{ .Values.okg.mcpNomosSubject | quote }}
   readiness-profile: {{ .Values.okg.readinessProfile | quote }}
+  readiness-checks: {{ .Values.okg.readinessChecks | default "" | quote }}

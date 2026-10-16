@@ -324,10 +324,7 @@ spec:
                 - deployment
                 - ready
                 - {{ .Values.okg.deployment | quote }}
-                {{- with .Values.okg.readinessProfile }}
-                - --profile
-                - {{ . | quote }}
-                {{- end }}
+                {{- include "okg.readyFlags" . | nindent 16 }}
                 - --json
             periodSeconds: {{ .Values.runtime.probes.startup.periodSeconds }}
             timeoutSeconds: {{ .Values.runtime.probes.startup.timeoutSeconds }}
@@ -339,10 +336,7 @@ spec:
                 - deployment
                 - ready
                 - {{ .Values.okg.deployment | quote }}
-                {{- with .Values.okg.readinessProfile }}
-                - --profile
-                - {{ . | quote }}
-                {{- end }}
+                {{- include "okg.readyFlags" . | nindent 16 }}
                 - --json
             periodSeconds: {{ .Values.runtime.probes.readiness.periodSeconds }}
             timeoutSeconds: {{ .Values.runtime.probes.readiness.timeoutSeconds }}

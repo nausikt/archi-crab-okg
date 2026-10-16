@@ -1,0 +1,65 @@
+# releases/engines.yaml — the ENGINE axis of a release: which code serves the corpus.
+#
+# An engine id is the first path segment after /release/ in an okg URL
+# (https://archi-crab-okg-staging.cern.ch/release/<engine>/<corpus>/mcp). It is a name for a
+# fixed pair of image digests. Once an engine is `released`, its digests never change: a new
+# build is a new engine id. scripts/release.py lint checks every okg instance's values file
+# against these digests.
+#
+#   status   pending   named, digests not known yet (render refuses it)
+#            released  digests fixed, usable by any instance
+#            retired   kept for the record (an instance may still run it until it is removed)
+#
+# Fill a pending engine in from versions.lock after the `engine` workflow builds it:
+#   runtime.digest  = versions.lock runtime.digest   (OUR image: okg base + archi-okg)
+#   postgres.digest = versions.lock images.okg-postgres.ref (the @sha256 part)
+#   okg / archi_okg = versions.lock upstream.commit / archi.commit
+version: 1
+
+okg:
+  "43f459c6":
+    status: released
+    released: "2026-10-06"
+    note: >-
+      okg v4 as staging runs it: hand pin 43f459c6 (main 1e64643, 2026-10-06). The id is the
+      archi-crab-okg merge commit of the engine PR #21, i.e. the commit staging was pinned to.
+    okg: 3d6cb3e8c2c2c81336eafe0768c40134a95b2797        # mitdbg/okg dev
+    archi_okg: faa731ff5e335c0d329356d4d1bcb2ab7340eb16  # archi-physics/archi-okg main
+    runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: "sha256:edfe5cad544636ec725354de3e410b59b9c0c7bc91ddc62aad9de5012957fbec"}
+    postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: "sha256:b6cd6a0d74789d45c2c208f2e9c8522e0c1120841a51f8f7f17e74fc7a1f9e88"}
+    readinessProfile: ""   # v4 has no `deployment ready --profile`
+    # Its adapter: native at 43f459c6, FROZEN on main in deployments/compat/43f459c6 (so B, this
+    # engine on a newer corpus, renders that corpus its own way). release.py adapter 43f459c6
+    adapter:
+      native: 43f459c6bceac6bd26376d8d1db5a89fdd697da1
+      compat: deployments/compat/43f459c6
+      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+
+  "v0.2.0-rc1":
+    status: pending
+    note: >-
+      okg tag v0.2.0-rc1 = commit 06a4771, a PRE-RELEASE "fixed version for benchmarks": no
+      package or image is published, and okg reports version 0.1.0 inside, so runs are recorded
+      by commit. Built the way 43f459c6 was: the `engine` workflow with okg_commit <full sha>
+      (its sha-<commit> dev pair + docker/runtime/Dockerfile; docs/RELEASES.md 1.1-1.3). Copy
+      okg, archi_okg and the two digests from the tag engine/v0.2.0-rc1's versions.lock; that
+      tag's commit is also its adapter (C's knowledge revision).
+    okg: "" # 06a4771... (the full sha: git ls-remote <okg> refs/tags/v0.2.0-rc1^{})
+    archi_okg: ""
+    runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: ""}
+    postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: ""}
+    readinessProfile: ""
+    adapter: {native: "", compat: "", fingerprint: ""}   # native: the engine/v0.2.0-rc1 commit
+
+# archi v2 has ONE engine for every release: only the corpus moves, so a v2 URL has no engine
+# segment. Do not merge v2/upstream into a release while this stays the bench engine.
+v2:
+  archi-e6609f8f:
+    status: released
+    released: "2026-10-05"
+    note: archi-physics/archi main @ e6609f8f (PR #608), archi 1.2.4 -- v2/versions.lock at main 1e64643
+    archi: e6609f8f6ade4831453b9548d1faf7bc62d7ea2b
+    images:
+      dataManager: {repository: ghcr.io/nausikt/archi-v2-data-manager, digest: "sha256:2a2dca78e188283988619e627743789d4dca246923fb171f5b333241bfaaed35"}
+      mcp: {repository: ghcr.io/nausikt/archi-v2-mcp, digest: "sha256:c92c5a8bd4dfb865e5a5b14f8faf4fc880189c3613cfff2f3ee6303bc25e00a7"}
+      postgres: {repository: ghcr.io/nausikt/archi-v2-postgres, digest: "sha256:cae2829b4ecb34381010b5b5b7e78dc16353acc04895d0f4152174c1dc67abc7"}

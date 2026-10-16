@@ -1,0 +1,43 @@
+# envs/releases/43f459c6/v0.1.0 -- okg engine 43f459c6 x corpus v0.1.0 (releases/matrix.yaml, instance A).
+# https://archi-crab-okg-staging.cern.ch/releases/43f459c6/v0.1.0/mcp, and /mcp while it is "latest".
+#
+# The instance staging built on 2026-10-06, served as it is: same names, so the same volumes.
+# NEVER change fullnameOverride: it names the StatefulSets and so their io1 claims, and that
+# class deletes a volume with its claim. Values identical to envs/staging/values.yaml at
+# freeze-both (24f2dbe). From here on the Argo app deploys THIS file from the tag
+# okg/releases/43f459c6/v0.1.0, so the bot's pins in envs/staging no longer reach it.
+#   engine  43f459c6 = ghcr.io/nausikt/archi-crab-okg@sha256:edfe5cad (okg 3d6cb3e8 + archi-okg faa731ff)
+#   corpus  v0.1.0   = tag corpus/v0.1.0 = this revision (scripts/release.py lint checks both)
+fullnameOverride: archi-crab-okg-staging
+okg:
+  readinessProfile: "" # okg v4 (dev >= 3d6cb3e8) has no `deployment ready --profile`; run1 (v3) keeps it
+images:
+  okg:
+    repository: ghcr.io/nausikt/archi-crab-okg
+    tag: ""
+    digest: "sha256:edfe5cad544636ec725354de3e410b59b9c0c7bc91ddc62aad9de5012957fbec"
+    pullPolicy: IfNotPresent
+postgresql:
+  image:
+    repository: ghcr.io/mitdbg/okg-postgres
+    tag: ""
+    digest: "sha256:b6cd6a0d74789d45c2c208f2e9c8522e0c1120841a51f8f7f17e74fc7a1f9e88"
+    pullPolicy: IfNotPresent
+  storage:
+    size: 150Gi
+    storageClassName: cinder-io1-delete # real StorageClass on the target cluster (Runbook Phase 2)
+runtime:
+  storage:
+    size: 75Gi
+    storageClassName: cinder-io1-delete
+repositorySync:
+  revision: "43f459c6bceac6bd26376d8d1db5a89fdd697da1" # carries corpus v0.1.0 (it IS the corpus/v0.1.0 commit)
+bootstrap:
+  approvedRevision: "43f459c6bceac6bd26376d8d1db5a89fdd697da1" # <- MUST equal repositorySync.revision (chart enforces)
+mcp:
+  allowedHosts:
+    - "archi-crab-okg-staging.cern.ch"
+    - "archi-crab-okg-staging.cern.ch:*"
+    - "10.254.109.91:*"
+frozen:
+  enabled: true   # live = frozen: serves its published generation, nothing changes it

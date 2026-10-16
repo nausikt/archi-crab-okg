@@ -1,0 +1,14 @@
+# deployments/compat/43f459c6 -- engine 43f459c6's adapter, FROZEN from 43f459c6bceac6bd26376d8d1db5a89fdd697da1
+# by `scripts/release.py freeze-adapter`. Never edit these files: releases/engines.yaml holds
+# their fingerprint and release.py lint refuses a drift. What is here:
+#   kinds.yaml               sources/kinds.yaml as this engine reads it
+#   archi-crab/              deployment.yaml, extractors, invariants, schemas, skills
+#     data -> ../../../archi-crab/data     the corpus (shared; a symlink)
+#     source_registry.yaml   GENERATED: the CURRENT source list rendered with kinds.yaml above
+#                            (scripts/sources.py render --write; CI checks it)
+# An instance of this engine on a newer corpus sets okg.deploymentsPath: deployments/compat/43f459c6
+engine: "43f459c6"
+frozen_from: 43f459c6bceac6bd26376d8d1db5a89fdd697da1
+# Sources of the current list this engine cannot ingest: {source id: reason}. They are left
+# out of THIS render only; the matrix reports them for every instance that uses this adapter.
+exclude: {}

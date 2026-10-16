@@ -1,3 +1,7 @@
+> **Retired 2026-10-16.** run1 (okg v3) was deleted with its volumes and Secret when the
+> release matrix replaced the run slots (docs/RELEASES.md, phase 0.4). This page and the tag
+> `okg-run1` are the record of how it was built and frozen.
+
 # run1 = okg v3, built fresh then frozen · staging → okg v4, rebuilt fresh — decisions and runbook
 
 Written 2026-10-06 against this repository's `main` @ ed24df2 (staging pinned at 6d5edef) and

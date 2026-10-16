@@ -14,7 +14,7 @@ tags, never `main`:
 | A | okg `43f459c6` (v4 dev, 3d6cb3e8) | `v0.1.0` | `/releases/43f459c6/v0.1.0/mcp` (+ `/mcp` pointer) | live, frozen (gen `eee6c09f3655`, 326,241 / 419,177) |
 | C | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff` |
 | v2 | archi `e6609f8f` | `v0.1.0` | `/{grep,vectorstore}/releases/v0.1.0/mcp` (+ pointers) | live |
-| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | planned: first build after the 2026-10-17 daily run |
+| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | building: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (run 38967636310, tag at `9d150b9`) |
 
 - run1 is retired. The ToolHive operator is paused (0) until the dev slot's proxy is created.
 - A and C share their corpus and adapter (fingerprints `3d37187c…` and `46227d04…`); only the

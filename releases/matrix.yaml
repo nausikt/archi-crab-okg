@@ -92,7 +92,7 @@ okg:
     - slot: dev
       engine: dev-2026w42
       corpus: v0.1.0
-      status: planned
+      status: building
       clusterIP: 10.254.0.205
     #
     # run1 (okg v3, the 2026-10-01 evaluation, /run1/mcp) was retired on 2026-10-16: its app,

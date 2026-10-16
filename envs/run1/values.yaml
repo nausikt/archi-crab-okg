@@ -40,7 +40,7 @@ repositorySync:
 bootstrap:
   approvedRevision: "11ede756bb057d7ae782b3da68f0563e20736593"  # MUST equal repositorySync.revision
 frozen:
-  enabled: false                         # true once the first publish is verified (RUN1-FREEZE step 4)
+  enabled: true   # frozen 2026-10-06 (RUN1-FREEZE step 7)
 mcp:
   # Fixed ClusterIP (chart delta 11): the remote proxy sends the address it dialled as Host.
   # Check it is free before the first sync (docs/RUN1-FREEZE.md, preflight).

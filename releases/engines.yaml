@@ -36,20 +36,25 @@ okg:
       fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
 
   "v0.2.0-rc1":
-    status: pending
+    status: released
+    released: "2026-10-16"
     note: >-
       okg tag v0.2.0-rc1 = commit 06a4771, a PRE-RELEASE "fixed version for benchmarks": no
       package or image is published, and okg reports version 0.1.0 inside, so runs are recorded
-      by commit. Built the way 43f459c6 was: the `engine` workflow with okg_commit <full sha>
-      (its sha-<commit> dev pair + docker/runtime/Dockerfile; docs/RELEASES.md 1.1-1.3). Copy
-      okg, archi_okg and the two digests from the tag engine/v0.2.0-rc1's versions.lock; that
-      tag's commit is also its adapter (C's knowledge revision).
-    okg: "" # 06a4771... (the full sha: git ls-remote <okg> refs/tags/v0.2.0-rc1^{})
-    archi_okg: ""
-    runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: ""}
-    postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: ""}
-    readinessProfile: ""
-    adapter: {native: "", compat: "", fingerprint: ""}   # native: the engine/v0.2.0-rc1 commit
+      by commit. Built the way 43f459c6 was (its sha-<commit> dev pair + docker/runtime/Dockerfile):
+      engine workflow run 38938717337, okg_commit 06a4771 + archi-okg main e1c2886, contract
+      report 0 errors / 0 warnings. Tag engine/v0.2.0-rc1 = that build's commit = its adapter.
+    okg: 06a4771945e286c4f6658314af922b67b5a57629        # mitdbg/okg tag v0.2.0-rc1
+    archi_okg: e1c2886064b2df1e29fc5102b224030dff10cf68  # archi-physics/archi-okg main (#38, 2026-10-13)
+    runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: "sha256:b96c71673987b0d1fa97d671130d0859f0ccc166d855177c2126ee4d1bd78933"}
+    postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: "sha256:fca7ed27e80fbef0adc362663f935b8245598a774ccf606f58a334be6af6f0b0"}
+    readinessProfile: ""   # no flag (okg.readinessChecks stays "" too)
+    # Native at engine/v0.2.0-rc1. Same fingerprint as 43f459c6's: the rc1 build changed no
+    # adapter file, so A and C read the same adapter and corpus; only the engine differs.
+    adapter:
+      native: 9a0e53393b65bb45a817eafb5b5711c7ee2d3368
+      compat: ""
+      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
 
 # archi v2 has ONE engine for every release: only the corpus moves, so a v2 URL has no engine
 # segment. Do not merge v2/upstream into a release while this stays the bench engine.

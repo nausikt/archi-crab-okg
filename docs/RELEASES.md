@@ -4,6 +4,101 @@ One **instance** per (engine, corpus) pair, built from scratch, frozen, deployed
 git **tag**, and served at a URL that names the pair. "Latest" URLs are **pointers** (thin
 proxies), never a second instance. Prod has its own instance of the best pair (F).
 
+## Where we are, and what is left (2026-10-16 19:05)
+
+**Done (phase 0):**
+- #26 is merged, and A is frozen: `runtime-0` is 1/1, MCP only.
+- The releases PR is merged, and the tags `corpus/v0.1.0`, `okg/releases/43f459c6/v0.1.0` and
+  `v2/releases/v0.1.0` are cut.
+- A and v2 deploy from those tags. The three release-path proxies are Ready, discovery is
+  path-aware, and CERN SSO works.
+- run1 is retired: its app, proxy, volumes and Secret are gone.
+- The ToolHive operator is **still up**, on purpose, for C.
+
+**Patches:**
+
+| Patch | State | When |
+|---|---|---|
+| `archi-crab-okg-1-releases-v0.1.0`, `CMSKubernetes-1-releases-v0.1.0` | merged | — |
+| `archi-crab-okg-4-docs-release-auth` (this section, `--client-id` fix) | to apply | **now** (`[skip ci]`) |
+| `archi-crab-okg-3-okg-ready-checks` | to apply | **now** (let CI run: it is the first full `helm` render of the helper) |
+| C's release / IaC / freeze patches | written by Claude | at steps 1.4, 1.6, 1.8 |
+| `CMSKubernetes-2-releases-v0.1.0-done` (operator → 0) | keep in hand | only if the operator misbehaves before C. Otherwise the same change ships in C's freeze patch (1.8). |
+| `archi-crab-okg-2-okg-release-engine` | waits | after v0.2.0's public images (≥ 2026-10-17) |
+
+**Next, in order:**
+
+1. **Now:** apply patches 4 and 3 on `main`.
+   ```bash
+   git fetch origin && git checkout -b docs-release-auth origin/main && git am archi-crab-okg-4-docs-release-auth.patch && git push -u origin docs-release-auth
+   git checkout -b okg-ready-checks origin/main && git am archi-crab-okg-3-okg-ready-checks.patch && git push -u origin okg-ready-checks
+   ```
+   Keep an eye on the operator: `kubectl -n toolhive-system get pod` (restarts must stay 0).
+2. **1.1 rc1 inputs.**
+   - The full sha of `06a4771`: click it on the release page.
+   - The archi-okg commit okg pairs with rc1: ask them; empty = archi-okg `main` `e1c28860`.
+3. **1.2 Build the engine.**
+   - Actions → engine → Run workflow, with `okg_commit: <full sha>`, `archi_commit: <pair|empty>`
+     and `force: true`.
+   - If the resolve step fails with "no okg commit has both a runtime and a postgres image",
+     okg never built images for it. Stop, and use `v0.2.0` tomorrow.
+4. **1.3 Tag it right away** (before 03:17 UTC). Paste the outputs, plus the PR's contract report:
+   ```bash
+   git fetch origin engine/upstream && git log -3 --format='%h %s' origin/engine/upstream
+   git tag -a engine/v0.2.0-rc1 origin/engine/upstream -m "archi-crab engine okg v0.2.0-rc1 (06a4771)" && git push origin engine/v0.2.0-rc1
+   python3 scripts/release.py fingerprint engine/v0.2.0-rc1          # sha256:3d37187c... = corpus v0.1.0
+   python3 scripts/release.py adapter v0.2.0-rc1 engine/v0.2.0-rc1
+   git show engine/v0.2.0-rc1:versions.lock | yq '.upstream.commit, .archi.commit, .images, .runtime.digest'
+   ```
+5. **1.4 C's release patch** (Claude writes it from step 4). Apply it, let CI run (`release.py lint`
+   checks C's pins), and merge. Its merge sha is `M1`.
+6. **1.5 Cluster preparation:**
+   ```bash
+   kubectl get svc -A -o jsonpath='{range .items[*]}{.spec.clusterIP}{"\n"}{end}' | grep -qx 10.254.0.203 && echo TAKEN || echo free
+   scripts/okg-run-secret.sh v0-2-0-rc1-v0-1-0
+   kubectl -n archi-crab-staging get secret okg-archi-crab-v0-2-0-rc1-v0-1-0 -o jsonpath='{.data.okg-dsn}' \
+     | base64 -d | grep -oE '^[a-z+]+://[^:@/]+|user=[^ ]+' | sed -E 's#^[a-z+]+://#user=#'   # user=postgres
+   ```
+7. **1.6 C's IaC patch** (Claude writes it with `M1`): its Argo app at `M1`, and its proxy at
+   `/releases/v0.2.0-rc1/v0.1.0`. Merge it. The operator is already up.
+8. **1.7 Watch the build.**
+   - Follow `bootstrap` logs on `archi-crab-okg-v0-2-0-rc1-v0-1-0-runtime-0` until the first publish.
+   - Then save `okg status --json` for A and C (generation, counts, per-source revisions = the
+     drift).
+9. **1.8 Freeze C.** Claude's patch sets `frozen: true` and the matrix to `live`; merge it (`M2`).
+   ```bash
+   git tag -a okg/releases/v0.2.0-rc1/v0.1.0 "$M2" -m "okg C: engine v0.2.0-rc1 x corpus v0.1.0, frozen"
+   git push origin okg/releases/v0.2.0-rc1/v0.1.0 && python3 scripts/release.py lint --tags
+   ```
+   Then the IaC patch: C's app moves to the tag, and the operator goes back to 0.
+10. **Bench, A vs C (and v2).** Add each endpoint with
+    `--client-id archi-crab-okg-public-staging --callback-port 8765`:
+    - `https://archi-crab-okg-staging.cern.ch/releases/43f459c6/v0.1.0/mcp`
+    - `https://archi-crab-okg-staging.cern.ch/releases/v0.2.0-rc1/v0.1.0/mcp`
+    - `https://archi-crab-v2.cern.ch/{grep,vectorstore}/releases/v0.1.0/mcp`
+
+    Record runs by okg commit (rc1 reports version 0.1.0).
+
+**After the weekend:**
+- Patch 2, then set `main` to `track: release`. Accept okg's chart PR after 10-17 (they carry
+  deltas 10, 11 and 13).
+- Drop the okg pull secret and token only once our own images are public too.
+- Add a CI job that runs the contract check of `deployments/compat/43f459c6` in image `edfe5cad`.
+- Retire `main.yaml`'s staging pin and `promote.yaml`.
+
+**Phase 2 (corpus v0.2.0-rc1: B, D, F, v2)**, once your sources list and docs exist. First:
+- de-hardcode the v2 chart;
+- prod F's prerequisites: certificate, LanDB alias and listener for `archi-crab-okg.cern.ch`, a
+  prod SSO app, its Secret, and `cinder-io1`;
+- decide on `cmssw-releases` (exclude it for 43f459c6 in its `compat.yaml`).
+
+**Not ours, still open:**
+- The master node has been NotReady since 2026-10-05 (CERN Cloud resize ticket).
+- Prod `crab-mcp-gateway` is OutOfSync / Degraded, and `archi-crab-otel-collector` is Degraded.
+  Both predate this work.
+
+The phases below are the full reference for each step.
+
 The truth is in `releases/` and `scripts/release.py` checks it:
 
 | File | Says |
@@ -176,9 +271,16 @@ for u in archi-crab-okg-staging.cern.ch/.well-known/oauth-protected-resource/rel
          archi-crab-v2.cern.ch/.well-known/oauth-protected-resource/grep/releases/v0.1.0/mcp \
          archi-crab-v2.cern.ch/.well-known/oauth-protected-resource/vectorstore/releases/v0.1.0/mcp; do
   curl -s "https://$u" | jq -r .resource; done              # each = the URL it describes
-claude mcp add --transport http okg-A https://archi-crab-okg-staging.cern.ch/releases/43f459c6/v0.1.0/mcp
-claude mcp add --transport http v2-grep-v010 https://archi-crab-v2.cern.ch/grep/releases/v0.1.0/mcp
+# Every release URL takes the PRE-REGISTERED public PKCE client (redirect http://localhost:8765/callback).
+# Without --client-id, Claude Code tries dynamic client registration, which CERN SSO refuses
+# (403 "Policy 'Allowed Client Scopes' rejected request to client-registration service").
+claude mcp add --transport http okg-A https://archi-crab-okg-staging.cern.ch/releases/43f459c6/v0.1.0/mcp \
+  --client-id archi-crab-okg-public-staging --callback-port 8765
+claude mcp add --transport http v2-grep-v010 https://archi-crab-v2.cern.ch/grep/releases/v0.1.0/mcp \
+  --client-id archi-crab-okg-public-staging --callback-port 8765
 ```
+A route answers `ECONNRESET` for its first seconds, until the gateway programs it; retry before
+debugging.
 - The release path and its pointer must list the same tools (same backend).
 - `query` must still be refused.
 - Record v2's counts in `corpus.yaml` (`materialized`), using the data-manager queries from
@@ -298,7 +400,7 @@ git push origin okg/releases/v0.2.0-rc1/v0.1.0 && python3 scripts/release.py lin
 3. IaC PR: C's app `targetRevision` becomes the tag, and the operator goes back to 0.
 4. Record C's counts in `corpus.yaml`.
 
-**Bench endpoints:**
+**Bench endpoints** (each added with `--client-id archi-crab-okg-public-staging --callback-port 8765`):
 - A: `.../releases/43f459c6/v0.1.0/mcp`
 - C: `.../releases/v0.2.0-rc1/v0.1.0/mcp`
 - v2: `archi-crab-v2.cern.ch/{grep,vectorstore}/releases/v0.1.0/mcp`

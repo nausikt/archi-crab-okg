@@ -68,7 +68,7 @@ okg:
     # C: the new engine on the old corpus (what did the engine change, corpus held fixed?)
     - engine: v0.2.0-rc1
       corpus: v0.1.0
-      status: building
+      status: live
       clusterIP: 10.254.0.203
     # D: latest engine x latest corpus, the best version. Staging's /mcp points here once it is live.
     # Prod runs the SAME pair as its own instance F (below): users never share D with the bench.

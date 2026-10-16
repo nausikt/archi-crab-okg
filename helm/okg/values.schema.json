@@ -34,6 +34,7 @@
         },
         "readinessProfile": {"type": "string", "enum": ["general", "dogfood", "ci", ""]},
         "deploymentsPath": {"type": "string", "pattern": "^deployments(/compat/[A-Za-z0-9._-]+)?$"},
+        "readinessChecks": {"type": "string", "pattern": "^[a-z0-9_,.-]*$"},
         "runtimeNomosSubject": {"type": "string", "minLength": 1},
         "mcpNomosSubject": {"type": "string", "minLength": 1},
         "repoRoot": {"type": "string", "pattern": "^/"},

@@ -205,3 +205,23 @@ seccompProfile:
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+archi-crab delta 13: the readiness flag of `okg deployment ready` (okg v0.2.0 renames
+--profile to --checks). At most one of okg.readinessChecks / okg.readinessProfile; neither
+= no flag. Emits YAML list items for an exec command.
+*/}}
+{{- define "okg.readyFlags" -}}
+{{- if and .Values.okg.readinessChecks .Values.okg.readinessProfile -}}
+{{- fail "set okg.readinessChecks (okg >= v0.2.0) OR okg.readinessProfile (okg v3), not both" -}}
+{{- end -}}
+{{- with .Values.okg.readinessChecks -}}
+- --checks
+- {{ . | quote }}
+{{- else -}}
+{{- with .Values.okg.readinessProfile -}}
+- --profile
+- {{ . | quote }}
+{{- end -}}
+{{- end -}}
+{{- end -}}

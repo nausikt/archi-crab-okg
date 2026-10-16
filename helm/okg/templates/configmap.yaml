@@ -23,3 +23,4 @@ data:
   runtime-nomos-subject: {{ .Values.okg.runtimeNomosSubject | quote }}
   mcp-nomos-subject: {{ .Values.okg.mcpNomosSubject | quote }}
   readiness-profile: {{ .Values.okg.readinessProfile | quote }}
+  readiness-checks: {{ .Values.okg.readinessChecks | default "" | quote }}

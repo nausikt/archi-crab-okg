@@ -34,7 +34,7 @@ jobs:
       - run: helm lint helm/okg -f envs/prod/values.yaml    --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - run: helm lint helm/okg -f envs/staging/values.yaml -f helm/okg/ci/git-credentials-on.yaml --set repositorySync.revision=x --set bootstrap.approvedRevision=x
       - name: helm lint every release instance (pinned by release.py render, so its own revision and no --set)
-        run: for f in envs/releases/*/*/values.yaml; do echo "== $f"; helm lint helm/okg -f "$f"; done
+        run: for f in envs/releases/*/*/values.yaml envs/releases/*/values.yaml; do echo "== $f"; helm lint helm/okg -f "$f"; done   # */values.yaml = slots (dev)
       - name: release matrix (docs/RELEASES.md); building renders bootstrap + worker, frozen renders MCP only (delta 10)
         run: |
           # release.py lint: image pins vs releases/engines.yaml, corpus and engine-adapter fingerprints at
@@ -65,7 +65,7 @@ jobs:
           helm template t helm/okg -f envs/staging/values.yaml -f helm/okg/ci/git-credentials-on.yaml \
             --set repositorySync.revision=${{ github.sha }} --set bootstrap.approvedRevision=${{ github.sha }} \
           | ./kubeconform -strict -summary -schema-location default
-          for f in envs/releases/*/*/values.yaml; do
+          for f in envs/releases/*/*/values.yaml envs/releases/*/values.yaml; do
             helm template t helm/okg -f "$f" | ./kubeconform -strict -summary -schema-location default
             helm template t helm/okg -f "$f" --set frozen.enabled=false | ./kubeconform -strict -summary -schema-location default
           done

@@ -56,6 +56,28 @@ okg:
       compat: ""
       fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
 
+  # WEEKLY DEV BUILDS, served by the slot `dev` (releases/matrix.yaml, /releases/dev/mcp). One id per weekly pin,
+  # dev-<ISO year>w<ISO week>, from the engine workflow's daily build of okg `dev` + archi-okg
+  # `main` (branch engine/upstream). Fill it with `release.py engine-entry dev-<week> engine/dev-<week>`.
+  # Released digests never change; last week's id becomes `retired` when the slot moves on.
+  "dev-2026w42":
+    status: released
+    released: "2026-10-16"
+    note: >-
+      First weekly dev pin: okg dev b9ad2b92bcf5 + archi-okg main e1c2886064b2, engine workflow run
+      38967636310 (dispatched 2026-10-16, no pins held). Tag engine/dev-2026w42 = 9d150b9873ed.
+      Corpus v0.1.0 and the same adapter as 43f459c6 / v0.2.0-rc1 (contract check changed nothing).
+    okg: b9ad2b92bcf59c3723df07af8c919474c634681e
+    archi_okg: e1c2886064b2df1e29fc5102b224030dff10cf68
+    runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: "sha256:b5a9b29fa31200c4b0fec0194137c629ab32b226f69f7a02bda624f14ec57f56"}
+    postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: "sha256:2fb07792aac80c83ab44695d149290573c45ebfbc214557434e3ef6f23cd2fad"}
+    readinessProfile: ""
+    adapter:
+      native: 9d150b9873edf5cd071035f213cd5e186bbc8118
+      compat: ""
+      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+
+
 # archi v2 has ONE engine for every release: only the corpus moves, so a v2 URL has no engine
 # segment. Do not merge v2/upstream into a release while this stays the bench engine.
 v2:

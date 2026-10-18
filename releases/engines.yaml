@@ -14,6 +14,15 @@
 #   runtime.digest  = versions.lock runtime.digest   (OUR image: okg base + archi-okg)
 #   postgres.digest = versions.lock images.okg-postgres.ref (the @sha256 part)
 #   okg / archi_okg = versions.lock upstream.commit / archi.commit
+#
+# ADAPTERS are versioned per engine (scripts/release.py engine_adapters). `adapters:` lists, oldest
+# first, every adapter an engine accepts: {fingerprint, native: <commit that carries it natively>,
+# compat: <deployments/compat/... dir or "">, since, note}. The engine's images NEVER change; the
+# list only grows: backward (the adapter its frozen instances were built with stays listed as long
+# as they are live: lint refuses to drop it) and forward (a newer adapter, appended only after
+# `contract-check.py` + `okg catalog load` + `okg deployment lint` passed INSIDE this engine's
+# image). `render` gives a new instance the newest listed adapter its revision carries; frozen
+# instances keep theirs. The older single `adapter:` form is still read.
 version: 1
 
 okg:
@@ -30,10 +39,12 @@ okg:
     readinessProfile: ""   # v4 has no `deployment ready --profile`
     # Its adapter: native at 43f459c6, FROZEN on main in deployments/compat/43f459c6 (so B, this
     # engine on a newer corpus, renders that corpus its own way). release.py adapter 43f459c6
-    adapter:
-      native: 43f459c6bceac6bd26376d8d1db5a89fdd697da1
-      compat: deployments/compat/43f459c6
-      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+    adapters:
+      - fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+        native: 43f459c6bceac6bd26376d8d1db5a89fdd697da1
+        compat: deployments/compat/43f459c6
+        since: "2026-10-06"
+        note: "the build's adapter; A (frozen) and the compat render for B"
 
   "v0.2.0-rc1":
     status: retired   # 2026-10-18: replaced by v0.2.0-rc2; no instance serves it (tag engine/v0.2.0-rc1 stays)
@@ -51,10 +62,12 @@ okg:
     readinessProfile: ""   # no flag (okg.readinessChecks stays "" too)
     # Native at engine/v0.2.0-rc1. Same fingerprint as 43f459c6's: the rc1 build changed no
     # adapter file, so A and C read the same adapter and corpus; only the engine differs.
-    adapter:
-      native: 9a0e53393b65bb45a817eafb5b5711c7ee2d3368
-      compat: ""
-      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+    adapters:
+      - fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+        native: 9a0e53393b65bb45a817eafb5b5711c7ee2d3368
+        compat: ""
+        since: "2026-10-16"
+        note: "the build's adapter (retired engine)"
 
   "v0.2.0-rc2":
     status: released
@@ -69,10 +82,15 @@ okg:
     runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: "sha256:eed04fb502ec0325db2ed811bb1bbe1c502cb10c6d99e3fc36b2fe84cb3ae42a"}
     postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: "sha256:a2a5a5a0e58f889a773ea27d56d37b12864cb3aaf33980fc57fea3ef7bfe8eda"}
     readinessProfile: ""
-    adapter:
-      native: 627e7e29a22bd489768eb19c04ac03ac70ea1216
-      compat: ""
-      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+    # Adapter a = the build's (C on rc2 × v0.1.0 is frozen with it). A forward adapter (e.g. the
+    # git-history lane) is APPENDED here only after the in-image check passed (docs/RELEASES.md,
+    # "Engine adapters"); never edit or remove this first entry while C is live.
+    adapters:
+      - fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+        native: 627e7e29a22bd489768eb19c04ac03ac70ea1216
+        compat: ""
+        since: "2026-10-18"
+        note: "adapter a: the rc2 build's; C"
 
 
   # WEEKLY DEV BUILDS, served by the slot `dev` (releases/matrix.yaml, /releases/dev/mcp). One id per weekly pin,
@@ -91,10 +109,12 @@ okg:
     runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: "sha256:b5a9b29fa31200c4b0fec0194137c629ab32b226f69f7a02bda624f14ec57f56"}
     postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: "sha256:2fb07792aac80c83ab44695d149290573c45ebfbc214557434e3ef6f23cd2fad"}
     readinessProfile: ""
-    adapter:
-      native: 9d150b9873edf5cd071035f213cd5e186bbc8118
-      compat: ""
-      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+    adapters:
+      - fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+        native: 9d150b9873edf5cd071035f213cd5e186bbc8118
+        compat: ""
+        since: "2026-10-16"
+        note: "the weekly build's adapter"
 
 
 # archi v2 has ONE engine for every release: only the corpus moves, so a v2 URL has no engine

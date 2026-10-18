@@ -159,7 +159,20 @@ okg#3317. So each okg engine in the matrix has an **adapter**:
 - `deployments/archi-crab/` apart from `data/` (the corpus), `source_registry.yaml` (rendered)
   and `VENDOR.yaml`.
 
-`releases/engines.yaml` records its fingerprint.
+`releases/engines.yaml` records its fingerprint — since 2026-10-18 as `adapters:`, a **list per
+engine, oldest first**. An engine's id, tag, commits and image digests never change; its adapter
+list only grows:
+- **backward**: the adapter an instance was built with stays listed while that instance is live
+  (`release.py lint` errors on a live instance whose revision carries an unlisted fingerprint);
+- **forward**: a newer adapter (a `kinds.yaml` change such as the git-history lane, a re-vendored
+  schema) is appended only after `contract-check.py`, `okg catalog load` and `okg deployment lint`
+  passed **inside that engine's own image** (`IMG=<its runtime digest>`); the dev image that CI
+  runs is not proof for a release engine. Each entry: `{fingerprint, native: <commit that carries
+  it natively>, compat: <dir or "">, since, note}`.
+
+`render` gives a new instance the newest listed adapter its revision carries (native before
+compat); frozen instances keep theirs. So D and F can run `v0.2.0-rc2` with an adapter C never
+had, with no engine build and no change to C.
 
 | Where | Holds | Used by |
 |---|---|---|
@@ -176,7 +189,8 @@ okg#3317. So each okg engine in the matrix has an **adapter**:
 - **When `main`'s adapter moves on** (an engine PR resyncs vendored files, `kinds.yaml` changes)
   and an older engine is still wanted, freeze it first:
   `release.py freeze-adapter <engine> <its commit>`, then `sources.py render --write`, then
-  record `adapter.compat` and `adapter.fingerprint` in `engines.yaml`.
+  add (or complete) that fingerprint's entry under `adapters:` in `engines.yaml` with its
+  `compat:` dir (a second frozen version of the same engine gets `deployments/compat/<engine>-<fp8>`).
 - Retire a compat dir with its last instance.
 - Follow-up (a workflow change, not in these PRs): a CI job that runs `contract-check.py` inside
   each compat engine's image (43f459c6 = `edfe5cad`) against its compat deployment. A corpus

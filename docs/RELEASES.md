@@ -15,9 +15,9 @@ tags, never `main`:
 | C (rc1) | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff`; **retiring**: replaced by rc2 |
 | C | okg `v0.2.0-rc2` (9221a10) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc2/v0.1.0/mcp` | building (engine run 39127745935, tag `engine/v0.2.0-rc2` at `627e7e2`) |
 | v2 | archi `e6609f8f` | `v0.1.0` | `/{grep,vectorstore}/releases/v0.1.0/mcp` (+ pointers) | live |
-| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | building: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (run 38967636310, tag at `9d150b9`) |
+| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | live, frozen: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (gen `4082f4504b2d`, 326421 / 419368) |
 
-- run1 is retired. The ToolHive operator is paused (0) until the dev slot's proxy is created.
+- run1 is retired. The ToolHive operator is paused (0); the dev slot's proxy `okg-dev` exists.
 - A and C share their corpus and adapter (fingerprints `3d37187c…` and `46227d04…`); only the
   engine differs.
 - `okg status` on a FROZEN instance exits 1 with `permission denied for table node_facts`. Only

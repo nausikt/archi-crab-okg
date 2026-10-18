@@ -46,6 +46,11 @@ corpora:
       okg/43f459c6: {generation: "okg:archi-crab:branch:default:gen:20261016T000015717215Z:eee6c09f3655", nodes: 326241, edges: 419177, built: "2026-10-06"}
       # C: built 2026-10-16 (ingest ~58 min); +178 nodes / +190 edges vs A = 10 days of git drift + engine.
       okg/v0.2.0-rc1: {generation: "okg:archi-crab:branch:default:gen:20261016T184727098429Z:dbc96e1b4a8d", nodes: 326419, edges: 419367, built: "2026-10-16"}
+      # dev slot, week 2026w42: okg dev b9ad2b9 + archi-okg e1c2886, built 2026-10-16/17; its worker
+      # re-published nightly until the freeze, so the frozen generation is 2026-10-18 00:00 UTC (git
+      # sources at that day's HEAD). +2 nodes / +1 edge vs C on rc1. Served at /releases/dev/mcp until
+      # the next weekly build; tag okg/releases/dev-2026w42/v0.1.0 is the record.
+      okg/dev-2026w42: {generation: "okg:archi-crab:branch:default:gen:20261018T000015990169Z:4082f4504b2d", nodes: 326421, edges: 419368, built: "2026-10-18"}
       okg/v3-run1: {generation: "…T085914702200Z:8bea09e15268", nodes: 326241, edges: 419177, built: "2026-10-06", retired: "2026-10-16"}
       # TODO: the data-manager counts (docs/RELEASES.md 0.5).
       v2/archi-e6609f8f: {documents: null, chunks: null, raw_bytes: null, built: "2026-10-05"}

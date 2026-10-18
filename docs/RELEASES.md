@@ -13,7 +13,7 @@ tags, never `main`:
 |---|---|---|---|---|
 | A | okg `43f459c6` (v4 dev, 3d6cb3e8) | `v0.1.0` | `/releases/43f459c6/v0.1.0/mcp` (+ `/mcp` pointer) | live, frozen (gen `eee6c09f3655`, 326,241 / 419,177) |
 | C (rc1) | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff`; **retiring**: replaced by rc2 |
-| C | okg `v0.2.0-rc2` (9221a10) | `v0.1.0` | `/releases/v0.2.0-rc2/v0.1.0/mcp` | planned: section "Engine rc2 replaces rc1" |
+| C | okg `v0.2.0-rc2` (9221a10) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc2/v0.1.0/mcp` | building (engine run 39127745935, tag `engine/v0.2.0-rc2` at `627e7e2`) |
 | v2 | archi `e6609f8f` | `v0.1.0` | `/{grep,vectorstore}/releases/v0.1.0/mcp` (+ pointers) | live |
 | dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | building: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (run 38967636310, tag at `9d150b9`) |
 

@@ -1,0 +1,13 @@
+{
+ "fetched_at": "2026-10-18T23:13:58Z",
+ "repos": {
+  "dmwm/CRABServer": {
+   "commits": 4,
+   "highest_number": 9443,
+   "histories": 4,
+   "skipped_bots": 0,
+   "threads": 46
+  }
+ },
+ "tool": "scripts/harvest-gh-threads.py"
+}

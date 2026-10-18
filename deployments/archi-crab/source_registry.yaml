@@ -194,3 +194,129 @@ sources:
       triggers: [manual, reconcile]
       default_event_mode: scope_complete
       reconcile_mode: scope_complete
+
+  # ---- github-threads-crabserver -- tier 20 -- kind docs-files -- dmwm/CRABServer issues and PRs since 2023, named older threads, commits, file histories
+  # Built by scripts/docs-build.py from a folder of files; committed, and
+  # delivered to the pod by repositorySync with the rest of the deployment.
+  # Node ids are documentation_page:<sha256(url)[:16]>: a page keeps its id
+  # as long as its URL does. No reference params (releases_map_path, ...):
+  # a configured reference file that is missing at run time raises, and
+  # cmssw-releases writes its map during the same bootstrap.
+  github_threads_crabserver:
+    module: archi.sources.docs
+    class: DocumentationAdapter
+    ownership_id: archi-crab.github-threads-crabserver
+    admission_policy:
+      producer_id: archi-crab.github-threads-crabserver
+      producer_kind: source
+      trust_label: implicit_legacy_trusted
+      admission_mode: fast_track
+      authority_scope: {source_family: archi-crab, source_name: github_threads_crabserver}
+      output_signature:
+        nodes:
+          - {subtype: documentation_page}
+          - {subtype: document_chunk}
+        edges:
+          - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+      output_scope_summary:
+        summary: pages of github-threads-crabserver (records.json built from files) and their text chunks
+        nodes: [documentation_page, document_chunk]
+        edges: [documentation_page contains document_chunk]
+    source_class: discovery_crawl
+    record_identity_kind: scoped_locator
+    record_identity_fields: [url]
+    source_revision_kind: content_hash
+    deletion_semantics: missing_from_completed_scope
+    publication_mode: published_generation
+    required_for_baseline: false
+    params:
+      required: true
+      records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/github-threads-crabserver/records.json
+    sync:
+      triggers: [manual, reconcile]
+      default_event_mode: scope_complete
+      reconcile_mode: scope_complete
+
+  # ---- github-threads-crabclient -- tier 20 -- kind docs-files -- dmwm/CRABClient issues and PRs since 2023, named commits and file histories
+  # Built by scripts/docs-build.py from a folder of files; committed, and
+  # delivered to the pod by repositorySync with the rest of the deployment.
+  # Node ids are documentation_page:<sha256(url)[:16]>: a page keeps its id
+  # as long as its URL does. No reference params (releases_map_path, ...):
+  # a configured reference file that is missing at run time raises, and
+  # cmssw-releases writes its map during the same bootstrap.
+  github_threads_crabclient:
+    module: archi.sources.docs
+    class: DocumentationAdapter
+    ownership_id: archi-crab.github-threads-crabclient
+    admission_policy:
+      producer_id: archi-crab.github-threads-crabclient
+      producer_kind: source
+      trust_label: implicit_legacy_trusted
+      admission_mode: fast_track
+      authority_scope: {source_family: archi-crab, source_name: github_threads_crabclient}
+      output_signature:
+        nodes:
+          - {subtype: documentation_page}
+          - {subtype: document_chunk}
+        edges:
+          - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+      output_scope_summary:
+        summary: pages of github-threads-crabclient (records.json built from files) and their text chunks
+        nodes: [documentation_page, document_chunk]
+        edges: [documentation_page contains document_chunk]
+    source_class: discovery_crawl
+    record_identity_kind: scoped_locator
+    record_identity_fields: [url]
+    source_revision_kind: content_hash
+    deletion_semantics: missing_from_completed_scope
+    publication_mode: published_generation
+    required_for_baseline: false
+    params:
+      required: true
+      records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/github-threads-crabclient/records.json
+    sync:
+      triggers: [manual, reconcile]
+      default_event_mode: scope_complete
+      reconcile_mode: scope_complete
+
+  # ---- github-threads-other -- tier 20 -- kind docs-files -- named issues, PRs and commits of cmssw, cmssw-osenv, cms-docker, cmsdist, nanoAOD-tools, WMCore
+  # Built by scripts/docs-build.py from a folder of files; committed, and
+  # delivered to the pod by repositorySync with the rest of the deployment.
+  # Node ids are documentation_page:<sha256(url)[:16]>: a page keeps its id
+  # as long as its URL does. No reference params (releases_map_path, ...):
+  # a configured reference file that is missing at run time raises, and
+  # cmssw-releases writes its map during the same bootstrap.
+  github_threads_other:
+    module: archi.sources.docs
+    class: DocumentationAdapter
+    ownership_id: archi-crab.github-threads-other
+    admission_policy:
+      producer_id: archi-crab.github-threads-other
+      producer_kind: source
+      trust_label: implicit_legacy_trusted
+      admission_mode: fast_track
+      authority_scope: {source_family: archi-crab, source_name: github_threads_other}
+      output_signature:
+        nodes:
+          - {subtype: documentation_page}
+          - {subtype: document_chunk}
+        edges:
+          - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+      output_scope_summary:
+        summary: pages of github-threads-other (records.json built from files) and their text chunks
+        nodes: [documentation_page, document_chunk]
+        edges: [documentation_page contains document_chunk]
+    source_class: discovery_crawl
+    record_identity_kind: scoped_locator
+    record_identity_fields: [url]
+    source_revision_kind: content_hash
+    deletion_semantics: missing_from_completed_scope
+    publication_mode: published_generation
+    required_for_baseline: false
+    params:
+      required: true
+      records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/github-threads-other/records.json
+    sync:
+      triggers: [manual, reconcile]
+      default_event_mode: scope_complete
+      reconcile_mode: scope_complete

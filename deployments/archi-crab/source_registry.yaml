@@ -7,7 +7,8 @@
 # Not rendered (`python3 scripts/sources.py status` says why):
 #   cms-analysis-docs (enabled: false), twiki (enabled: false), crab-mcp (enabled: false)
 #   dbs-mcp (enabled: false), htcondor-mcp (enabled: false), rucio-mcp (enabled: false)
-#   site-status-mcp (enabled: false), cmssw (tier 30 not enabled)
+#   site-status-mcp (enabled: false), cms-cat-cmssw-lxplus (enabled: false)
+#   public-web-docs (enabled: false), cmssw (tier 30 not enabled)
 #   cms-sw-github-io (tier 30 not enabled), htcondor (tier 30 not enabled).
 
 # kind git: a git repository, ingested as a code graph (files, symbols, interfaces, doc chunks).
@@ -52,6 +53,14 @@ code_repos:
     - {slug: wmcore-wiki, url: 'https://github.com/dmwm/WMCore.wiki.git', dir: WMCore.wiki}
     # rucio-docs -- tier 20 -- Rucio user and operator documentation ("how do I"; the rucio repo is "where in the code")
     - {slug: rucio-docs, url: 'https://github.com/rucio/documentation.git', dir: rucio-documentation}
+    # cms-docker -- tier 20 -- cms-sw container images (cmssw-el7/el8/el9 Dockerfiles, locale and tool choices behind "command not found" in a container)
+    - {slug: cms-docker, url: 'https://github.com/cms-sw/cms-docker.git', dir: cms-docker}
+    # cmssw-osenv -- tier 20 -- the cmssw-env wrapper behind cmssw-el7/el8/el9 (apptainer, bind mounts, LC_ALL, --command-to-run)
+    - {slug: cmssw-osenv, url: 'https://github.com/cms-sw/cmssw-osenv.git', dir: cmssw-osenv}
+    # cmssw-wm-tools -- tier 20 -- edm_pset_tweak and the other scripts WMCore/CRAB use to rewrite a PSet at runtime
+    - {slug: cmssw-wm-tools, url: 'https://github.com/cms-sw/cmssw-wm-tools.git', dir: cmssw-wm-tools}
+    # nanoaod-tools -- tier 20 -- NanoAODTools post-processor (crab/ example, crabhelper.py, fwkJobReport handling)
+    - {slug: nanoaod-tools, url: 'https://github.com/cms-nanoAOD/nanoAOD-tools.git', dir: nanoAOD-tools}
 
 sources:
   # ---- twiki-sanitized -- tier 10 -- kind docs-files -- Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file)
@@ -91,6 +100,48 @@ sources:
     params:
       required: true
       records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/twiki-sanitized/records.json
+    sync:
+      triggers: [manual, reconcile]
+      default_event_mode: scope_complete
+      reconcile_mode: scope_complete
+
+  # ---- code-snapshots -- tier 20 -- kind docs-files -- Pinned files (cmssw, CRABClient, WMCore, ROOT, xrootd) no engine holds otherwise; see snapshots.tsv
+  # Built by scripts/docs-build.py from a folder of files; committed, and
+  # delivered to the pod by repositorySync with the rest of the deployment.
+  # Node ids are documentation_page:<sha256(url)[:16]>: a page keeps its id
+  # as long as its URL does. No reference params (releases_map_path, ...):
+  # a configured reference file that is missing at run time raises, and
+  # cmssw-releases writes its map during the same bootstrap.
+  code_snapshots:
+    module: archi.sources.docs
+    class: DocumentationAdapter
+    ownership_id: archi-crab.code-snapshots
+    admission_policy:
+      producer_id: archi-crab.code-snapshots
+      producer_kind: source
+      trust_label: implicit_legacy_trusted
+      admission_mode: fast_track
+      authority_scope: {source_family: archi-crab, source_name: code_snapshots}
+      output_signature:
+        nodes:
+          - {subtype: documentation_page}
+          - {subtype: document_chunk}
+        edges:
+          - {src_subtype: documentation_page, edge_type: contains, dst_subtype: document_chunk}
+      output_scope_summary:
+        summary: pages of code-snapshots (records.json built from files) and their text chunks
+        nodes: [documentation_page, document_chunk]
+        edges: [documentation_page contains document_chunk]
+    source_class: discovery_crawl
+    record_identity_kind: scoped_locator
+    record_identity_fields: [url]
+    source_revision_kind: content_hash
+    deletion_semantics: missing_from_completed_scope
+    publication_mode: published_generation
+    required_for_baseline: false
+    params:
+      required: true
+      records_path: ${OKG_DEPLOYMENTS_DIR}/archi-crab/data/docs/code-snapshots/records.json
     sync:
       triggers: [manual, reconcile]
       default_event_mode: scope_complete

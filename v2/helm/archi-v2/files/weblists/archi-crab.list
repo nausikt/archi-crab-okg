@@ -16,7 +16,7 @@ git-https://gitlab.cern.ch/crab3/cms-crab-docs.git
 # cmscrab-userguide -- tier 10 -- CRAB user guide
 git-https://gitlab.cern.ch/crab3/cmscrab-userguide.git
 
-# twiki-sanitized -- tier 10 -- Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file) (285 pages, from deployments/archi-crab/data/docs/twiki-sanitized/records.json)
+# twiki-sanitized -- tier 10 -- Sanitized CRAB-relevant TWiki pages (Markdown/HTML/PDF -> one records file) (283 pages, from deployments/archi-crab/data/docs/twiki-sanitized/records.json)
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/AsoDeployment
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/AssociatingUsersToTier2
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/CERNGridCertificateIssues
@@ -106,9 +106,7 @@ https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideContributors
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCoreSoftware
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrab
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrabAtCAF
-https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrabFaq
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrabForPublication
-https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrabMonteCarlo
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideDQM
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideDataFormatRecoBTag
 https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideDataFormatRecoEcal
@@ -344,3 +342,70 @@ git-https://github.com/dmwm/WMCore.wiki.git
 
 # rucio-docs -- tier 20 -- Rucio user and operator documentation ("how do I"; the rucio repo is "where in the code")
 git-https://github.com/rucio/documentation.git
+
+# cms-docker -- tier 20 -- cms-sw container images (cmssw-el7/el8/el9 Dockerfiles, locale and tool choices behind "command not found" in a container)
+git-https://github.com/cms-sw/cms-docker.git
+
+# cmssw-osenv -- tier 20 -- the cmssw-env wrapper behind cmssw-el7/el8/el9 (apptainer, bind mounts, LC_ALL, --command-to-run)
+git-https://github.com/cms-sw/cmssw-osenv.git
+
+# cmssw-wm-tools -- tier 20 -- edm_pset_tweak and the other scripts WMCore/CRAB use to rewrite a PSet at runtime
+git-https://github.com/cms-sw/cmssw-wm-tools.git
+
+# nanoaod-tools -- tier 20 -- NanoAODTools post-processor (crab/ example, crabhelper.py, fwkJobReport handling)
+git-https://github.com/cms-nanoAOD/nanoAOD-tools.git
+
+# code-snapshots -- tier 20 -- Pinned files (cmssw, CRABClient, WMCore, ROOT, xrootd) no engine holds otherwise; see snapshots.tsv (53 pages, from deployments/archi-crab/data/docs/code-snapshots/records.json)
+https://raw.githubusercontent.com/cms-sw/cmssw-osenv/daef61747ebd544e5ee6bd5272333d15648c2505/cmssw-env
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Config.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/DictTypes.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/ExceptionHandling.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/MassReplace.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Mixins.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Modules.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Options.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/OrderedSet.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/SequenceTypes.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/SequenceVisitors.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/TreeCrawler.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Types.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Utilities.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/VarParsing.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/printPaths.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/test/MessWithGeometry_cfg.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/usedOutput.py
+https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_6_29/FWCore/PythonUtilities/python/LumiList.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/IOPool/Input/src/PoolSource.cc
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/README.md
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/crab/PSet.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/crab/crab_cfg.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/crab/crab_script.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/crab/crab_script.sh
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/examples/exampleModule.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/examples/mhtjuProducerCpp.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/branchselection.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/collectionMerger.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/datamodel.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/eventloop.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/jobreport.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/output.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/postprocessor.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/preskimming.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/framework/treeReaderArrayTools.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/python/postprocessing/utils/crabhelper.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/scripts/nano_postproc.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/standalone/checkoutStandalone.sh
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/standalone/env_standalone.sh
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/BuildFile.xml
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/exampleAnalysis.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/exampleGenDump.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/example_postproc.py
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/examples/MhtjuProducerCppWorker.cc
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/examples/MhtjuProducerCppWorker.h
+https://raw.githubusercontent.com/cms-sw/cmssw/f18d4f0969171301853fefe1734969378846416f/PhysicsTools/NanoAODTools/test/runTest.sh
+https://raw.githubusercontent.com/dmwm/CRABClient/970fabd75d6895b1434c9d4cca0b0ebeff426f4b/bin/crab
+https://raw.githubusercontent.com/dmwm/CRABClient/970fabd75d6895b1434c9d4cca0b0ebeff426f4b/bin/crab.py
+https://raw.githubusercontent.com/dmwm/CRABClient/970fabd75d6895b1434c9d4cca0b0ebeff426f4b/bin/rucio_env.sh
+https://raw.githubusercontent.com/dmwm/WMCore/2.2.4rc6/src/python/WMCore/WMRuntime/Tools/Scram.py
+https://raw.githubusercontent.com/root-project/root/d6e07d1d05a8b53faf39715aa603030a107ad39d/bindings/pyroot/pythonizations/python/ROOT/_pythonization/_tfile.py
+https://raw.githubusercontent.com/xrootd/xrootd/778d8c237667bf201fb06986d3d0cae107f0654a/src/XProtocol/XProtocol.hh

@@ -1,7 +1,16 @@
 {
+ "dropped": {
+  "2026-10-18": {
+   "urls": [
+    "https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrabFaq",
+    "https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideCrabMonteCarlo"
+   ],
+   "why": "CRAB2-era pages (SWGuideCrabFaq = CRAB2 FAQ, SWGuideCrabMonteCarlo = CRAB 2.7.1 guide): wrong answers for CRAB3 questions. Remove CMSPublic_SWGuideCrabFaq.* and CMSPublic_SWGuideCrabMonteCarlo.* from the source folder before any rebuild."
+  }
+ },
  "emails_redacted": true,
  "files": 290,
- "pages": 285,
+ "pages": 283,
  "pdf_extractor": [],
  "source_dir": "sanitized_twikis",
  "statuses": {

@@ -328,6 +328,83 @@ sources:
     dir: rucio-documentation
     about: Rucio user and operator documentation ("how do I"; the rucio repo is "where in the code")
 
+  # ==== 20: corpus/v0.2.0-rc1 (2026-10-18): what the gold-dataset reviews found missing ====
+  # Public GitHub only. Every entry is `sensitivity: public` by host or by declaration;
+  # internal material (CMS-web TWiki, private GitLab notes) stays out of this file (the
+  # posture is public_reference_demo) and goes to the governed instance later.
+  # File counts: blobless clones on 2026-10-18.
+  cms-docker:
+    tier: 20
+    group: extras/containers
+    kind: git
+    git: https://github.com/cms-sw/cms-docker.git
+    branch: master
+    dir: cms-docker
+    about: cms-sw container images (cmssw-el7/el8/el9 Dockerfiles, locale and tool choices behind "command not found" in a container)
+    # 213 files. Dockerfiles have no extension: older okg builds and v2's GitScraper may skip them (parity gap, recorded in docs/RELEASES.md).
+
+  cmssw-osenv:
+    tier: 20
+    group: extras/containers
+    kind: git
+    git: https://github.com/cms-sw/cmssw-osenv.git
+    branch: master
+    dir: cmssw-osenv
+    about: the cmssw-env wrapper behind cmssw-el7/el8/el9 (apptainer, bind mounts, LC_ALL, --command-to-run)
+    # 20 files. `cmssw-env` has no extension: a pinned copy is also in code-snapshots so every engine holds its text.
+
+  cmssw-wm-tools:
+    tier: 20
+    group: extras/cms_analysis_sw
+    kind: git
+    git: https://github.com/cms-sw/cmssw-wm-tools.git
+    branch: master
+    dir: cmssw-wm-tools
+    about: edm_pset_tweak and the other scripts WMCore/CRAB use to rewrite a PSet at runtime
+    # 25 files
+
+  nanoaod-tools:
+    tier: 20
+    group: extras/cms_analysis_sw
+    kind: git
+    git: https://github.com/cms-nanoAOD/nanoAOD-tools.git
+    branch: master
+    dir: nanoAOD-tools
+    about: NanoAODTools post-processor (crab/ example, crabhelper.py, fwkJobReport handling)
+    # 370 files
+
+  cms-cat-cmssw-lxplus:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/cms-cat/cmssw-lxplus.git
+    auth: none               # ONLY valid if `sources.py probe --id cms-cat-cmssw-lxplus` proves Public visibility
+    # 2026-10-18: not probed yet (gitlab.cern.ch unreachable from the sandbox). Flip to
+    # enabled when the probe passes on a CERN-reachable machine; drop the entry if it asks
+    # for a login (the lxplus9/el7 fact stays in the public-web-docs record).
+    enabled: false
+    about: cms-cat/cmssw-lxplus -- running CMSSW on lxplus9 for pre-el9 releases
+
+  code-snapshots:
+    tier: 20
+    group: 20_code_snapshots
+    kind: docs-files
+    sensitivity: public
+    data: data/docs/code-snapshots    # records.json; identity = raw.githubusercontent.com URL pinned to a sha or tag
+    about: Pinned files (cmssw, CRABClient, WMCore, ROOT, xrootd) no engine holds otherwise; see snapshots.tsv
+
+  public-web-docs:
+    tier: 20
+    group: 20_public_web_docs
+    kind: docs-files
+    sensitivity: public
+    data: data/docs/public-web-docs   # records.json; identity = the live public URL (same page v2 fetches)
+    # Data not built yet: the pages (CERN/OSG/uscms/CMS sites) must be fetched from a
+    # machine that reaches them: scripts/harvest-fetch.py --list data/docs/public-web-docs/pages.tsv
+    # Flip to enabled in the commit that adds records.json.
+    enabled: false
+    about: Public web pages the reviews cite (CERN KB/service pages, OSG and uscms docs, cms-sw site, HTCondor manual pages) as one records file
+
   # ==== 30: large upstreams, ingested only in part ===========================
   # Each needs `scope`: whole, they are 5k-80k files. Scope needs an engine that
   # can restrict a repo to globs, and that is not verified for the pinned okg

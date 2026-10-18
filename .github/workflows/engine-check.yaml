@@ -1,0 +1,123 @@
+# engine-check -- prove that the adapter at a ref is accepted INSIDE the image of a RELEASED
+# engine (releases/engines.yaml), not only inside the dev image versions.lock pins (ci.yaml
+# okg-validate). This is the gate before a newer adapter fingerprint is appended to that
+# engine's `adapters:` list (docs/RELEASES.md, "Engine adapters": forward compatibility), and
+# the follow-up ci.yaml promised for compat adapters (deployments_path = a compat dir).
+#
+#   Actions -> engine-check -> Run workflow
+#     engine            an id from releases/engines.yaml okg: (e.g. v0.2.0-rc2, 43f459c6)
+#     deployments_path  deployments (native adapter) or deployments/compat/<engine>
+#     ref               the git ref whose adapter is checked (default: the dispatched branch)
+#
+# Same steps as ci.yaml okg-validate + sources.yaml sources-contract, with the engine's own
+# runtime and postgres digests. Record the run id in the PR that lists the fingerprint.
+name: engine-check
+on:
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: "okg engine id in releases/engines.yaml"
+        required: true
+        default: v0.2.0-rc2
+      deployments_path:
+        description: "adapter to check: deployments, or deployments/compat/<engine>"
+        required: true
+        default: deployments
+      ref:
+        description: "git ref to check out (empty = the dispatched branch)"
+        required: false
+        default: ""
+
+permissions: {contents: read}
+
+jobs:
+  engine-check:
+    runs-on: ubuntu-latest
+    env:
+      OKG_DSN: postgresql://postgres:ci@127.0.0.1:5432/okg
+      OKG_DEPLOYMENTS_DIR: ${{ github.workspace }}/${{ inputs.deployments_path }}
+      OKG_ENVIRONMENT_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      ARCHI_DATA_ROOT: ${{ github.workspace }}/.okg-data
+      OKG_RUNTIME_ENVIRONMENT: kubernetes
+      OKG_RUNTIME_SUPERVISOR: container
+      OKG_DEPLOYMENT: archi-crab
+      OKG_NOMOS_SUBJECT: archi-crab-runtime
+      OKG_REPO_ROOT: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v7
+        with: {ref: "${{ inputs.ref }}", persist-credentials: false}
+      - name: engine digests from releases/engines.yaml
+        id: e
+        run: |
+          E='${{ inputs.engine }}'
+          okg="$(yq -r ".okg[\"$E\"].runtime.repository + \"@\" + .okg[\"$E\"].runtime.digest" releases/engines.yaml)"
+          pg="$(yq -r ".okg[\"$E\"].postgres.repository + \"@\" + .okg[\"$E\"].postgres.digest" releases/engines.yaml)"
+          st="$(yq -r ".okg[\"$E\"].status" releases/engines.yaml)"
+          case "$okg" in *@sha256:*) ;; *) echo "::error::engine $E has no runtime digest ($okg, status $st)"; exit 1 ;; esac
+          case "$pg"  in *@sha256:*) ;; *) echo "::error::engine $E has no postgres digest ($pg)"; exit 1 ;; esac
+          echo "engine $E ($st): $okg / $pg"
+          { echo "okg=$okg"; echo "pg=$pg"; } >> "$GITHUB_OUTPUT"
+          test -f "${{ inputs.deployments_path }}/archi-crab/deployment.yaml" || { echo "::error::no deployment at ${{ inputs.deployments_path }}"; exit 1; }
+      - name: adapter fingerprint at this ref (what a green run proves)
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/release.py adapter '${{ inputs.engine }}' HEAD | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: ghcr login (CLI; no additional action)
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u nausikt --password-stdin
+      - name: vendored vocabulary vs this engine's image (drift is reported, not fatal; the contract and catalog steps decide)
+        continue-on-error: true
+        run: IMG="${{ steps.e.outputs.okg }}" CONTAINER_RUNTIME=docker scripts/vendor-sync.sh --check
+      - name: Postgres with the chart's exact args
+        run: |
+          docker run -d --name pg --network host --shm-size 2g \
+            -e POSTGRES_PASSWORD=ci -e POSTGRES_DB=okg "${{ steps.e.outputs.pg }}" \
+            postgres -c shared_preload_libraries=timescaledb,pg_textsearch -c max_locks_per_transaction=1024
+          for i in $(seq 1 60); do docker exec pg pg_isready -h 127.0.0.1 -U postgres -d okg >/dev/null 2>&1 && break || sleep 2; done
+          docker exec pg psql -h 127.0.0.1 -v ON_ERROR_STOP=1 -U postgres -d okg \
+            -c "CREATE EXTENSION IF NOT EXISTS btree_gist" \
+            -c "CREATE EXTENSION IF NOT EXISTS fuzzystrmatch" \
+            -c "CREATE EXTENSION IF NOT EXISTS pg_textsearch" \
+            -c "CREATE EXTENSION IF NOT EXISTS pg_trgm" \
+            -c "CREATE EXTENSION IF NOT EXISTS timescaledb" \
+            -c "CREATE EXTENSION IF NOT EXISTS vector"
+      - name: okg wrapper (runs as the runner uid so workspace files stay writable)
+        env: {OKG_IMG: "${{ steps.e.outputs.okg }}"}
+        run: |
+          mkdir -p "$OKG_ENVIRONMENT_DATA_ROOT" .okg-home .bin
+          cat > .bin/okg <<'EOF'
+          #!/usr/bin/env bash
+          exec docker run --rm --network host --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" -e HOME="$GITHUB_WORKSPACE/.okg-home" \
+            -e OKG_DSN -e OKG_DEPLOYMENTS_DIR -e OKG_ENVIRONMENT_DATA_ROOT -e ARCHI_DATA_ROOT \
+            -e OKG_RUNTIME_ENVIRONMENT -e OKG_RUNTIME_SUPERVISOR -e OKG_DEPLOYMENT -e OKG_NOMOS_SUBJECT -e OKG_REPO_ROOT -e OKG_MCP_AUTH_TOKEN \
+            --entrypoint okg "$OKG_IMG" "$@"
+          EOF
+          chmod +x .bin/okg && echo "$GITHUB_WORKSPACE/.bin" >> "$GITHUB_PATH"
+          echo "OKG_IMG=$OKG_IMG" >> "$GITHUB_ENV"
+      - run: okg migrate --deployment archi-crab --apply
+      - run: okg catalog ownership claim --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab"
+      - run: okg catalog load --deployment "$OKG_DEPLOYMENTS_DIR/archi-crab" --apply
+      - run: |
+          okg deployment lint archi-crab --json | tee lint.json
+          python3 -c "import json,sys; sys.exit(0 if json.load(open('lint.json'))['ok'] else 1)"
+      - name: Contract check (registry, bundle, okg CLI, vendored paths) inside this engine's image
+        run: |
+          out="$RUNNER_TEMP/contract"; mkdir -p "$out"; chmod 777 "$out"
+          rc=0
+          docker run --rm --network none \
+            -v "$PWD/deployments:/w/deployments:ro" -v "$PWD/scripts:/w/scripts:ro" -v "$out:/out" \
+            -e OKG_RUNTIME_ENVIRONMENT=kubernetes -e OKG_RUNTIME_SUPERVISOR=container -e OKG_DEPLOYMENT=archi-crab \
+            -e OKG_NOMOS_SUBJECT=archi-crab-runtime -e OKG_REPO_ROOT=/w -e OKG_DEPLOYMENTS_DIR=/w/${{ inputs.deployments_path }} \
+            -e OKG_ENVIRONMENT_DATA_ROOT=/tmp/okg-data -e ARCHI_DATA_ROOT=/tmp/okg-data -w /w \
+            --entrypoint python "$OKG_IMG" /w/scripts/contract-check.py \
+            --deployment /w/${{ inputs.deployments_path }}/archi-crab --markdown /out/contract.md || rc=$?
+          cat "$out/contract.md" >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$rc"
+      - name: sources contract + inventory inside this engine's image (kinds bind; what the lanes emit)
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/w:ro" -e GITHUB_ACTIONS --entrypoint python "$OKG_IMG" \
+            /w/scripts/sources.py --repo /w contract
+          docker run --rm -v "$GITHUB_WORKSPACE:/w:ro" --entrypoint python "$OKG_IMG" \
+            /w/scripts/sources.py --repo /w inventory >> "$GITHUB_STEP_SUMMARY" || true
+      - if: always()
+        run: docker logs pg --tail 40

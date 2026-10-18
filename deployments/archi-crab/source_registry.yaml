@@ -14,7 +14,12 @@
 # Proven: staging since v0.5 (crabserver, crabclient), public GitHub only.
 code_repos:
   base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos
-  expand: [git-files, code-structure, interfaces, doc-corpus]
+  expand:
+    - git-files
+    - git-history
+    - code-structure
+    - interfaces
+    - doc-corpus
   repos:
     # crabserver -- tier 10 -- CRAB REST interface, TaskWorker, Publisher, CI/CD scripts
     - {slug: crabserver, url: 'https://github.com/dmwm/CRABServer.git', dir: CRABServer}

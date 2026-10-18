@@ -37,7 +37,7 @@ repositorySync:
 bootstrap:
   approvedRevision: "627e7e29a22bd489768eb19c04ac03ac70ea1216"  # MUST equal repositorySync.revision
 frozen:
-  enabled: false
+  enabled: true   # live = frozen: serves its published generation, nothing changes it
 mcp:
   serviceClusterIP: "10.254.0.206"   # fixed (chart delta 11): check it is free before the first sync
   allowedHosts:

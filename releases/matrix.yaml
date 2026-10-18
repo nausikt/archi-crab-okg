@@ -70,17 +70,18 @@ okg:
       corpus: v0.2.0-rc1
       status: planned
       clusterIP: 10.254.0.202
-    # C (rc1): okg v0.2.0-rc1 on the old corpus. REPLACED by C on rc2 below; retired once that is
-    # live (docs/RELEASES.md, "Engine rc2 replaces rc1"). Tag okg/releases/v0.2.0-rc1/v0.1.0 stays.
+    # C (rc1): okg v0.2.0-rc1 on the old corpus. RETIRED 2026-10-18, replaced by C on rc2 below:
+    # app, proxy, volumes and Secret removed (docs/RELEASES.md R8). Tag okg/releases/v0.2.0-rc1/v0.1.0
+    # and corpus.yaml materialized are the record.
     - engine: v0.2.0-rc1
       corpus: v0.1.0
-      status: live
+      status: retired
       clusterIP: 10.254.0.203
     # C: the release-candidate engine on the old corpus (what did the engine change, corpus held
     # fixed?), now okg v0.2.0-rc2. Its own release, volumes and URL; rc1's C is not reused.
     - engine: v0.2.0-rc2
       corpus: v0.1.0
-      status: building
+      status: live
       clusterIP: 10.254.0.206
     # D: latest engine x latest corpus, the best version. Staging's /mcp points here once it is live.
     # Prod runs the SAME pair as its own instance F (below): users never share D with the bench.

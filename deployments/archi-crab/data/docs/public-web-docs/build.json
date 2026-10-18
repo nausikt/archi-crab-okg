@@ -1,0 +1,14 @@
+{
+ "emails_redacted": true,
+ "files": 30,
+ "pages": 28,
+ "pdf_extractor": [],
+ "source_dir": "pages",
+ "statuses": {
+  "kept": 28,
+  "unsupported": 2
+ },
+ "tool": "scripts/docs-build.py",
+ "url_template": "https://twiki.cern.ch/twiki/bin/view/{web}/{topic}",
+ "webs": "all"
+}

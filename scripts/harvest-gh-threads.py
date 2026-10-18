@@ -102,12 +102,22 @@ def main(argv=None):
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     urls = []
-    manifest = {"tool": "scripts/harvest-gh-threads.py", "repos": {}, "fetched_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    # several invocations share one pages dir (the class, then named threads, then commits and
+    # histories): urls.tsv is appended and the manifest is MERGED, never overwritten
+    manifest_path = out / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {"repos": {}}
+    manifest["tool"] = "scripts/harvest-gh-threads.py"
+    manifest.setdefault("repos", {})
+    manifest["fetched_at"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     numbers = {int(x) for x in a.numbers.split(",")} if a.numbers else None
 
     for repo in a.repo:
         slug = repo.split("/", 1)[1].lower().replace(".", "-")
-        info = {"threads": 0, "commits": 0, "histories": 0, "highest_number": 0, "skipped_bots": 0}
+        info = manifest["repos"].get(repo) or {"threads": 0, "commits": 0, "histories": 0, "highest_number": 0, "skipped_bots": 0}
+        # highest_number is also recoverable from the files already on disk (<slug>-{issue,pull}-<n>.md)
+        on_disk = [int(f.stem.rsplit("-", 1)[1]) for f in out.glob("%s-*-*.md" % slug)
+                   if f.stem.startswith((slug + "-issue-", slug + "-pull-")) and f.stem.rsplit("-", 1)[1].isdigit()]
+        info["highest_number"] = max([info.get("highest_number", 0)] + on_disk)
         if not a.no_threads:
             items = gh(["repos/%s/issues?state=%s&per_page=100&sort=created&direction=asc" % (repo, a.state)], paginate=True) or []
             for item in items:
@@ -149,7 +159,7 @@ def main(argv=None):
             f.write("# <file name><TAB><url><TAB><title>  -- written by scripts/harvest-gh-threads.py; docs-build.py --urls input\n")
         for name, url, title in urls:
             f.write("%s\t%s\t%s\n" % (name, url, title.replace("\t", " ")))
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print("wrote %d pages -> %s" % (len(urls), out))
 
 

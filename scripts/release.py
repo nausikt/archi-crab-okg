@@ -129,12 +129,30 @@ def git_bytes(*args):
     return subprocess.run(["git", "-C", ROOT, *args], capture_output=True, check=True).stdout
 
 
+def engine_adapters(engine):
+    """The adapters an engine accepts, oldest first: its `adapters:` list, plus the legacy single
+    `adapter:` (engines written before adapters were versioned) when that fingerprint is not
+    already listed. Each entry: {fingerprint, native: <commit>, compat: <dir or "">, since?, note?}.
+    An engine's images never change; its adapter list only grows (backward: what its frozen
+    instances were built with; forward: a newer adapter proven in its image), and lint refuses to
+    drop a fingerprint a live instance still carries."""
+    out = [dict(a) for a in (engine.get("adapters") or []) if isinstance(a, dict) and a.get("fingerprint")]
+    legacy = engine.get("adapter") or {}
+    if legacy.get("fingerprint") and legacy["fingerprint"] not in [a["fingerprint"] for a in out]:
+        out.insert(0, dict(legacy))
+    return out
+
+
 def adapter_path_for(engine, rev):
-    """Which deploymentsPath carries `engine`'s adapter at `rev`: native first, then its compat dir."""
-    ad = engine.get("adapter") or {}
-    for path in ("deployments", ad.get("compat") or ""):
-        if path and adapter_fingerprint(rev, path) == ad.get("fingerprint"):
-            return path
+    """Which deploymentsPath carries an adapter `engine` accepts at `rev`: the newest listed one
+    the revision carries, native (deployments/) before a compat dir."""
+    native = adapter_fingerprint(rev, "deployments")
+    for a in reversed(engine_adapters(engine)):
+        if native and native == a["fingerprint"]:
+            return "deployments"
+        cp = a.get("compat") or ""
+        if cp and adapter_fingerprint(rev, cp) == a["fingerprint"]:
+            return cp
     return None
 
 
@@ -143,9 +161,15 @@ def freeze_adapter(mx, eid, commit):
     if not e:
         raise SystemExit("no okg engine %s in engines.yaml" % eid)
     full = git("rev-parse", "%s^{commit}" % commit)
+    src_fp = adapter_fingerprint(full, "deployments")
+    if src_fp is None:
+        raise SystemExit("no native adapter at %s" % full[:12])
     dest = "deployments/compat/%s" % slug(eid)
     if os.path.exists(os.path.join(ROOT, dest)):
-        raise SystemExit("%s exists: an adapter is frozen once (delete it first to re-freeze)" % dest)
+        # the engine already has one frozen adapter: a second version gets its own dir
+        dest = "%s-%s" % (dest, src_fp[len("sha256:"):][:8])
+        if os.path.exists(os.path.join(ROOT, dest)):
+            raise SystemExit("%s exists: this adapter version is already frozen" % dest)
     os.makedirs(os.path.join(ROOT, dest, DEP))
     with open(os.path.join(ROOT, dest, "kinds.yaml"), "wb") as f:
         f.write(git_bytes("show", "%s:sources/kinds.yaml" % full))
@@ -168,7 +192,8 @@ def freeze_adapter(mx, eid, commit):
     fp = adapter_fingerprint(None, dest)
     print("froze engine %s's adapter from %s into %s\n  fingerprint %s" % (eid, full[:12], dest, fp))
     print("next: python3 scripts/sources.py render --write   (writes %s/%s/source_registry.yaml)" % (dest, DEP))
-    print("      releases/engines.yaml okg.%s.adapter: {compat: %s, fingerprint: \"%s\"}" % (eid, dest, fp))
+    print("      releases/engines.yaml okg.%s.adapters: add (or complete) the entry" % eid)
+    print('        - {fingerprint: "%s", native: %s, compat: %s}' % (fp, full, dest))
 
 
 COMPAT_YAML = """\
@@ -210,13 +235,16 @@ def engine_entry(eid, commit):
     runtime: {repository: %s, digest: "%s"}
     postgres: {repository: %s, digest: "%s"}
     readinessProfile: ""
-    adapter:
-      native: %s
-      compat: ""
-      fingerprint: "%s"''' % (eid, git("log", "-1", "--format=%cs", full), str(up.get("commit", ""))[:12],
-                              up.get("track", "?"), str(ar.get("commit", ""))[:12], eid, full[:12],
-                              up.get("commit"), ar.get("commit"), rt.get("ref"), rt.get("digest"),
-                              pg_repo, pg_digest, full, fp))
+    adapters:   # oldest first; append a newer adapter only after it is proven in THIS engine's image
+      - fingerprint: "%s"
+        native: %s
+        compat: ""
+        since: "%s"
+        note: "the build's adapter"''' % (
+        eid, git("log", "-1", "--format=%cs", full), str(up.get("commit", ""))[:12],
+        up.get("track", "?"), str(ar.get("commit", ""))[:12], eid, full[:12],
+        up.get("commit"), ar.get("commit"), rt.get("ref"), rt.get("digest"),
+        pg_repo, pg_digest, fp, full, git("log", "-1", "--format=%cs", full)))
 
 
 # ---------------------------------------------------------------- the model
@@ -348,6 +376,24 @@ def lint(mx, tags):
         for eid, e in es.items():
             if e["status"] not in ("pending", "released", "retired"):
                 r.err("engine %s:%s: status %r" % (kind, eid, e["status"]))
+            if kind != "okg":
+                continue
+            fps = []
+            for a in engine_adapters(e):
+                fp = str(a.get("fingerprint") or "")
+                if not fp.startswith("sha256:") or len(fp) != len("sha256:") + 64:
+                    r.err("engine %s: adapter fingerprint %r is not sha256:<64 hex>" % (eid, fp))
+                if fp in fps:
+                    r.err("engine %s: adapter %s listed twice" % (eid, fp[:15]))
+                fps.append(fp)
+                cp = a.get("compat") or ""
+                if cp and not os.path.isdir(os.path.join(ROOT, cp)):
+                    r.warn("engine %s: compat dir %s is not in this checkout" % (eid, cp))
+                nat = str(a.get("native") or "")
+                if nat and e["status"] != "pending" and git("cat-file", "-e", nat + "^{commit}", check=False) is None:
+                    r.warn("engine %s: adapter %s native commit %s not in this checkout" % (eid, fp[:15], nat[:12]))
+            if e["status"] != "pending" and not fps:
+                r.err("engine %s: no adapter listed (adapters: [...] or adapter: {...})" % eid)
     # instances
     insts = mx.okg() + mx.v2()
     seen = {}
@@ -473,15 +519,20 @@ def check_values(mx, d, e, c, r):
             elif fp != c["fingerprint"]:
                 r.err("%s: revision %s carries corpus %s, not %s's" % (me, rev[:12], fp, d["corpus"]))
         dp = get(v, "okg.deploymentsPath") or "deployments"
-        ad = (e or {}).get("adapter") or {}
-        if dp not in ("deployments", ad.get("compat") or "deployments"):
-            r.err("%s: okg.deploymentsPath %r is neither native nor engine %s's compat dir" % (me, dp, d["engine"]))
-        elif rev and ad.get("fingerprint"):
+        ads = engine_adapters(e or {})
+        compat_dirs = [a["compat"] for a in ads if a.get("compat")]
+        listed = [a["fingerprint"] for a in ads]
+        if dp != "deployments" and dp not in compat_dirs:
+            r.err("%s: okg.deploymentsPath %r is neither native nor one of engine %s's compat dirs %s"
+                  % (me, dp, d["engine"], compat_dirs))
+        elif rev and listed:
             afp = adapter_fingerprint(rev, dp)
             if afp is None:
                 r.warn("%s: no adapter at %s in revision %s (not in this checkout?)" % (me, dp, rev[:12]))
-            elif afp != ad["fingerprint"]:
-                r.err("%s: revision %s %s is not engine %s's adapter (%s)" % (me, rev[:12], dp, d["engine"], afp))
+            elif afp not in listed:
+                # a live instance's adapter must stay listed: an engine's adapter list only grows
+                r.err("%s: revision %s %s carries adapter %s, which engine %s does not list (%s)"
+                      % (me, rev[:12], dp, afp[:15], d["engine"], ", ".join(x[:15] for x in listed)))
         if dp != "deployments":
             meta = yaml.safe_load(git("show", "%s:%s/compat.yaml" % (rev, dp), check=False) or "{}") or {}
             for sid, why in (meta.get("exclude") or {}).items():
@@ -787,11 +838,14 @@ def main():
         show(mx)
     elif a.cmd == "adapter":
         e = mx.engines["okg"].get(a.engine) or {}
-        ad = e.get("adapter") or {}
-        for path in ("deployments", ad.get("compat") or ""):
-            if path:
-                print("%-34s %s" % (path, adapter_fingerprint(a.rev, path)))
-        print("%-34s %s" % ("engines.yaml says", ad.get("fingerprint")))
+        ads = engine_adapters(e)
+        for i, ad in enumerate(ads):
+            print("engines.yaml adapter[%d] %s  native %s  compat %s%s%s" % (
+                i, ad["fingerprint"], str(ad.get("native") or "")[:12], ad.get("compat") or "-",
+                "  since " + str(ad["since"]) if ad.get("since") else "",
+                "  (" + str(ad["note"]) + ")" if ad.get("note") else ""))
+        for path in ["deployments"] + [ad["compat"] for ad in ads if ad.get("compat")]:
+            print("%-34s %s" % (path + " @ " + a.rev, adapter_fingerprint(a.rev, path)))
         print("-> %s" % (adapter_path_for(e, a.rev) or "none at %s" % a.rev))
     elif a.cmd == "freeze-adapter":
         freeze_adapter(mx, a.engine, a.commit)

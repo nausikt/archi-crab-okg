@@ -33,13 +33,19 @@ kinds:
     about: a git repository, ingested as a code graph (files, symbols, interfaces, doc chunks)
     render: code_repos
     proven: staging since v0.5 (crabserver, crabclient), public GitHub only
-    # okg's codebase-index expansion: each repo becomes four sources
-    # (<slug>.git-files, .code-structure, .interfaces, .doc-corpus).
-    # git-history stays out: its concurrency bug with git-files makes a one-shot
-    # bootstrap nondeterministic (~4/15 repos fail at random, one blocks all).
+    # okg's codebase-index expansion: each repo becomes five sources
+    # (<slug>.git-files, .git-history, .code-structure, .interfaces, .doc-corpus).
+    # git-history (commit history of every repo: GitHistorySource, triggers
+    # git_ref_change, vendor/reference/okg-codebase-index/source_registry.yaml) was
+    # kept out until 2026-10-18 because of a git-files/git-history race on okg
+    # 0a8e0cd4 (~4/15 repos failed at random, one blocked all). Re-enabled for
+    # corpus v0.2.0-rc1 as adapter version b: proven by two full e2e ingests on the
+    # dev image and by the engine-check workflow inside the v0.2.0-rc2 image before
+    # its fingerprint was listed in releases/engines.yaml. Engines frozen on adapter
+    # a (A, C, dev-2026w42) and the 43f459c6 compat render keep the lane off.
     code_repos:
       base: ${OKG_ENVIRONMENT_DATA_ROOT}/repos
-      expand: [git-files, code-structure, interfaces, doc-corpus]
+      expand: [git-files, git-history, code-structure, interfaces, doc-corpus]
     repo_entry:
       slug: '{{id}}'
       url: '{{git}}'

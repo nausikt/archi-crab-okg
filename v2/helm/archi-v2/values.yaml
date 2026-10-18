@@ -1,9 +1,12 @@
 # archi-v2 -- defaults. envs/<env>/values.yaml overrides only what differs (images pinned by
 # digest, storage class, hostnames). Every value a human might reach for is here.
 #
-# Service names are baked into the generated config (files/config.yaml: services.postgres.host,
-# services.data_manager.hostname), so fullnameOverride MUST stay `archi-v2` -- one release per
-# namespace; the fixture has ONE environment (v2/envs/bench).
+# The generated config (files/config.yaml) names the default release's Services
+# (services.postgres.host = archi-v2-postgres, services.data_manager.hostname =
+# archi-v2-data-manager); templates/config.yaml rewrites them to <fullnameOverride>-postgres /
+# -data-manager, so one release per corpus can share the namespace (scripts/release.py render
+# v2:<corpus> writes v2/envs/releases/<corpus>/values.yaml with its own fullnameOverride). The
+# fixture (v2/envs/bench) keeps the default.
 fullnameOverride: archi-v2
 nameOverride: ""
 

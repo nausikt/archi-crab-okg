@@ -12,7 +12,8 @@ tags, never `main`:
 | Instance | Engine | Corpus | URL | State |
 |---|---|---|---|---|
 | A | okg `43f459c6` (v4 dev, 3d6cb3e8) | `v0.1.0` | `/releases/43f459c6/v0.1.0/mcp` (+ `/mcp` pointer) | live, frozen (gen `eee6c09f3655`, 326,241 / 419,177) |
-| C | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff` |
+| C (rc1) | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff`; **retiring**: replaced by rc2 |
+| C | okg `v0.2.0-rc2` (9221a10) | `v0.1.0` | `/releases/v0.2.0-rc2/v0.1.0/mcp` | planned: section "Engine rc2 replaces rc1" |
 | v2 | archi `e6609f8f` | `v0.1.0` | `/{grep,vectorstore}/releases/v0.1.0/mcp` (+ pointers) | live |
 | dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | building: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (run 38967636310, tag at `9d150b9`) |
 
@@ -24,6 +25,8 @@ tags, never `main`:
   report; `stage` and `sources` don't. Capture a full status before freezing.
 
 **Next:**
+0. Engine `v0.2.0-rc2` (okg 9221a10) replaces `v0.2.0-rc1`: build C on rc2, freeze it, retire C (rc1).
+   Section "Engine rc2 replaces rc1" (R1 to R9). D and prod F are now planned on rc2.
 1. Bench A vs C (and v2). Add each URL with
    `--client-id archi-crab-okg-public-staging --callback-port 8765`, and record runs by okg commit.
 2. The dev slot, first build (section "Weekly dev slot" below): patch `archi-crab-okg-7-dev-slot`
@@ -93,7 +96,8 @@ python3 scripts/release.py engine-entry dev-<week> engine/dev-<week>     # an en
 | engine ↓ · corpus → | `v0.1.0` | `v0.2.0-rc1` |
 |---|---|---|
 | `43f459c6` (okg v4, 2026-10-06) | **A** `/releases/43f459c6/v0.1.0/mcp` (live) | **B** `/releases/43f459c6/v0.2.0-rc1/mcp` (later) |
-| `v0.2.0-rc1` (okg release candidate) | **C** `/releases/v0.2.0-rc1/v0.1.0/mcp` (live) | **D** `/releases/v0.2.0-rc1/v0.2.0-rc1/mcp` (later) |
+| `v0.2.0-rc2` (okg release candidate, replaces rc1) | **C** `/releases/v0.2.0-rc2/v0.1.0/mcp` (next) | **D** `/releases/v0.2.0-rc2/v0.2.0-rc1/mcp` (later) |
+| ~~`v0.2.0-rc1`~~ (retiring) | C (rc1) `/releases/v0.2.0-rc1/v0.1.0/mcp`, until C on rc2 is live | — |
 | slot `dev` (okg `dev`, re-pinned weekly) | **dev** `/releases/dev/mcp`: this week | → next week, and after |
 
 - The dev slot is ONE instance, **staging only**: okg's newest `dev` × the newest released corpus.
@@ -105,7 +109,7 @@ python3 scripts/release.py engine-entry dev-<week> engine/dev-<week>     # an en
   volumes and Secret are deleted; the tag `okg-run1` stays as the record.
 
 **okg, prod:** `archi-crab-okg.cern.ch/mcp` serves **F**. F is its own instance of D's pair
-(engine `v0.2.0-rc1` × corpus `v0.2.0-rc1`), in namespace `archi-crab`. It comes later.
+(engine `v0.2.0-rc2` × corpus `v0.2.0-rc1`), in namespace `archi-crab`. It comes later.
 
 **archi v2, staging** (`archi-crab-v2.cern.ch`; engine `archi-e6609f8f` for both)
 
@@ -393,6 +397,84 @@ and engine id `v0.2.0`.
 
 ---
 
+## Engine rc2 replaces rc1 (C moves to okg v0.2.0-rc2)
+
+okg `v0.2.0-rc2` = commit `9221a10aed6a117a072a613da4714711fa0204c6`. It **replaces** `v0.2.0-rc1`:
+rc1 is no longer served. Same pattern as rc1 (phase 1), one new instance and one retirement:
+- **C on rc2** = `okg:v0.2.0-rc2/v0.1.0`: release `archi-crab-okg-v0-2-0-rc2-v0-1-0`, Secret
+  `okg-archi-crab-v0-2-0-rc2-v0-1-0`, ClusterIP `10.254.0.206`, proxy `okg-v0-2-0-rc2-v0-1-0`,
+  URL `/releases/v0.2.0-rc2/v0.1.0/mcp`. New volumes (1 io1 + 1 standard), built from scratch.
+- **C (rc1)** stays up until C on rc2 is frozen, then is retired: app, proxy, volumes and Secret go;
+  the tag `okg/releases/v0.2.0-rc1/v0.1.0` and `corpus.yaml` `materialized` stay as the record.
+- D and prod F are planned on rc2 (`matrix.yaml`), nothing deployed. The ToolHive operator stays
+  at 1 until R9.
+
+**R1. Build the engine** (about 5 minutes):
+```bash
+gh workflow run engine.yaml -R nausikt/archi-crab-okg --ref main -f okg_commit=9221a10aed6a117a072a613da4714711fa0204c6
+gh run watch -R nausikt/archi-crab-okg $(gh run list -R nausikt/archi-crab-okg -w engine -L1 --json databaseId -q '.[0].databaseId')
+git fetch origin --tags && git log -1 --format='%h %cd %s' origin/engine/upstream    # "engine: okg 9221a10aed6a… + archi-okg …"
+```
+   Read the contract report in the `engine/upstream` PR: 0 errors. If the resolve step fails with
+   "no okg commit has both a runtime and a postgres image", rc2 has no `sha-9221a10` dev pair: stop
+   (it may ship release images instead, which needs the `okg-release-engine` patch).
+
+**R2. Tag it right away** (the 03:17 UTC daily run moves `engine/upstream` back to `dev`):
+```bash
+git tag -a engine/v0.2.0-rc2 origin/engine/upstream -m "archi-crab engine okg v0.2.0-rc2 (9221a10) + archi-okg main"
+git push origin engine/v0.2.0-rc2
+python3 scripts/release.py fingerprint engine/v0.2.0-rc2 | head -1   # MUST be corpus v0.1.0's sha256:3d37187c...
+python3 scripts/release.py engine-entry v0.2.0-rc2 engine/v0.2.0-rc2
+```
+**R3. Release PR** (on `main`): replace the pending `v0.2.0-rc2` entry in `engines.yaml` with the
+   `engine-entry` output; matrix C (rc2) `status: building`; then
+```bash
+python3 scripts/release.py render okg:v0.2.0-rc2/v0.1.0 --revision engine/v0.2.0-rc2 && python3 scripts/release.py lint
+```
+   Merge (wait for CI). `git fetch origin && M1=$(git rev-parse origin/main)`.
+
+**R4. Cluster preparation:**
+```bash
+kubectl get svc -A -o jsonpath='{range .items[*]}{.spec.clusterIP}{"\n"}{end}' | grep -qx 10.254.0.206 && echo TAKEN || echo free
+scripts/okg-run-secret.sh v0-2-0-rc2-v0-1-0
+kubectl -n archi-crab-staging get secret okg-archi-crab-v0-2-0-rc2-v0-1-0 -o jsonpath='{.data.okg-dsn}' \
+  | base64 -d | grep -oE '^[a-z+]+://[^:@/]+|user=[^ ]+' | sed -E 's#^[a-z+]+://#user=#'   # expect user=postgres
+```
+**R5. IaC** (CMSKubernetes `release-c-rc2`): the Argo app with `targetRevision: $M1` and the proxy
+   `okg-v0-2-0-rc2-v0-1-0`. Merge, then refresh `archi-crab` and `crab-mcp-gateway-staging`:
+```bash
+kubectl -n argocd annotate application archi-crab crab-mcp-gateway-staging argocd.argoproj.io/refresh=hard --overwrite
+kubectl -n argocd get application archi-crab-okg-v0-2-0-rc2-v0-1-0 -o jsonpath='{.spec.source.targetRevision} {.status.sync.status}{"\n"}'
+kubectl -n toolhive-system get mcpremoteproxy okg-v0-2-0-rc2-v0-1-0    # Ready
+```
+**R6. Watch the build** (about an hour): as in 1.7, with `P=archi-crab-okg-v0-2-0-rc2-v0-1-0-runtime-0`.
+   Save `okg status --deployment archi-crab --json > C-rc2.status.json` before freezing.
+**R7. Freeze PR** (on `main`): C (rc2) values `frozen.enabled: true`; matrix C (rc2) `live`, C (rc1)
+   `retired`; `engines.yaml` `v0.2.0-rc1` `status: retired`; `corpus.yaml` `materialized`
+   `okg/v0.2.0-rc2` (generation, nodes, edges) and `retired: <date>` on `okg/v0.2.0-rc1`. Merge
+   (`M2`), then:
+```bash
+git fetch origin && M2=$(git rev-parse origin/main)
+git show "${M2}:envs/releases/v0.2.0-rc2/v0.1.0/values.yaml" | grep -A1 '^frozen:' | grep -q 'enabled: true' && echo "M2 is the freeze merge"
+git tag -a okg/releases/v0.2.0-rc2/v0.1.0 "$M2" -m "okg C: engine v0.2.0-rc2 x corpus v0.1.0, frozen"
+git push origin okg/releases/v0.2.0-rc2/v0.1.0 && python3 scripts/release.py lint --tags
+```
+**R8. IaC: C (rc2) on its tag, C (rc1) removed.** One CMSKubernetes PR: the rc2 app's
+   `targetRevision` = the tag; delete `48-archi-crab-okg-v0-2-0-rc1-v0-1-0-app.yaml` and the
+   `okg-v0-2-0-rc1-v0-1-0` proxy. Merge, refresh, then (irreversible: rc1's database goes):
+```bash
+NS=archi-crab-staging; P1=archi-crab-okg-v0-2-0-rc1-v0-1-0
+kubectl -n $NS delete pod archi-crab-okg-v0-2-0-rc2-v0-1-0-runtime-0         # → 1/1, mcp only
+kubectl -n argocd get application $P1 2>&1 | grep -q NotFound && echo "rc1 app gone"
+kubectl -n toolhive-system get mcpremoteproxy okg-v0-2-0-rc1-v0-1-0 2>&1 | grep -q NotFound && echo "rc1 proxy gone"
+kubectl -n $NS delete pvc postgres-data-$P1-postgres-0 runtime-data-$P1-runtime-0   # StatefulSets leave their claims
+kubectl -n $NS delete secret okg-archi-crab-v0-2-0-rc1-v0-1-0
+```
+**R9. Operator back to 0** (CMSKubernetes, one line) once the rc1 proxy is gone and every proxy is
+   Ready. Bench endpoints: A, C (rc2), dev, v2.
+
+---
+
 ## Weekly dev slot: okg `dev` × the newest corpus (staging only)
 
 **What it is.** One fixed instance, `okg:dev`, whose ENGINE moves once a week and whose CORPUS
@@ -514,8 +596,8 @@ Prerequisites:
 3. **Revisions:** every new instance can use the corpus commit itself.
    `release.py render <id> --revision corpus/v0.2.0-rc1` picks the adapter:
    - B (43f459c6) → `deploymentsPath: deployments/compat/43f459c6`;
-   - D and F → `deployments` if `main`'s native adapter is v0.2.0-rc1's. Otherwise use
-     `--revision engine/v0.2.0-rc1` with the corpus files merged in.
+   - D and F → `deployments` if `main`'s native adapter is v0.2.0-rc2's. Otherwise use
+     `--revision engine/v0.2.0-rc2` with the corpus files merged in.
 4. **Build in this order:**
    - B (validates the corpus on a known engine);
    - D and F back to back (twins);

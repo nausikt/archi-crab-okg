@@ -355,6 +355,9 @@ git-https://github.com/cms-sw/cmssw-wm-tools.git
 # nanoaod-tools -- tier 20 -- NanoAODTools post-processor (crab/ example, crabhelper.py, fwkJobReport handling)
 git-https://github.com/cms-nanoAOD/nanoAOD-tools.git
 
+# cms-cat-cmssw-lxplus -- tier 20 -- cms-cat/cmssw-lxplus -- running CMSSW on lxplus9 for pre-el9 releases
+git-https://gitlab.cern.ch/cms-cat/cmssw-lxplus.git
+
 # code-snapshots -- tier 20 -- Pinned files (cmssw, CRABClient, WMCore, ROOT, xrootd) no engine holds otherwise; see snapshots.tsv (53 pages, from deployments/archi-crab/data/docs/code-snapshots/records.json)
 https://raw.githubusercontent.com/cms-sw/cmssw-osenv/daef61747ebd544e5ee6bd5272333d15648c2505/cmssw-env
 https://raw.githubusercontent.com/cms-sw/cmssw/CMSSW_10_3_5/FWCore/ParameterSet/python/Config.py
@@ -409,3 +412,31 @@ https://raw.githubusercontent.com/dmwm/CRABClient/970fabd75d6895b1434c9d4cca0b0e
 https://raw.githubusercontent.com/dmwm/WMCore/2.2.4rc6/src/python/WMCore/WMRuntime/Tools/Scram.py
 https://raw.githubusercontent.com/root-project/root/d6e07d1d05a8b53faf39715aa603030a107ad39d/bindings/pyroot/pythonizations/python/ROOT/_pythonization/_tfile.py
 https://raw.githubusercontent.com/xrootd/xrootd/778d8c237667bf201fb06986d3d0cae107f0654a/src/XProtocol/XProtocol.hh
+
+# public-web-docs -- tier 20 -- Public web pages the reviews cite (CERN batch/linux, OSG, apptainer, cms-sw, uscms LPC) (26 pages, from deployments/archi-crab/data/docs/public-web-docs/records.json)
+https://apptainer.org/docs/user/latest/bind_paths_and_mounts.html
+https://apptainer.org/docs/user/latest/cli/apptainer_exec.html
+https://apptainer.org/docs/user/latest/environment_and_metadata.html
+https://batchdocs.web.cern.ch/local/quick.html
+https://batchdocs.web.cern.ch/local/submit.html
+https://cms-sw.github.io/
+https://cms-sw.github.io/faq.html
+https://cms-sw.github.io/singularity.html
+https://cms-sw.github.io/tutorial.html
+https://cmssdt.cern.ch/SDT/releases.map
+https://cmssst.web.cern.ch/siteStatus/detail.html
+https://cmssst.web.cern.ch/siteStatus/summary.html
+https://linux.web.cern.ch/
+https://linux.web.cern.ch/which/
+https://osg-htc.org/docs/worker-node/install-apptainer/
+https://osg-htc.org/docs/worker-node/install-cvmfs/
+https://osg-htc.org/docs/worker-node/install-wn-oasis/
+https://osg-htc.org/docs/worker-node/install-wn/
+https://osg-htc.org/docs/worker-node/using-wn/
+https://uscms.org/uscms_at_work/computing/LPC/usingEOSAtLPC.shtml
+https://uscms.org/uscms_at_work/computing/getstarted/getaccount.shtml
+https://uscms.org/uscms_at_work/computing/getstarted/index.shtml
+https://uscms.org/uscms_at_work/computing/getstarted/uaf.shtml
+https://uscms.org/uscms_at_work/computing/setup/batch_systems.shtml
+https://uscms.org/uscms_at_work/computing/setup/diskusage.shtml
+https://uscms.org/uscms_at_work/computing/setup/setup_software.shtml

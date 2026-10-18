@@ -1,9 +1,18 @@
 {
+ "dropped": {
+  "2026-10-19": {
+   "urls": [
+    "https://cmssdt.cern.ch/SDT/cgi-bin/ReleasesXML?anytype=1",
+    "https://listserv.fnal.gov/scripts/wa.exe?A0=LPC-HOWTO"
+   ],
+   "why": "archive index renders only a 'Log In' shell (379 chars) anonymously; same catalog as releases.map in XML: one copy is enough"
+  }
+ },
  "emails_redacted": true,
  "files": 30,
- "pages": 28,
+ "pages": 26,
  "pdf_extractor": [],
- "source_dir": "pages",
+ "source_dir": "pages (fetched by scripts/harvest-fetch.py from pages.tsv on lxplus9 2026-10-18; bytes not committed, sha256 per file in pages/manifest.json)",
  "statuses": {
   "kept": 28,
   "unsupported": 2

@@ -378,11 +378,7 @@ sources:
     group: gitlab
     kind: git
     git: https://gitlab.cern.ch/cms-cat/cmssw-lxplus.git
-    auth: none               # ONLY valid if `sources.py probe --id cms-cat-cmssw-lxplus` proves Public visibility
-    # 2026-10-18: not probed yet (gitlab.cern.ch unreachable from the sandbox). Flip to
-    # enabled when the probe passes on a CERN-reachable machine; drop the entry if it asks
-    # for a login (the lxplus9/el7 fact stays in the public-web-docs record).
-    enabled: false
+    auth: none               # project visibility Public: cloned WITHOUT a token (probe from lxplus9 2026-10-18: ok, master@607a9d0e4e, 7 files)
     about: cms-cat/cmssw-lxplus -- running CMSSW on lxplus9 for pre-el9 releases
 
   code-snapshots:
@@ -399,11 +395,9 @@ sources:
     kind: docs-files
     sensitivity: public
     data: data/docs/public-web-docs   # records.json; identity = the live public URL (same page v2 fetches)
-    # Data not built yet: the pages (CERN/OSG/uscms/CMS sites) must be fetched from a
-    # machine that reaches them: scripts/harvest-fetch.py --list data/docs/public-web-docs/pages.tsv
-    # Flip to enabled in the commit that adds records.json.
-    enabled: false
-    about: Public web pages the reviews cite (CERN KB/service pages, OSG and uscms docs, cms-sw site, HTCondor manual pages) as one records file
+    # 26 pages fetched anonymously on lxplus9 2026-10-18 (list: pages.tsv). SSO pages (lxplusdoc,
+    # cmsdmops.docs) are refused by harvest-fetch and stay out: not public, phase-5 material.
+    about: Public web pages the reviews cite (CERN batch/linux, OSG, apptainer, cms-sw, uscms LPC)
 
   # ==== 30: large upstreams, ingested only in part ===========================
   # Each needs `scope`: whole, they are 5k-80k files. Scope needs an engine that

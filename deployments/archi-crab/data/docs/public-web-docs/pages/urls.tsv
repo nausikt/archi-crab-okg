@@ -16,7 +16,6 @@ cms-sw.github.io_index.html	https://cms-sw.github.io/	cms-sw: CMSSW software sit
 cms-sw.github.io_faq.html	https://cms-sw.github.io/faq.html	cms-sw: CMSSW git/development FAQ
 cms-sw.github.io_tutorial.html	https://cms-sw.github.io/tutorial.html	cms-sw: CMSSW git tutorial (cmsrel, git cms-addpkg, scram b)
 cmssdt.cern.ch_SDT_releases.map.txt	https://cmssdt.cern.ch/SDT/releases.map	CMSSW releases.map: every release with its architecture (SCRAM_ARCH), type (Production/Development), state and prodarch flag
-cmssdt.cern.ch_SDT_ReleasesXML_anytype.txt	https://cmssdt.cern.ch/SDT/cgi-bin/ReleasesXML?anytype=1	CMSSW ReleasesXML: release/architecture list as XML (what scram list / cmsrel resolve)
 uscms.org_computing_getstarted_index.html	https://uscms.org/uscms_at_work/computing/getstarted/index.shtml	US CMS LPC: Getting started with computing at the LPC (accounts, lpc-howto list, cmslpc)
 uscms.org_computing_getstarted_getaccount.html	https://uscms.org/uscms_at_work/computing/getstarted/getaccount.shtml	US CMS LPC: Getting a cmslpc account (Kerberos, ssh)
 uscms.org_computing_getstarted_uaf.html	https://uscms.org/uscms_at_work/computing/getstarted/uaf.shtml	US CMS LPC: cmslpc user analysis facility (interactive nodes, OS, scram arch)
@@ -24,6 +23,5 @@ uscms.org_computing_setup_diskusage.html	https://uscms.org/uscms_at_work/computi
 uscms.org_computing_setup_batch_systems.html	https://uscms.org/uscms_at_work/computing/setup/batch_systems.shtml	US CMS LPC: batch systems (HTCondor at the LPC, condor_submit, condor_q, +DesiredOS)
 uscms.org_computing_setup_setup_software.html	https://uscms.org/uscms_at_work/computing/setup/setup_software.shtml	US CMS LPC: setting up CMSSW software at the LPC (cmsenv, cmssw-el7/el8)
 uscms.org_computing_LPC_usingEOSAtLPC.html	https://uscms.org/uscms_at_work/computing/LPC/usingEOSAtLPC.shtml	US CMS LPC: Using EOS at the LPC (xrdcp, eosls, quotas, root://cmseos.fnal.gov)
-listserv.fnal.gov_LPC-HOWTO.html	https://listserv.fnal.gov/scripts/wa.exe?A0=LPC-HOWTO	LPC-HOWTO LISTSERV archive index (VERIFY: kept only if it renders without login)
 cmssst.web.cern.ch_siteStatus_summary.html	https://cmssst.web.cern.ch/siteStatus/summary.html	CMS Site Support Team: site status summary (the column legend: Life/Prod/CRAB status, SAM, HammerCloud, downtime)
 cmssst.web.cern.ch_siteStatus_detail.html	https://cmssst.web.cern.ch/siteStatus/detail.html	CMS Site Support Team: site status detail

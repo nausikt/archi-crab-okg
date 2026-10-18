@@ -9,17 +9,16 @@
 # Sensitivity ledger (action plan §1): PUBLIC rows are listed; VERIFY rows are marked and are kept
 # only if the fetch succeeds; INTERNAL/SSO entries (HyperNews, ServiceNow, cmssi.docs) are NOT here.
 #
+# Fetched on lxplus9 2026-10-18 23:5x CEST: 28 ok, 8 refused. Removed from the list afterwards:
+#   404 (guessed names): batchdocs local/{cheatsheet,containers,pitfalls,jobflavours}.html, uscms LPC/crab.shtml
+#   SSO (redirected_to_login) = INTERNAL, never in this public source: lxplusdoc.web.cern.ch, cmsdmops.docs.cern.ch (phase 5 candidates)
+#   dropped after the build: listserv LPC-HOWTO (login shell only), ReleasesXML (duplicate of releases.map)
 # --- cern-batch-docs-wantos (PUBLIC): the local-submission chapter of batchdocs ----------------
 batchdocs.web.cern.ch_local_submit.html	https://batchdocs.web.cern.ch/local/submit.html	CERN Batch Docs: Submitting jobs (local HTCondor) -- OS choice (+WantOS / MY.WantOS), +JobFlavour, +MaxRuntime
 batchdocs.web.cern.ch_local_quick.html	https://batchdocs.web.cern.ch/local/quick.html	CERN Batch Docs: Quick start (local HTCondor)
-batchdocs.web.cern.ch_local_cheatsheet.html	https://batchdocs.web.cern.ch/local/cheatsheet.html	CERN Batch Docs: cheatsheet (condor_submit, condor_q, condor_ssh_to_job)
-batchdocs.web.cern.ch_local_containers.html	https://batchdocs.web.cern.ch/local/containers.html	CERN Batch Docs: containers on the batch service (apptainer/singularity, MY.SingularityImage)
-batchdocs.web.cern.ch_local_pitfalls.html	https://batchdocs.web.cern.ch/local/pitfalls.html	CERN Batch Docs: common pitfalls (AFS tokens, shebang, /tmp, memory)
-batchdocs.web.cern.ch_local_jobflavours.html	https://batchdocs.web.cern.ch/local/jobflavours.html	CERN Batch Docs: job flavours (espresso .. nextweek) and +MaxRuntime
 # --- linux-cern-which-os (PUBLIC; lxplusdoc = VERIFY) -------------------------------------------
 linux.web.cern.ch_which.html	https://linux.web.cern.ch/which/	CERN Linux: which Linux (AlmaLinux 9 / RHEL / CentOS Stream; CentOS 7 end of life 2024-06-30)
 linux.web.cern.ch_index.html	https://linux.web.cern.ch/	CERN Linux: supported distributions overview
-lxplusdoc.web.cern.ch_index.html	https://lxplusdoc.web.cern.ch/	LXPLUS service documentation (lxplus9 = AlmaLinux 9 default, lxplus7/lxplus8 aliases)
 # --- osg-apptainer-cvmfs-docs (PUBLIC): the worker-node chapter -----------------------------------
 osg-htc.org_docs_worker-node_install-apptainer.html	https://osg-htc.org/docs/worker-node/install-apptainer/	OSG docs: Install Apptainer on worker nodes (unprivileged user namespaces, cvmfs-provided apptainer)
 osg-htc.org_docs_worker-node_install-wn.html	https://osg-htc.org/docs/worker-node/install-wn/	OSG docs: Install the worker node client
@@ -37,7 +36,6 @@ cms-sw.github.io_faq.html	https://cms-sw.github.io/faq.html	cms-sw: CMSSW git/de
 cms-sw.github.io_tutorial.html	https://cms-sw.github.io/tutorial.html	cms-sw: CMSSW git tutorial (cmsrel, git cms-addpkg, scram b)
 # --- cmssw-release-architecture-matrix (PUBLIC; same text as cms-bot releases.map) ---------------
 cmssdt.cern.ch_SDT_releases.map.txt	https://cmssdt.cern.ch/SDT/releases.map	CMSSW releases.map: every release with its architecture (SCRAM_ARCH), type (Production/Development), state and prodarch flag
-cmssdt.cern.ch_SDT_ReleasesXML_anytype.txt	https://cmssdt.cern.ch/SDT/cgi-bin/ReleasesXML?anytype=1	CMSSW ReleasesXML: release/architecture list as XML (what scram list / cmsrel resolve)
 # --- lpc-user-guide + lpc-howto-announcement-list (PUBLIC; LISTSERV = VERIFY) --------------------
 uscms.org_computing_getstarted_index.html	https://uscms.org/uscms_at_work/computing/getstarted/index.shtml	US CMS LPC: Getting started with computing at the LPC (accounts, lpc-howto list, cmslpc)
 uscms.org_computing_getstarted_getaccount.html	https://uscms.org/uscms_at_work/computing/getstarted/getaccount.shtml	US CMS LPC: Getting a cmslpc account (Kerberos, ssh)
@@ -46,11 +44,7 @@ uscms.org_computing_setup_diskusage.html	https://uscms.org/uscms_at_work/computi
 uscms.org_computing_setup_batch_systems.html	https://uscms.org/uscms_at_work/computing/setup/batch_systems.shtml	US CMS LPC: batch systems (HTCondor at the LPC, condor_submit, condor_q, +DesiredOS)
 uscms.org_computing_setup_setup_software.html	https://uscms.org/uscms_at_work/computing/setup/setup_software.shtml	US CMS LPC: setting up CMSSW software at the LPC (cmsenv, cmssw-el7/el8)
 uscms.org_computing_LPC_usingEOSAtLPC.html	https://uscms.org/uscms_at_work/computing/LPC/usingEOSAtLPC.shtml	US CMS LPC: Using EOS at the LPC (xrdcp, eosls, quotas, root://cmseos.fnal.gov)
-uscms.org_computing_LPC_crab.html	https://uscms.org/uscms_at_work/computing/LPC/crab.shtml	US CMS LPC: CRAB at the LPC (site, stageout to T3_US_FNALLPC)
-listserv.fnal.gov_LPC-HOWTO.html	https://listserv.fnal.gov/scripts/wa.exe?A0=LPC-HOWTO	LPC-HOWTO LISTSERV archive index (VERIFY: kept only if it renders without login)
 # --- cms-sst-site-status-pages (VERIFY anonymous; usually public) --------------------------------
 cmssst.web.cern.ch_siteStatus_summary.html	https://cmssst.web.cern.ch/siteStatus/summary.html	CMS Site Support Team: site status summary (the column legend: Life/Prod/CRAB status, SAM, HammerCloud, downtime)
 cmssst.web.cern.ch_siteStatus_detail.html	https://cmssst.web.cern.ch/siteStatus/detail.html	CMS Site Support Team: site status detail
 # --- cmsdmops-users-subscribe-data (VERIFY anonymous; likely SSO -> drops out) --------------------
-cmsdmops.docs.cern.ch_Users_Subscribe_data.html	https://cmsdmops.docs.cern.ch/Users/Subscribe%20data/	CMS DM Ops docs: Users / Subscribe data (rucio add-rule, user quotas, request a dataset at a site)
-cmsdmops.docs.cern.ch_index.html	https://cmsdmops.docs.cern.ch/	CMS DM Ops docs: index

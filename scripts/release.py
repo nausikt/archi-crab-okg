@@ -625,7 +625,7 @@ def render(mx, ident, revision):
                          % (d["slot"], d["slot"]))
         text = OKG_VALUES.format(deployments_path=dp, slot_note=slot_note,
             values=d["values"], id=ident, engine=d["engine"], corpus=d["corpus"], url=d["url"],
-            eng_note=" ".join(str(e.get("note", "")).split())[:150], deploy_tag=d["deployTag"],
+            eng_note=" ".join(str(e.get("note", "")).split())[:140].rstrip(), deploy_tag=d["deployTag"],
             release=d["release"], profile=e["readinessProfile"], rt_repo=e["runtime"]["repository"],
             rt_digest=e["runtime"]["digest"], pg_repo=e["postgres"]["repository"],
             pg_digest=e["postgres"]["digest"], secret=d["secret"],

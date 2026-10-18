@@ -57,13 +57,23 @@ okg:
       fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
 
   "v0.2.0-rc2":
-    status: pending
+    status: released
+    released: "2026-10-18"
     note: >-
-      okg tag v0.2.0-rc2 = commit 9221a10, REPLACES v0.2.0-rc1 (C moves to it; D and prod F are
-      planned on it). Built like rc1: engine workflow dispatch with okg_commit 9221a10 (its
-      sha-<commit> dev pair + our Dockerfile) and archi-okg main; tag engine/v0.2.0-rc2 = the build
-      commit. Fill with `release.py engine-entry v0.2.0-rc2 engine/v0.2.0-rc2` (docs/RELEASES.md, rc2).
-    okg: 9221a10aed6a117a072a613da4714711fa0204c6        # mitdbg/okg tag v0.2.0-rc2
+      okg tag v0.2.0-rc2 = commit 9221a10, REPLACES v0.2.0-rc1. Built like rc1 (its sha-<commit>
+      dev pair + docker/runtime/Dockerfile): engine workflow run 39127745935, okg_commit 9221a10 +
+      archi-okg main e1c2886. Tag engine/v0.2.0-rc2 = 627e7e2 = its adapter (unchanged from rc1:
+      fingerprint 46227d04..., so C on rc1 and C on rc2 differ only by engine).
+    okg: 9221a10aed6a117a072a613da4714711fa0204c6
+    archi_okg: e1c2886064b2df1e29fc5102b224030dff10cf68
+    runtime: {repository: ghcr.io/nausikt/archi-crab-okg, digest: "sha256:eed04fb502ec0325db2ed811bb1bbe1c502cb10c6d99e3fc36b2fe84cb3ae42a"}
+    postgres: {repository: ghcr.io/mitdbg/okg-postgres, digest: "sha256:a2a5a5a0e58f889a773ea27d56d37b12864cb3aaf33980fc57fea3ef7bfe8eda"}
+    readinessProfile: ""
+    adapter:
+      native: 627e7e29a22bd489768eb19c04ac03ac70ea1216
+      compat: ""
+      fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
+
 
   # WEEKLY DEV BUILDS, served by the slot `dev` (releases/matrix.yaml, /releases/dev/mcp). One id per weekly pin,
   # dev-<ISO year>w<ISO week>, from the engine workflow's daily build of okg `dev` + archi-okg

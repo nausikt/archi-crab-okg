@@ -80,7 +80,7 @@ okg:
     # fixed?), now okg v0.2.0-rc2. Its own release, volumes and URL; rc1's C is not reused.
     - engine: v0.2.0-rc2
       corpus: v0.1.0
-      status: planned
+      status: building
       clusterIP: 10.254.0.206
     # D: latest engine x latest corpus, the best version. Staging's /mcp points here once it is live.
     # Prod runs the SAME pair as its own instance F (below): users never share D with the bench.

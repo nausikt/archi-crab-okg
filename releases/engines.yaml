@@ -91,6 +91,11 @@ okg:
         compat: ""
         since: "2026-10-18"
         note: "adapter a: the rc2 build's; C"
+      - fingerprint: "sha256:4a3c6b3a3b9879cc92a0c0a4439a96e9ae20e9126c78619346fa6ccaede5751f"
+        native: 1b34dbcb8fd7a7767bbb5eaf5354c46051c050b9
+        compat: ""
+        since: "2026-10-19"
+        note: "adapter b: + git-history lane (PR #36); in-image proof: engine-check run 39171884962 on main; D, F"
 
 
   # WEEKLY DEV BUILDS, served by the slot `dev` (releases/matrix.yaml, /releases/dev/mcp). One id per weekly pin,

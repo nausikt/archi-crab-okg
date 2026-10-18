@@ -36,7 +36,7 @@ okg:
       fingerprint: "sha256:46227d04b55633a67d63a47a1785e58bd5c9ef79299d1fa2c84b6bde80a32376"
 
   "v0.2.0-rc1":
-    status: released
+    status: retired   # 2026-10-18: replaced by v0.2.0-rc2; no instance serves it (tag engine/v0.2.0-rc1 stays)
     released: "2026-10-16"
     note: >-
       okg tag v0.2.0-rc1 = commit 06a4771, a PRE-RELEASE "fixed version for benchmarks": no

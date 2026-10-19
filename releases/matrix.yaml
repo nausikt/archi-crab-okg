@@ -87,7 +87,7 @@ okg:
     # Prod runs the SAME pair as its own instance F (below): users never share D with the bench.
     - engine: v0.2.0-rc2
       corpus: v0.2.0-rc1
-      status: planned
+      status: building
       clusterIP: 10.254.0.204
     #
     # SLOT dev: okg's newest `dev` x the NEWEST released corpus, STAGING ONLY. A slot is ONE
@@ -131,7 +131,7 @@ v2:
       storage: {postgres: [150Gi, cinder-io1-delete], dataManager: [75Gi, cinder-io1-delete]}
     # Same namespace: needs the chart's Service names de-hardcoded (docs/RELEASES.md, phase 1).
     - corpus: v0.2.0-rc1
-      status: planned
+      status: building
   aliases:
     # https://archi-crab-v2.cern.ch/grep/mcp and /vectorstore/mcp. Move to v0.2.0-rc1 when it is live.
     - {family: grep, target: v0.1.0}
@@ -147,7 +147,7 @@ prod:
   okg:
     engine: v0.2.0-rc2
     corpus: v0.2.0-rc1
-    status: planned
+    status: building
     host: archi-crab-okg.cern.ch      # listener commented out today; cert + LanDB alias needed
     namespace: archi-crab
     release: archi-crab-okg

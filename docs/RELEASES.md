@@ -51,7 +51,8 @@ tags, never `main`:
 **Corpus v0.2.0-rc1** (the next real step: B, D, F, v2 `v0.2.0-rc1`). It starts when your sources
 list and docs exist. The dev slot moves to it at its next weekly build (one `corpus:` line).
 Prerequisites:
-- de-hardcode the v2 chart's Service names (a second v2 release in the same namespace);
+- ~~de-hardcode the v2 chart's Service names~~ done 2026-10-19: templates/config.yaml rewrites the
+  two Service hostnames in the generated config to the release's fullname;
 - prod F: certificate, LanDB alias and gateway listener for `archi-crab-okg.cern.ch`; a prod SSO
   app; Secret `okg-archi-crab` in `archi-crab`; StorageClass `cinder-io1`;
 - decide on `cmssw-releases`. It needs okg#3317 + archi-okg#32 (archi-okg `e1c2886` has #32;
@@ -591,7 +592,9 @@ Nothing else changes: same slot, same URL, same volumes.
 
 Prerequisites:
 - Phase 0 is done (A and v2 on tags).
-- The v2 chart has its Service names de-hardcoded, so a second release can share the namespace.
+- The v2 chart has its Service names de-hardcoded (templates/config.yaml rewrites
+  `host: archi-v2-postgres` / `hostname: archi-v2-data-manager` to the release's fullname), so a
+  second release can share the namespace.
 - Prod for F:
   - a host cert and LanDB alias for `archi-crab-okg.cern.ch`, and its gateway listener;
   - a prod SSO app;

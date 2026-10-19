@@ -78,9 +78,13 @@ postgresql:
     maxWorkerProcesses: 16
     timescaledbMaxBackgroundWorkers: 8   # MUST be < maxWorkerProcesses (template fails otherwise)
     maxLocksPerTransaction: 1024         # publish phase needs >= 1024 (field guide §2)
+  # 12Gi: a corpus v0.2.0-rc1 build is a 13 GB database; at 8Gi the publish evicts its own
+  # snapshot tables and the snapshot_batch phase runs at ~36 random reads/s for hours
+  # (docs/DEPLOYMENT-NOTES.md, 2026-10-19 §5). Workers are 16 GiB VMs (~14 GiB allocatable):
+  # ONE Postgres per node. Frozen instances deploy from tags and keep their 8Gi.
   resources:
-    requests: {cpu: "1", memory: 4Gi}
-    limits: {memory: 8Gi}
+    requests: {cpu: "1", memory: 6Gi}
+    limits: {memory: 12Gi}
 
 runtime:
   terminationGracePeriodSeconds: 60

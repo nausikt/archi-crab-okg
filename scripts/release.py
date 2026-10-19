@@ -700,6 +700,7 @@ def render(mx, ident, revision):
             pg_digest=im["postgres"]["digest"])
     out = os.path.join(ROOT, d["values"])
     os.makedirs(os.path.dirname(out), exist_ok=True)
+    text = "\n".join(line.rstrip() for line in text.split("\n"))   # an empty template field must not leave trailing spaces (yamllint)
     with open(out, "w") as f:
         f.write(text)
     print("wrote", d["values"])

@@ -158,4 +158,7 @@ prod:
     clusterIP: 10.254.0.210
     # cinder-io1 (not -delete): prod's database must survive a deleted claim. Check the class
     # exists (kubectl get sc) before the first sync; envs/prod names it already.
-    storage: {postgres: [150Gi, cinder-io1], runtime: [75Gi, cinder-standard]}
+    # runtime on io1 too: the project's `standard` volume COUNT quota was full (40/40) when F
+    # was built on 2026-10-19 and Cinder answered 413 to every claim; the build checkout is
+    # rebuildable, so the -delete class (the claim takes the volume with it).
+    storage: {postgres: [150Gi, cinder-io1], runtime: [75Gi, cinder-io1-delete]}

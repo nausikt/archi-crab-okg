@@ -32,10 +32,14 @@ runtime:
     storageClassName: cinder-standard   # the build checkout; the queries hit Postgres
 secrets:
   existingSecret: okg-archi-crab   # scripts/okg-run-secret.sh
+  # okg's lock-headroom gate honours deployment.yaml's raised publisher cap (7200 s) only with this
+  # flag; value from the instance Secret key allow-raised-timeout ("true")
+  extraEnv:
+    - {name: OKG_PUBLISH_LOCK_HEADROOM_ALLOW_RAISED_TIMEOUT, key: allow-raised-timeout, targets: [bootstrap, worker]}
 repositorySync:
-  revision: "6605896be57c0e9f15511216f15b45d7c72fd1bf"
+  revision: "5b4510b7dc7dc7f7de7738f177cfab3fdac9f934"
 bootstrap:
-  approvedRevision: "6605896be57c0e9f15511216f15b45d7c72fd1bf"  # MUST equal repositorySync.revision
+  approvedRevision: "5b4510b7dc7dc7f7de7738f177cfab3fdac9f934"  # MUST equal repositorySync.revision
 frozen:
   enabled: false
 mcp:

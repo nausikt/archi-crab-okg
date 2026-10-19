@@ -42,6 +42,14 @@ consistency:
 # The Helm chart runs an always-on worker container — declare the truth.
 runtime:
   enabled: true
+# Publish statement cap. okg's default (900 s) is too short once the git-history lane
+# (adapter b) roughly doubles the graph: the first publish of D (corpus v0.2.0-rc1, 539k nodes,
+# 1.57M edges) held the publish lock 2135 s and died with QueryCanceled in
+# attributes._materialize_view_kind. 7200 s = 2 h. okg's lock-headroom gate honours a cap above
+# the default only with OKG_PUBLISH_LOCK_HEADROOM_ALLOW_RAISED_TIMEOUT=true (set per instance
+# from its Secret, secrets.extraEnv).
+publisher:
+  hard_statement_timeout_seconds: 7200
 # Nomos is okg's access-policy layer. Because this manifest has a `nomos:` block, okg
 # audits it on every readiness probe (check `nomos.deployment_policy`): without a
 # posture, and a policy for every entry under `sources:` in the registry, the worker

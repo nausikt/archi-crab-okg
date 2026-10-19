@@ -1,0 +1,15 @@
+{
+ "emails_redacted": true,
+ "excluded": {},
+ "files": 19,
+ "pages": 17,
+ "pdf_extractor": [],
+ "source_dir": "pages",
+ "statuses": {
+  "kept": 17,
+  "sidecar": 2
+ },
+ "tool": "scripts/docs-build.py",
+ "url_template": "https://twiki.cern.ch/twiki/bin/view/{web}/{topic}",
+ "webs": "all"
+}

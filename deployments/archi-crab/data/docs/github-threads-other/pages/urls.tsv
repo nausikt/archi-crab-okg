@@ -1,0 +1,18 @@
+# <file name><TAB><url><TAB><title>  -- harvest-gh-direct.py; docs-build.py --urls input
+cmssw-pull-38017.md	https://github.com/cms-sw/cmssw/pull/38017	cms-sw/cmssw PR #38017: [12_3_X] Use RAWEventContent parameter set for Repack output module
+cmssw-pull-38622.md	https://github.com/cms-sw/cmssw/pull/38622	cms-sw/cmssw PR #38622: Modifiers not being set properly in EventConfig for data (GEM RecHits not in latest data)
+cmssw-pull-38678.md	https://github.com/cms-sw/cmssw/pull/38678	cms-sw/cmssw PR #38678:  Modifiers not being set properly in EventConfig for data (backport of #38622, 12_3_X)
+cmssw-osenv-issue-17.md	https://github.com/cms-sw/cmssw-osenv/issues/17	cms-sw/cmssw-osenv issue #17: Unset locales
+cms-docker-issue-186.md	https://github.com/cms-sw/cms-docker/issues/186	cms-sw/cms-docker issue #186: Perl issue in el8 container
+nanoaod-tools-issue-249.md	https://github.com/cms-nanoAOD/nanoAOD-tools/issues/249	cms-nanoAOD/nanoAOD-tools issue #249: NanoAOD-tools output file is polluted with deleted TTrees (and can 5x inflate the size)
+cmsdist-issue-8566.md	https://github.com/cms-sw/cmsdist/issues/8566	cms-sw/cmsdist issue #8566: setup of DBS_CLIENT via CRAB broken in CMSSW 12 +
+wmcore-commit-ea39050d5bad.md	https://github.com/dmwm/WMCore/commit/ea39050d5badb8530074b17895c34badbc36a51f	dmwm/WMCore commit ea39050: add support for rhel9. Fix #11985
+lpc-scripts-commit-f0cb450b3172.md	https://github.com/FNALLPC/lpc-scripts/commit/f0cb450b3172479a581d9c1e84b2071c25879110	FNALLPC/lpc-scripts commit f0cb450: rename script to be more general
+cms-docker-commit-7cd2b049c895.md	https://github.com/cms-sw/cms-docker/commit/7cd2b049c895856e39f235ffec86b93b4da4d623	cms-sw/cms-docker commit 7cd2b04: cc7: install python3-gfal2-util
+cms-docker-commit-7441a94e52e7.md	https://github.com/cms-sw/cms-docker/commit/7441a94e52e77df366a3a8612d5c1d0396086cda	cms-sw/cms-docker commit 7441a94: cc7 Added libnss-sss
+cms-docker-commit-a749aa493440.md	https://github.com/cms-sw/cms-docker/commit/a749aa493440d4f46d4cf3bbc88f318d68018c2a	cms-sw/cms-docker commit a749aa4: [cc7] Install sssd-client
+cms-docker-commit-9cd3321df422.md	https://github.com/cms-sw/cms-docker/commit/9cd3321df4224c5da752b761128901cf156df6b1	cms-sw/cms-docker commit 9cd3321: [cc7] Add emacs and screen packages
+cms-docker-commit-ccb18989e681.md	https://github.com/cms-sw/cms-docker/commit/ccb18989e68185a9dde75be75a643d5ff4ec1845	cms-sw/cms-docker commit ccb1898: [el8] Install emacs and screen packages
+cms-docker-commit-f954b68340b5.md	https://github.com/cms-sw/cms-docker/commit/f954b68340b502ba9294c4e9a2f9ff5cf4b5ce5a	cms-sw/cms-docker commit f954b68: [el9] Added emacs and screen packages
+cmssw-osenv-commit-9e83f8bfe574.md	https://github.com/cms-sw/cmssw-osenv/commit/9e83f8bfe574077556190dadff1a9aeed2dfb00b	cms-sw/cmssw-osenv commit 9e83f8b: force set LC_ALL=C to avoid perl warning about missing locale
+cmsdist-commit-0ea99cbf9ed4.md	https://github.com/cms-sw/cmsdist/commit/0ea99cbf9ed4c6ca01b51f5e3a77f5d68dffbe11	cms-sw/cmsdist commit 0ea99cb: stop distributing old DBS Client with CRAB. Fix #8566

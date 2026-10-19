@@ -1,0 +1,374 @@
+{
+ "files": {
+  "apptainer.org_docs_user_latest_bind_paths_and_mounts.html": {
+   "bytes": 57272,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://apptainer.org/docs/user/latest/bind_paths_and_mounts.html",
+   "result": "ok",
+   "sha256": "d2e79a35bd19ba0b39b3ff76c6e48533c4fbde4dcd760afd4a54c65423ce1b86",
+   "status": 200,
+   "title": "Apptainer user guide: Bind paths and mounts (--bind, system default binds, /tmp /home)",
+   "url": "https://apptainer.org/docs/user/latest/bind_paths_and_mounts.html"
+  },
+  "apptainer.org_docs_user_latest_cli_apptainer_exec.html": {
+   "bytes": 31383,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://apptainer.org/docs/user/latest/cli/apptainer_exec.html",
+   "result": "ok",
+   "sha256": "499cfcb2e7acfdec88181a075533fe4be8ca17c511033182e4f1d1e430aaa15a",
+   "status": 200,
+   "title": "Apptainer CLI: apptainer exec",
+   "url": "https://apptainer.org/docs/user/latest/cli/apptainer_exec.html"
+  },
+  "apptainer.org_docs_user_latest_environment_and_metadata.html": {
+   "bytes": 86924,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://apptainer.org/docs/user/latest/environment_and_metadata.html",
+   "result": "ok",
+   "sha256": "83780bfcd814d38849937072fd8a2e938175b9d667cca43700f51186307e8815",
+   "status": 200,
+   "title": "Apptainer user guide: Environment and metadata (APPTAINERENV_*, --cleanenv, --env, $PATH handling)",
+   "url": "https://apptainer.org/docs/user/latest/environment_and_metadata.html"
+  },
+  "batchdocs.web.cern.ch_local_cheatsheet.html": {
+   "result": "http_error",
+   "status": 404,
+   "title": "CERN Batch Docs: cheatsheet (condor_submit, condor_q, condor_ssh_to_job)",
+   "url": "https://batchdocs.web.cern.ch/local/cheatsheet.html"
+  },
+  "batchdocs.web.cern.ch_local_containers.html": {
+   "result": "http_error",
+   "status": 404,
+   "title": "CERN Batch Docs: containers on the batch service (apptainer/singularity, MY.SingularityImage)",
+   "url": "https://batchdocs.web.cern.ch/local/containers.html"
+  },
+  "batchdocs.web.cern.ch_local_jobflavours.html": {
+   "result": "http_error",
+   "status": 404,
+   "title": "CERN Batch Docs: job flavours (espresso .. nextweek) and +MaxRuntime",
+   "url": "https://batchdocs.web.cern.ch/local/jobflavours.html"
+  },
+  "batchdocs.web.cern.ch_local_pitfalls.html": {
+   "result": "http_error",
+   "status": 404,
+   "title": "CERN Batch Docs: common pitfalls (AFS tokens, shebang, /tmp, memory)",
+   "url": "https://batchdocs.web.cern.ch/local/pitfalls.html"
+  },
+  "batchdocs.web.cern.ch_local_quick.html": {
+   "bytes": 50347,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:14Z",
+   "final_url": "https://batchdocs.web.cern.ch/local/quick.html",
+   "result": "ok",
+   "sha256": "1d06ba45a479270e473d0fa418dc34587457dde6af68c703efec01a9b71d315b",
+   "status": 200,
+   "title": "CERN Batch Docs: Quick start (local HTCondor)",
+   "url": "https://batchdocs.web.cern.ch/local/quick.html"
+  },
+  "batchdocs.web.cern.ch_local_submit.html": {
+   "bytes": 61160,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:14Z",
+   "final_url": "https://batchdocs.web.cern.ch/local/submit.html",
+   "result": "ok",
+   "sha256": "fe32738397b7d0f0a4fa3e872e4039cab94cdd9cb2503884b6afc243f1906c31",
+   "status": 200,
+   "title": "CERN Batch Docs: Submitting jobs (local HTCondor) -- OS choice (+WantOS / MY.WantOS), +JobFlavour, +MaxRuntime",
+   "url": "https://batchdocs.web.cern.ch/local/submit.html"
+  },
+  "cms-sw.github.io_faq.html": {
+   "bytes": 50171,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://cms-sw.github.io/faq.html",
+   "result": "ok",
+   "sha256": "f9d3e87c96f62c33a8c652a312e123415acd8395d31ad40607c798b5d71cce08",
+   "status": 200,
+   "title": "cms-sw: CMSSW git/development FAQ",
+   "url": "https://cms-sw.github.io/faq.html"
+  },
+  "cms-sw.github.io_index.html": {
+   "bytes": 7224,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://cms-sw.github.io/",
+   "result": "ok",
+   "sha256": "667c4fe4cc476e89052f80f7380dd0b29085af2f39f56ed6e80f1e14fbe7f5d9",
+   "status": 200,
+   "title": "cms-sw: CMSSW software site front page (release/architecture tables, FAQ links)",
+   "url": "https://cms-sw.github.io/"
+  },
+  "cms-sw.github.io_singularity.html": {
+   "bytes": 10584,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://cms-sw.github.io/singularity.html",
+   "result": "ok",
+   "sha256": "333b6c48e7d601cf9823ec33efadcb3342df82007e8b2a3d1a5755b41715fcb0",
+   "status": 200,
+   "title": "cms-sw: Running CMSSW in containers (cmssw-el7/el8/el9, cmssw-cc7, apptainer, --command-to-run, bind mounts)",
+   "url": "https://cms-sw.github.io/singularity.html"
+  },
+  "cms-sw.github.io_tutorial.html": {
+   "bytes": 14049,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://cms-sw.github.io/tutorial.html",
+   "result": "ok",
+   "sha256": "0eb9ca8851da44860414dec8dbfcba072aae50176ab3ad5407492bb71dcb8673",
+   "status": 200,
+   "title": "cms-sw: CMSSW git tutorial (cmsrel, git cms-addpkg, scram b)",
+   "url": "https://cms-sw.github.io/tutorial.html"
+  },
+  "cmsdmops.docs.cern.ch_Users_Subscribe_data.html": {
+   "bytes": 17384,
+   "content_type": "text/html;charset=utf-8",
+   "final_url": "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth?response_type=code&scope=openid%20email&client_id=webframeworks-webeos-cmsdmops&state=iL8b8ngdjKhkEw-0CiUt5hihiRE&redirect_uri=https%3A%2F%2Fcmsdmops.docs.cern.ch%2Foidc%2Fcallback&nonce=yzO0O3pfe0JKkpM5WEbHgRlLjZL5aNjY6a63gRbxtO8&code_challenge=9hNuIKvg4-Nkl7mimEY4Ta1EgQ4t4_YIe5SLQermjK4&code_challenge_method=S256",
+   "result": "redirected_to_login",
+   "status": 200,
+   "title": "CMS DM Ops docs: Users / Subscribe data (rucio add-rule, user quotas, request a dataset at a site)",
+   "url": "https://cmsdmops.docs.cern.ch/Users/Subscribe%20data/"
+  },
+  "cmsdmops.docs.cern.ch_index.html": {
+   "bytes": 17384,
+   "content_type": "text/html;charset=utf-8",
+   "final_url": "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth?response_type=code&scope=openid%20email&client_id=webframeworks-webeos-cmsdmops&state=eyAg1iCJ0zuAvIzJ-DXNX4rGhBk&redirect_uri=https%3A%2F%2Fcmsdmops.docs.cern.ch%2Foidc%2Fcallback&nonce=ToQnn85ZO7AQ2zh6KtPq9dx713Pc7lQhRSoZbmJ9aDI&code_challenge=dQF75gkacco_0dEBsC9i0qScotAnVEB7e7AumLKqTMY&code_challenge_method=S256",
+   "result": "redirected_to_login",
+   "status": 200,
+   "title": "CMS DM Ops docs: index",
+   "url": "https://cmsdmops.docs.cern.ch/"
+  },
+  "cmssdt.cern.ch_SDT_ReleasesXML_anytype.txt": {
+   "bytes": 117814,
+   "content_type": "text/plain; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://cmssdt.cern.ch/SDT/cgi-bin/ReleasesXML?anytype=1",
+   "note": "same catalog as releases.map in XML: one copy is enough",
+   "result": "dropped_after_build",
+   "sha256": "668534973593933952e666f88c97027cf2c7d56d9ab0c13065fffa6090429cc7",
+   "status": 200,
+   "title": "CMSSW ReleasesXML: release/architecture list as XML (what scram list / cmsrel resolve)",
+   "url": "https://cmssdt.cern.ch/SDT/cgi-bin/ReleasesXML?anytype=1"
+  },
+  "cmssdt.cern.ch_SDT_releases.map.txt": {
+   "bytes": 502096,
+   "content_type": "",
+   "fetched_at": "2026-10-18T22:02:17Z",
+   "final_url": "https://cmssdt.cern.ch/SDT/releases.map",
+   "result": "ok",
+   "sha256": "1b578183c7649d86b6e6aac25e2c503ed1ce3e96ae58c8899604b01176deeb01",
+   "status": 200,
+   "title": "CMSSW releases.map: every release with its architecture (SCRAM_ARCH), type (Production/Development), state and prodarch flag",
+   "url": "https://cmssdt.cern.ch/SDT/releases.map"
+  },
+  "cmssst.web.cern.ch_siteStatus_detail.html": {
+   "bytes": 13413,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:22Z",
+   "final_url": "https://cmssst.web.cern.ch/siteStatus/detail.html",
+   "result": "ok",
+   "sha256": "f0395a5ca6274a7c5f9539770baf1ca31c070081d7edfa3cdb4f9edf42d4e144",
+   "status": 200,
+   "title": "CMS Site Support Team: site status detail",
+   "url": "https://cmssst.web.cern.ch/siteStatus/detail.html"
+  },
+  "cmssst.web.cern.ch_siteStatus_summary.html": {
+   "bytes": 8760,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:22Z",
+   "final_url": "https://cmssst.web.cern.ch/siteStatus/summary.html",
+   "result": "ok",
+   "sha256": "4e82ef13a6b4427c2ef5981d639b835446f84a712adc75a6b04b74947136c7f3",
+   "status": 200,
+   "title": "CMS Site Support Team: site status summary (the column legend: Life/Prod/CRAB status, SAM, HammerCloud, downtime)",
+   "url": "https://cmssst.web.cern.ch/siteStatus/summary.html"
+  },
+  "linux.web.cern.ch_index.html": {
+   "bytes": 297241,
+   "content_type": "text/html",
+   "fetched_at": "2026-10-18T22:02:14Z",
+   "final_url": "https://linux.web.cern.ch/",
+   "result": "ok",
+   "sha256": "8036582686c9f3e73417dbeebcfc5631fcb95c5f0d468550ef4c2e3c8b2c900b",
+   "status": 200,
+   "title": "CERN Linux: supported distributions overview",
+   "url": "https://linux.web.cern.ch/"
+  },
+  "linux.web.cern.ch_which.html": {
+   "bytes": 298918,
+   "content_type": "text/html",
+   "fetched_at": "2026-10-18T22:02:14Z",
+   "final_url": "https://linux.web.cern.ch/which/",
+   "result": "ok",
+   "sha256": "c5cbf6b33bed739a46d2b8d004dcb076c8bf27362c9d190ce47fdbcdabe82c98",
+   "status": 200,
+   "title": "CERN Linux: which Linux (AlmaLinux 9 / RHEL / CentOS Stream; CentOS 7 end of life 2024-06-30)",
+   "url": "https://linux.web.cern.ch/which/"
+  },
+  "listserv.fnal.gov_LPC-HOWTO.html": {
+   "bytes": 72614,
+   "content_type": "text/html",
+   "fetched_at": "2026-10-18T22:02:22Z",
+   "final_url": "https://listserv.fnal.gov/scripts/wa.exe?A0=LPC-HOWTO",
+   "note": "archive index renders only a 'Log In' shell (379 chars) anonymously",
+   "result": "dropped_after_build",
+   "sha256": "9b8f28f933a0687eb5415c7e34a42eb3bb1c759a1e6dc8e90c32618497407261",
+   "status": 200,
+   "title": "LPC-HOWTO LISTSERV archive index (VERIFY: kept only if it renders without login)",
+   "url": "https://listserv.fnal.gov/scripts/wa.exe?A0=LPC-HOWTO"
+  },
+  "lxplusdoc.web.cern.ch_index.html": {
+   "bytes": 17420,
+   "content_type": "text/html;charset=utf-8",
+   "final_url": "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/auth?response_type=code&scope=openid%20email&client_id=webframeworks-webeos-lxplus-docs&state=b0SkGtPQ-gTzshntH5tB7xvx5f4&redirect_uri=https%3A%2F%2Flxplusdoc.web.cern.ch%2Foidc%2Fcallback&nonce=X-Abpvh3hDNkyLMZHjUVTGnojtvTpA7Pxc98r_BdDjo&code_challenge=l6XQG87Yis8_N-jLIN9Cy95mBGTK9wg735sjkWFFNzU&code_challenge_method=S256",
+   "result": "redirected_to_login",
+   "status": 200,
+   "title": "LXPLUS service documentation (lxplus9 = AlmaLinux 9 default, lxplus7/lxplus8 aliases)",
+   "url": "https://lxplusdoc.web.cern.ch/"
+  },
+  "osg-htc.org_docs_worker-node_install-apptainer.html": {
+   "bytes": 65751,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://osg-htc.org/docs/worker-node/install-apptainer/",
+   "result": "ok",
+   "sha256": "3ce0e86786d794734e352aed4a8239451421b68c75576255ff62e731a2508789",
+   "status": 200,
+   "title": "OSG docs: Install Apptainer on worker nodes (unprivileged user namespaces, cvmfs-provided apptainer)",
+   "url": "https://osg-htc.org/docs/worker-node/install-apptainer/"
+  },
+  "osg-htc.org_docs_worker-node_install-cvmfs.html": {
+   "bytes": 60430,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://osg-htc.org/docs/worker-node/install-cvmfs/",
+   "result": "ok",
+   "sha256": "39cf5ce0e9297ad8a3ebe16ee8b00014dccd88650696a9044a18f8ba3c6858ac",
+   "status": 200,
+   "title": "OSG docs: Install CVMFS on worker nodes",
+   "url": "https://osg-htc.org/docs/worker-node/install-cvmfs/"
+  },
+  "osg-htc.org_docs_worker-node_install-wn-oasis.html": {
+   "bytes": 49186,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://osg-htc.org/docs/worker-node/install-wn-oasis/",
+   "result": "ok",
+   "sha256": "21e41b431f0b64604708a1d08c61ac06b95ca6e34fc61fabda139a850d68bb35",
+   "status": 200,
+   "title": "OSG docs: Worker node client from OASIS (CVMFS)",
+   "url": "https://osg-htc.org/docs/worker-node/install-wn-oasis/"
+  },
+  "osg-htc.org_docs_worker-node_install-wn.html": {
+   "bytes": 47975,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://osg-htc.org/docs/worker-node/install-wn/",
+   "result": "ok",
+   "sha256": "3df1476fdc702536e20e1eb921c9f356777ba63fa0b60a7405a0143622aa5b1b",
+   "status": 200,
+   "title": "OSG docs: Install the worker node client",
+   "url": "https://osg-htc.org/docs/worker-node/install-wn/"
+  },
+  "osg-htc.org_docs_worker-node_using-wn.html": {
+   "bytes": 56383,
+   "content_type": "text/html; charset=utf-8",
+   "fetched_at": "2026-10-18T22:02:16Z",
+   "final_url": "https://osg-htc.org/docs/worker-node/using-wn/",
+   "result": "ok",
+   "sha256": "dc415d76a1686eefd3a0ae4228e7dcb899e29f5839aa24e3237f297e5a20b462",
+   "status": 200,
+   "title": "OSG docs: Using the worker node client",
+   "url": "https://osg-htc.org/docs/worker-node/using-wn/"
+  },
+  "uscms.org_computing_LPC_crab.html": {
+   "result": "http_error",
+   "status": 404,
+   "title": "US CMS LPC: CRAB at the LPC (site, stageout to T3_US_FNALLPC)",
+   "url": "https://uscms.org/uscms_at_work/computing/LPC/crab.shtml"
+  },
+  "uscms.org_computing_LPC_usingEOSAtLPC.html": {
+   "bytes": 70989,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:21Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/LPC/usingEOSAtLPC.shtml",
+   "result": "ok",
+   "sha256": "14ad61427c446bdf74cb64e7427e94e110dc407f6bca54629d35c35b388dc2c4",
+   "status": 200,
+   "title": "US CMS LPC: Using EOS at the LPC (xrdcp, eosls, quotas, root://cmseos.fnal.gov)",
+   "url": "https://uscms.org/uscms_at_work/computing/LPC/usingEOSAtLPC.shtml"
+  },
+  "uscms.org_computing_getstarted_getaccount.html": {
+   "bytes": 15565,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:18Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/getstarted/getaccount.shtml",
+   "result": "ok",
+   "sha256": "9b820a59b17d690ac34a0aba7e8d93a9311aa25c7f1994f50d1bfb11076dee2f",
+   "status": 200,
+   "title": "US CMS LPC: Getting a cmslpc account (Kerberos, ssh)",
+   "url": "https://uscms.org/uscms_at_work/computing/getstarted/getaccount.shtml"
+  },
+  "uscms.org_computing_getstarted_index.html": {
+   "bytes": 19115,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:18Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/getstarted/index.shtml",
+   "result": "ok",
+   "sha256": "785436aab520524b832472c2a3fad6779d78cc3a5012d3555940f9e5fb45d91b",
+   "status": 200,
+   "title": "US CMS LPC: Getting started with computing at the LPC (accounts, lpc-howto list, cmslpc)",
+   "url": "https://uscms.org/uscms_at_work/computing/getstarted/index.shtml"
+  },
+  "uscms.org_computing_getstarted_uaf.html": {
+   "bytes": 73188,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:19Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/getstarted/uaf.shtml",
+   "result": "ok",
+   "sha256": "954cad4f8b06a48fbc4ac8448b6e66f225eb70271d5fae486a9090b8635243c3",
+   "status": 200,
+   "title": "US CMS LPC: cmslpc user analysis facility (interactive nodes, OS, scram arch)",
+   "url": "https://uscms.org/uscms_at_work/computing/getstarted/uaf.shtml"
+  },
+  "uscms.org_computing_setup_batch_systems.html": {
+   "bytes": 51934,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:20Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/setup/batch_systems.shtml",
+   "result": "ok",
+   "sha256": "c15dc1df98a6b1c958018fad1b6b3ebc6bc08ee9ee22cde61f115275cc2bd408",
+   "status": 200,
+   "title": "US CMS LPC: batch systems (HTCondor at the LPC, condor_submit, condor_q, +DesiredOS)",
+   "url": "https://uscms.org/uscms_at_work/computing/setup/batch_systems.shtml"
+  },
+  "uscms.org_computing_setup_diskusage.html": {
+   "bytes": 29096,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:19Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/setup/diskusage.shtml",
+   "result": "ok",
+   "sha256": "eec764d037e27d1dc4a456a0291178f16cc9823ff05738ed08e1221c9c6868bc",
+   "status": 200,
+   "title": "US CMS LPC: disk usage and quotas (home, nobackup, EOS)",
+   "url": "https://uscms.org/uscms_at_work/computing/setup/diskusage.shtml"
+  },
+  "uscms.org_computing_setup_setup_software.html": {
+   "bytes": 30912,
+   "content_type": "text/html; charset=UTF-8",
+   "fetched_at": "2026-10-18T22:02:20Z",
+   "final_url": "https://www.uscms.org/uscms_at_work/computing/setup/setup_software.shtml",
+   "result": "ok",
+   "sha256": "2a2bc862bf4f61bb2b43753e7e2b93f8012489b1328cdaa125293859c6ec339d",
+   "status": 200,
+   "title": "US CMS LPC: setting up CMSSW software at the LPC (cmsenv, cmssw-el7/el8)",
+   "url": "https://uscms.org/uscms_at_work/computing/setup/setup_software.shtml"
+  }
+ },
+ "list": "deployments/archi-crab/data/docs/public-web-docs/pages.tsv",
+ "tool": "scripts/harvest-fetch.py",
+ "written_at": "2026-10-18T22:02:22Z"
+}

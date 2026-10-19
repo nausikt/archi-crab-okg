@@ -12,12 +12,12 @@ tags, never `main`:
 | Instance | Engine | Corpus | URL | State |
 |---|---|---|---|---|
 | A | okg `43f459c6` (v4 dev, 3d6cb3e8) | `v0.1.0` | `/releases/43f459c6/v0.1.0/mcp` (+ `/mcp` pointer) | live, frozen (gen `eee6c09f3655`, 326,241 / 419,177) |
-| C (rc1) | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc1/v0.1.0/mcp` | live, frozen (gen `dbc96e1b4a8d`, 326,419 / 419,367), tag at `134b3ff`; **retiring**: replaced by rc2 |
-| C | okg `v0.2.0-rc2` (9221a10) | `v0.1.0` | `/releases/v0.2.0-rc2/v0.1.0/mcp` | planned: section "Engine rc2 replaces rc1" |
+| C (rc1) | okg `v0.2.0-rc1` (06a4771) + archi-okg e1c2886 | `v0.1.0` | ~~`/releases/v0.2.0-rc1/v0.1.0/mcp`~~ | **retired** 2026-10-18 (gen `dbc96e1b4a8d`, 326,419 / 419,367); tag `okg/releases/v0.2.0-rc1/v0.1.0` |
+| C | okg `v0.2.0-rc2` (9221a10) + archi-okg e1c2886 | `v0.1.0` | `/releases/v0.2.0-rc2/v0.1.0/mcp` | live, frozen (gen `25e7a911d6e8`, 326421 / 419368), tag `okg/releases/v0.2.0-rc2/v0.1.0` |
 | v2 | archi `e6609f8f` | `v0.1.0` | `/{grep,vectorstore}/releases/v0.1.0/mcp` (+ pointers) | live |
-| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | building: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (run 38967636310, tag at `9d150b9`) |
+| dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | live, frozen: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (gen `4082f4504b2d`, 326421 / 419368) |
 
-- run1 is retired. The ToolHive operator is paused (0) until the dev slot's proxy is created.
+- run1 is retired. The ToolHive operator is paused (0); the dev slot's proxy `okg-dev` exists.
 - A and C share their corpus and adapter (fingerprints `3d37187c…` and `46227d04…`); only the
   engine differs.
 - `okg status` on a FROZEN instance exits 1 with `permission denied for table node_facts`. Only
@@ -25,8 +25,8 @@ tags, never `main`:
   report; `stage` and `sources` don't. Capture a full status before freezing.
 
 **Next:**
-0. Engine `v0.2.0-rc2` (okg 9221a10) replaces `v0.2.0-rc1`: build C on rc2, freeze it, retire C (rc1).
-   Section "Engine rc2 replaces rc1" (R1 to R9). D and prod F are now planned on rc2.
+0. Engine `v0.2.0-rc2` (okg 9221a10) replaced `v0.2.0-rc1` on 2026-10-18: C on rc2 is live, C (rc1)
+   retired. Left: R9, the ToolHive operator back to 0. D and prod F are planned on rc2.
 1. Bench A vs C (and v2). Add each URL with
    `--client-id archi-crab-okg-public-staging --callback-port 8765`, and record runs by okg commit.
 2. The dev slot, first build (section "Weekly dev slot" below): patch `archi-crab-okg-7-dev-slot`
@@ -51,7 +51,8 @@ tags, never `main`:
 **Corpus v0.2.0-rc1** (the next real step: B, D, F, v2 `v0.2.0-rc1`). It starts when your sources
 list and docs exist. The dev slot moves to it at its next weekly build (one `corpus:` line).
 Prerequisites:
-- de-hardcode the v2 chart's Service names (a second v2 release in the same namespace);
+- ~~de-hardcode the v2 chart's Service names~~ done 2026-10-19: templates/config.yaml rewrites the
+  two Service hostnames in the generated config to the release's fullname;
 - prod F: certificate, LanDB alias and gateway listener for `archi-crab-okg.cern.ch`; a prod SSO
   app; Secret `okg-archi-crab` in `archi-crab`; StorageClass `cinder-io1`;
 - decide on `cmssw-releases`. It needs okg#3317 + archi-okg#32 (archi-okg `e1c2886` has #32;
@@ -159,7 +160,20 @@ okg#3317. So each okg engine in the matrix has an **adapter**:
 - `deployments/archi-crab/` apart from `data/` (the corpus), `source_registry.yaml` (rendered)
   and `VENDOR.yaml`.
 
-`releases/engines.yaml` records its fingerprint.
+`releases/engines.yaml` records its fingerprint — since 2026-10-18 as `adapters:`, a **list per
+engine, oldest first**. An engine's id, tag, commits and image digests never change; its adapter
+list only grows:
+- **backward**: the adapter an instance was built with stays listed while that instance is live
+  (`release.py lint` errors on a live instance whose revision carries an unlisted fingerprint);
+- **forward**: a newer adapter (a `kinds.yaml` change such as the git-history lane, a re-vendored
+  schema) is appended only after `contract-check.py`, `okg catalog load` and `okg deployment lint`
+  passed **inside that engine's own image** (`IMG=<its runtime digest>`); the dev image that CI
+  runs is not proof for a release engine. Each entry: `{fingerprint, native: <commit that carries
+  it natively>, compat: <dir or "">, since, note}`.
+
+`render` gives a new instance the newest listed adapter its revision carries (native before
+compat); frozen instances keep theirs. So D and F can run `v0.2.0-rc2` with an adapter C never
+had, with no engine build and no change to C.
 
 | Where | Holds | Used by |
 |---|---|---|
@@ -176,7 +190,8 @@ okg#3317. So each okg engine in the matrix has an **adapter**:
 - **When `main`'s adapter moves on** (an engine PR resyncs vendored files, `kinds.yaml` changes)
   and an older engine is still wanted, freeze it first:
   `release.py freeze-adapter <engine> <its commit>`, then `sources.py render --write`, then
-  record `adapter.compat` and `adapter.fingerprint` in `engines.yaml`.
+  add (or complete) that fingerprint's entry under `adapters:` in `engines.yaml` with its
+  `compat:` dir (a second frozen version of the same engine gets `deployments/compat/<engine>-<fp8>`).
 - Retire a compat dir with its last instance.
 - Follow-up (a workflow change, not in these PRs): a CI job that runs `contract-check.py` inside
   each compat engine's image (43f459c6 = `edfe5cad`) against its compat deployment. A corpus
@@ -445,7 +460,7 @@ kubectl -n archi-crab-staging get secret okg-archi-crab-v0-2-0-rc2-v0-1-0 -o jso
 ```bash
 kubectl -n argocd annotate application archi-crab crab-mcp-gateway-staging argocd.argoproj.io/refresh=hard --overwrite
 kubectl -n argocd get application archi-crab-okg-v0-2-0-rc2-v0-1-0 -o jsonpath='{.spec.source.targetRevision} {.status.sync.status}{"\n"}'
-kubectl -n toolhive-system get mcpremoteproxy okg-v0-2-0-rc2-v0-1-0    # Ready
+kubectl -n archi-crab-staging get mcpremoteproxy okg-v0-2-0-rc2-v0-1-0-staging    # Ready (CRs live in archi-crab-staging, suffix -staging)
 ```
 **R6. Watch the build** (about an hour): as in 1.7, with `P=archi-crab-okg-v0-2-0-rc2-v0-1-0-runtime-0`.
    Save `okg status --deployment archi-crab --json > C-rc2.status.json` before freezing.
@@ -466,7 +481,7 @@ git push origin okg/releases/v0.2.0-rc2/v0.1.0 && python3 scripts/release.py lin
 NS=archi-crab-staging; P1=archi-crab-okg-v0-2-0-rc1-v0-1-0
 kubectl -n $NS delete pod archi-crab-okg-v0-2-0-rc2-v0-1-0-runtime-0         # → 1/1, mcp only
 kubectl -n argocd get application $P1 2>&1 | grep -q NotFound && echo "rc1 app gone"
-kubectl -n toolhive-system get mcpremoteproxy okg-v0-2-0-rc1-v0-1-0 2>&1 | grep -q NotFound && echo "rc1 proxy gone"
+kubectl -n archi-crab-staging get mcpremoteproxy okg-v0-2-0-rc1-v0-1-0-staging 2>&1 | grep -q NotFound && echo "rc1 proxy gone"
 kubectl -n $NS delete pvc postgres-data-$P1-postgres-0 runtime-data-$P1-runtime-0   # StatefulSets leave their claims
 kubectl -n $NS delete secret okg-archi-crab-v0-2-0-rc1-v0-1-0
 ```
@@ -577,7 +592,9 @@ Nothing else changes: same slot, same URL, same volumes.
 
 Prerequisites:
 - Phase 0 is done (A and v2 on tags).
-- The v2 chart has its Service names de-hardcoded, so a second release can share the namespace.
+- The v2 chart has its Service names de-hardcoded (templates/config.yaml rewrites
+  `host: archi-v2-postgres` / `hostname: archi-v2-data-manager` to the release's fullname), so a
+  second release can share the namespace.
 - Prod for F:
   - a host cert and LanDB alias for `archi-crab-okg.cern.ch`, and its gateway listener;
   - a prod SSO app;

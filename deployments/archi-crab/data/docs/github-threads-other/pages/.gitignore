@@ -1,0 +1,6 @@
+# fetched bytes are not committed: rebuild with
+#   scripts/harvest-fetch.py --list ../snapshots.tsv --out .   (manifest.json holds each file's sha256)
+*
+!.gitignore
+!urls.tsv
+!manifest.json

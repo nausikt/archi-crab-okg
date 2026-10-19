@@ -70,23 +70,24 @@ okg:
       corpus: v0.2.0-rc1
       status: planned
       clusterIP: 10.254.0.202
-    # C (rc1): okg v0.2.0-rc1 on the old corpus. REPLACED by C on rc2 below; retired once that is
-    # live (docs/RELEASES.md, "Engine rc2 replaces rc1"). Tag okg/releases/v0.2.0-rc1/v0.1.0 stays.
+    # C (rc1): okg v0.2.0-rc1 on the old corpus. RETIRED 2026-10-18, replaced by C on rc2 below:
+    # app, proxy, volumes and Secret removed (docs/RELEASES.md R8). Tag okg/releases/v0.2.0-rc1/v0.1.0
+    # and corpus.yaml materialized are the record.
     - engine: v0.2.0-rc1
       corpus: v0.1.0
-      status: live
+      status: retired
       clusterIP: 10.254.0.203
     # C: the release-candidate engine on the old corpus (what did the engine change, corpus held
     # fixed?), now okg v0.2.0-rc2. Its own release, volumes and URL; rc1's C is not reused.
     - engine: v0.2.0-rc2
       corpus: v0.1.0
-      status: planned
+      status: live
       clusterIP: 10.254.0.206
     # D: latest engine x latest corpus, the best version. Staging's /mcp points here once it is live.
     # Prod runs the SAME pair as its own instance F (below): users never share D with the bench.
     - engine: v0.2.0-rc2
       corpus: v0.2.0-rc1
-      status: planned
+      status: building
       clusterIP: 10.254.0.204
     #
     # SLOT dev: okg's newest `dev` x the NEWEST released corpus, STAGING ONLY. A slot is ONE
@@ -99,7 +100,7 @@ okg:
     - slot: dev
       engine: dev-2026w42
       corpus: v0.1.0
-      status: building
+      status: live
       clusterIP: 10.254.0.205
     #
     # run1 (okg v3, the 2026-10-01 evaluation, /run1/mcp) was retired on 2026-10-16: its app,
@@ -130,7 +131,7 @@ v2:
       storage: {postgres: [150Gi, cinder-io1-delete], dataManager: [75Gi, cinder-io1-delete]}
     # Same namespace: needs the chart's Service names de-hardcoded (docs/RELEASES.md, phase 1).
     - corpus: v0.2.0-rc1
-      status: planned
+      status: building
   aliases:
     # https://archi-crab-v2.cern.ch/grep/mcp and /vectorstore/mcp. Move to v0.2.0-rc1 when it is live.
     - {family: grep, target: v0.1.0}
@@ -146,7 +147,7 @@ prod:
   okg:
     engine: v0.2.0-rc2
     corpus: v0.2.0-rc1
-    status: planned
+    status: building
     host: archi-crab-okg.cern.ch      # listener commented out today; cert + LanDB alias needed
     namespace: archi-crab
     release: archi-crab-okg
@@ -157,4 +158,7 @@ prod:
     clusterIP: 10.254.0.210
     # cinder-io1 (not -delete): prod's database must survive a deleted claim. Check the class
     # exists (kubectl get sc) before the first sync; envs/prod names it already.
-    storage: {postgres: [150Gi, cinder-io1], runtime: [75Gi, cinder-standard]}
+    # runtime on io1 too: the project's `standard` volume COUNT quota was full (40/40) when F
+    # was built on 2026-10-19 and Cinder answered 413 to every claim; the build checkout is
+    # rebuildable, so the -delete class (the claim takes the volume with it).
+    storage: {postgres: [150Gi, cinder-io1], runtime: [75Gi, cinder-io1-delete]}

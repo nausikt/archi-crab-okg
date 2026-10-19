@@ -8,8 +8,12 @@ metadata:
 data:
   # GENERATED (v2/scripts/render-config.py from v2/deployments/archi-crab/config.yaml, with
   # archi's own base-config.yaml template). Loaded into Postgres by the config-seed Job.
+  # files/config.yaml names the Services of the default release (archi-v2-postgres,
+  # archi-v2-data-manager); for any other fullnameOverride they are rewritten to this release's
+  # Services here, so two v2 releases can share a namespace (docs/RELEASES.md, phase 2). With the
+  # default `archi-v2` the output is byte-identical to the file.
   config.yaml: |
-{{ .Files.Get "files/config.yaml" | indent 4 }}
+{{ .Files.Get "files/config.yaml" | replace "host: archi-v2-postgres" (printf "host: %s-postgres" $full) | replace "hostname: archi-v2-data-manager" (printf "hostname: %s-data-manager" $full) | indent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap

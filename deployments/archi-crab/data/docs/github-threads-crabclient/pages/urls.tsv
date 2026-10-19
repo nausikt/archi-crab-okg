@@ -1,0 +1,259 @@
+# <file name><TAB><url><TAB><title>  -- written by scripts/harvest-gh-threads.py; docs-build.py --urls input
+crabclient-issue-5182.md	https://github.com/dmwm/CRABClient/issues/5182	dmwm/CRABClient issue #5182: stop distributing ol python2 DBS Client
+crabclient-issue-5183.md	https://github.com/dmwm/CRABClient/issues/5183	dmwm/CRABClient issue #5183:  fix getLumiListInValidFiles
+crabclient-pull-5184.md	https://github.com/dmwm/CRABClient/pull/5184	dmwm/CRABClient PR #5184: submit --dryrun. print info about last trial
+crabclient-pull-5185.md	https://github.com/dmwm/CRABClient/pull/5185	dmwm/CRABClient PR #5185: new Data.inputBlocks parameter
+crabclient-pull-5186.md	https://github.com/dmwm/CRABClient/pull/5186	dmwm/CRABClient PR #5186: Fix getattr with config.Data.inputBlocks
+crabclient-issue-5187.md	https://github.com/dmwm/CRABClient/issues/5187	dmwm/CRABClient issue #5187: Add src/*/*/python to the user sandbox
+crabclient-pull-5188.md	https://github.com/dmwm/CRABClient/pull/5188	dmwm/CRABClient PR #5188: add src/**/python to user sandbox
+crabclient-pull-5189.md	https://github.com/dmwm/CRABClient/pull/5189	dmwm/CRABClient PR #5189: add Data.rucioScope
+crabclient-issue-5190.md	https://github.com/dmwm/CRABClient/issues/5190	dmwm/CRABClient issue #5190: adapt to SL6 container
+crabclient-issue-5191.md	https://github.com/dmwm/CRABClient/issues/5191	dmwm/CRABClient issue #5191: implement crab checkdataset
+crabclient-pull-5192.md	https://github.com/dmwm/CRABClient/pull/5192	dmwm/CRABClient PR #5192: add crab checkdataset. Fix #5191
+crabclient-pull-5193.md	https://github.com/dmwm/CRABClient/pull/5193	dmwm/CRABClient PR #5193: checkdataset does not need VOMS user/group
+crabclient-issue-5194.md	https://github.com/dmwm/CRABClient/issues/5194	dmwm/CRABClient issue #5194: protect against badly specified nThreads in PSet
+crabclient-pull-5195.md	https://github.com/dmwm/CRABClient/pull/5195	dmwm/CRABClient PR #5195: Make sure numberOfThreads is uint32 in the PSet
+crabclient-issue-5196.md	https://github.com/dmwm/CRABClient/issues/5196	dmwm/CRABClient issue #5196: add $CMSSW_BASE/config/SCRAM/hooks to the sandbox
+crabclient-issue-5197.md	https://github.com/dmwm/CRABClient/issues/5197	dmwm/CRABClient issue #5197: add sendVenvFolder to include $CMSSW_BASE/venv
+crabclient-issue-5198.md	https://github.com/dmwm/CRABClient/issues/5198	dmwm/CRABClient issue #5198: allow a user to add their own tarfile to the sandox
+crabclient-pull-5199.md	https://github.com/dmwm/CRABClient/pull/5199	dmwm/CRABClient PR #5199: Add dirs to sandbox
+crabclient-issue-5200.md	https://github.com/dmwm/CRABClient/issues/5200	dmwm/CRABClient issue #5200: make sure error message about sanbox size is clearly visible
+crabclient-issue-5201.md	https://github.com/dmwm/CRABClient/issues/5201	dmwm/CRABClient issue #5201: make crab.log less verbose
+crabclient-issue-5202.md	https://github.com/dmwm/CRABClient/issues/5202	dmwm/CRABClient issue #5202: do not put `.git` directories in sandbox
+crabclient-issue-5203.md	https://github.com/dmwm/CRABClient/issues/5203	dmwm/CRABClient issue #5203: adapt crab checkwrite to Rucio
+crabclient-issue-5204.md	https://github.com/dmwm/CRABClient/issues/5204	dmwm/CRABClient issue #5204: import DBS3SetDatasetStatus and DBS3SetFileStatus into CRAB
+crabclient-pull-5205.md	https://github.com/dmwm/CRABClient/pull/5205	dmwm/CRABClient PR #5205: Print rule id instead of container name in "crab status" command
+crabclient-issue-5206.md	https://github.com/dmwm/CRABClient/issues/5206	dmwm/CRABClient issue #5206: report user Rucio quota in crab status
+crabclient-pull-5207.md	https://github.com/dmwm/CRABClient/pull/5207	dmwm/CRABClient PR #5207: skip .git directories when creating sandbox. Fix #5202
+crabclient-issue-5208.md	https://github.com/dmwm/CRABClient/issues/5208	dmwm/CRABClient issue #5208: Usage of flags with dashes in pyCfgParams
+crabclient-pull-5209.md	https://github.com/dmwm/CRABClient/pull/5209	dmwm/CRABClient PR #5209: Print Rucio info for Rucio ASO task
+crabclient-issue-5210.md	https://github.com/dmwm/CRABClient/issues/5210	dmwm/CRABClient issue #5210: always include `$CMSSW_BASE/python`and `bin` in sandbox
+crabclient-pull-5211.md	https://github.com/dmwm/CRABClient/pull/5211	dmwm/CRABClient PR #5211: change getLumiListInValidFiles to use dasgoclient Fix #5175
+crabclient-issue-5212.md	https://github.com/dmwm/CRABClient/issues/5212	dmwm/CRABClient issue #5212: crabclient does not check proxy expiration when using --proxy 
+crabclient-issue-5213.md	https://github.com/dmwm/CRABClient/issues/5213	dmwm/CRABClient issue #5213: allow CRABClient to use Rucio python client API
+crabclient-pull-5214.md	https://github.com/dmwm/CRABClient/pull/5214	dmwm/CRABClient PR #5214: intial implementation of adding Rucio client. Fix #5213
+crabclient-pull-5215.md	https://github.com/dmwm/CRABClient/pull/5215	dmwm/CRABClient PR #5215: always put bin and python dirs in sanbox. Fix #5210
+crabclient-issue-5216.md	https://github.com/dmwm/CRABClient/issues/5216	dmwm/CRABClient issue #5216: Enable some configuration validation
+crabclient-pull-5217.md	https://github.com/dmwm/CRABClient/pull/5217	dmwm/CRABClient PR #5217: limit list of sandbox content to console to 5 files. Fix #5200
+crabclient-pull-5218.md	https://github.com/dmwm/CRABClient/pull/5218	dmwm/CRABClient PR #5218: Reduce curl verbosity
+crabclient-pull-5219.md	https://github.com/dmwm/CRABClient/pull/5219	dmwm/CRABClient PR #5219: rename rucio_path.sh to rucio_pythonpath.sh
+crabclient-issue-5220.md	https://github.com/dmwm/CRABClient/issues/5220	dmwm/CRABClient issue #5220: only initialize Rucio when we have a proxy and if needed
+crabclient-issue-5221.md	https://github.com/dmwm/CRABClient/issues/5221	dmwm/CRABClient issue #5221: define and implement inferface of CRABClient and Rucio python client. 
+crabclient-pull-5222.md	https://github.com/dmwm/CRABClient/pull/5222	dmwm/CRABClient PR #5222: Initialise Rucio client after we have proxy. Fix #5220
+crabclient-issue-5223.md	https://github.com/dmwm/CRABClient/issues/5223	dmwm/CRABClient issue #5223: make sure crab exit with non 0 exit code in case of errr
+crabclient-issue-5224.md	https://github.com/dmwm/CRABClient/issues/5224	dmwm/CRABClient issue #5224: all commands must return a dict containing `commandStatus` key
+crabclient-pull-5225.md	https://github.com/dmwm/CRABClient/pull/5225	dmwm/CRABClient PR #5225: make sure all commands return a dict. Fix #5224
+crabclient-issue-5226.md	https://github.com/dmwm/CRABClient/issues/5226	dmwm/CRABClient issue #5226: error(s) in last PR
+crabclient-pull-5227.md	https://github.com/dmwm/CRABClient/pull/5227	dmwm/CRABClient PR #5227: complete reporting a dictionary in tasks.py Fix #5226
+crabclient-pull-5228.md	https://github.com/dmwm/CRABClient/pull/5228	dmwm/CRABClient PR #5228: Make sure exit code is not zero if command fails (partial)
+crabclient-issue-5229.md	https://github.com/dmwm/CRABClient/issues/5229	dmwm/CRABClient issue #5229: small cleanup
+crabclient-pull-5230.md	https://github.com/dmwm/CRABClient/pull/5230	dmwm/CRABClient PR #5230: clenup. fix #5229
+crabclient-pull-5231.md	https://github.com/dmwm/CRABClient/pull/5231	dmwm/CRABClient PR #5231: Make sure exit code is not zero if command fails fix 5223
+crabclient-pull-5232.md	https://github.com/dmwm/CRABClient/pull/5232	dmwm/CRABClient PR #5232: Adapt checkwrite to rucio fix 5203
+crabclient-issue-5233.md	https://github.com/dmwm/CRABClient/issues/5233	dmwm/CRABClient issue #5233: move crab checkdataset code to this repo
+crabclient-issue-5234.md	https://github.com/dmwm/CRABClient/issues/5234	dmwm/CRABClient issue #5234: create a crab checkfile command
+crabclient-issue-5235.md	https://github.com/dmwm/CRABClient/issues/5235	dmwm/CRABClient issue #5235: cleanup crab status. status cache from scheduler is always pkl now
+crabclient-pull-5236.md	https://github.com/dmwm/CRABClient/pull/5236	dmwm/CRABClient PR #5236: crab status reports Rucio quota and alarms if needed. Fix #5206
+crabclient-pull-5237.md	https://github.com/dmwm/CRABClient/pull/5237	dmwm/CRABClient PR #5237: Use python3 and rucio client with cmssw 10
+crabclient-pull-5238.md	https://github.com/dmwm/CRABClient/pull/5238	dmwm/CRABClient PR #5238: Use python3 and rucio client with cmssw 10
+crabclient-issue-5239.md	https://github.com/dmwm/CRABClient/issues/5239	dmwm/CRABClient issue #5239: allow users to force submit with python2
+crabclient-pull-5240.md	https://github.com/dmwm/CRABClient/pull/5240	dmwm/CRABClient PR #5240: Add change dbs dataset file status fix #5204
+crabclient-pull-5241.md	https://github.com/dmwm/CRABClient/pull/5241	dmwm/CRABClient PR #5241: Add change dbs dataset file status fix #5204
+crabclient-pull-5242.md	https://github.com/dmwm/CRABClient/pull/5242	dmwm/CRABClient PR #5242: avoid rucio setup getting confused by existing CMSSW stuff
+crabclient-pull-5243.md	https://github.com/dmwm/CRABClient/pull/5243	dmwm/CRABClient PR #5243: Add change dbs dataset file status fix 5204
+crabclient-pull-5244.md	https://github.com/dmwm/CRABClient/pull/5244	dmwm/CRABClient PR #5244: Add change dbs dataset file status fix 5204
+crabclient-pull-5245.md	https://github.com/dmwm/CRABClient/pull/5245	dmwm/CRABClient PR #5245: Add change dbs dataset file status fix 5204
+crabclient-pull-5246.md	https://github.com/dmwm/CRABClient/pull/5246	dmwm/CRABClient PR #5246: Test setdatasetfilesstatus
+crabclient-pull-5247.md	https://github.com/dmwm/CRABClient/pull/5247	dmwm/CRABClient PR #5247: Use isEnoughRucioQuota from ServerUtilities.py
+crabclient-issue-5248.md	https://github.com/dmwm/CRABClient/issues/5248	dmwm/CRABClient issue #5248: crab report - raises exception when all the jobs failed
+crabclient-pull-5249.md	https://github.com/dmwm/CRABClient/pull/5249	dmwm/CRABClient PR #5249: trim docstring for class to look good on --help
+crabclient-pull-5250.md	https://github.com/dmwm/CRABClient/pull/5250	dmwm/CRABClient PR #5250: crab recover - new command
+crabclient-pull-5251.md	https://github.com/dmwm/CRABClient/pull/5251	dmwm/CRABClient PR #5251: add deprecation reason for sendPythonFolder
+crabclient-pull-5252.md	https://github.com/dmwm/CRABClient/pull/5252	dmwm/CRABClient PR #5252: add checkfile.py fix #5234
+crabclient-issue-5253.md	https://github.com/dmwm/CRABClient/issues/5253	dmwm/CRABClient issue #5253: review --instance vs. --dbs-instance
+crabclient-pull-5254.md	https://github.com/dmwm/CRABClient/pull/5254	dmwm/CRABClient PR #5254: Fix 5253
+crabclient-issue-5255.md	https://github.com/dmwm/CRABClient/issues/5255	dmwm/CRABClient issue #5255: cleanup useless options from crab-bash-completion.sh
+crabclient-pull-5256.md	https://github.com/dmwm/CRABClient/pull/5256	dmwm/CRABClient PR #5256: fix bug in #5254. Why didn't pylint spot this ?
+crabclient-pull-5257.md	https://github.com/dmwm/CRABClient/pull/5257	dmwm/CRABClient PR #5257: cleanup bash-completion. Fix #5255
+crabclient-pull-5258.md	https://github.com/dmwm/CRABClient/pull/5258	dmwm/CRABClient PR #5258: cleanup bash-completion. Fix #5255
+crabclient-pull-5259.md	https://github.com/dmwm/CRABClient/pull/5259	dmwm/CRABClient PR #5259: Cleanup crab bash completion 5255
+crabclient-pull-5260.md	https://github.com/dmwm/CRABClient/pull/5260	dmwm/CRABClient PR #5260: Move checkdataset to crab client repo fix 5233
+crabclient-issue-5261.md	https://github.com/dmwm/CRABClient/issues/5261	dmwm/CRABClient issue #5261: Code must be python2 compatible even if not used with py2
+crabclient-pull-5262.md	https://github.com/dmwm/CRABClient/pull/5262	dmwm/CRABClient PR #5262: make all file compile on py2/3 fix #5261
+crabclient-issue-5263.md	https://github.com/dmwm/CRABClient/issues/5263	dmwm/CRABClient issue #5263: checkdataset output fromat broken in last commit
+crabclient-issue-5264.md	https://github.com/dmwm/CRABClient/issues/5264	dmwm/CRABClient issue #5264: need to use python2 for CMSSWS_10_1
+crabclient-pull-5265.md	https://github.com/dmwm/CRABClient/pull/5265	dmwm/CRABClient PR #5265: only use python3 for CMSSW_10_2 or later. Fix #5264
+crabclient-pull-5266.md	https://github.com/dmwm/CRABClient/pull/5266	dmwm/CRABClient PR #5266: proper way to use py3 from CMSSW_10_2 onward. Fix #5264
+crabclient-pull-5267.md	https://github.com/dmwm/CRABClient/pull/5267	dmwm/CRABClient PR #5267: proper way to use py3 from CMSSW_10_2 onward. Fix #5264
+crabclient-issue-5268.md	https://github.com/dmwm/CRABClient/issues/5268	dmwm/CRABClient issue #5268: allow use --task/--instance as alternative to --dir
+crabclient-pull-5269.md	https://github.com/dmwm/CRABClient/pull/5269	dmwm/CRABClient PR #5269: all crab commands that require a projdir can be called with --task=
+crabclient-pull-5270.md	https://github.com/dmwm/CRABClient/pull/5270	dmwm/CRABClient PR #5270: bash completions - every command that uses --dir also supports --task/--instance
+crabclient-issue-5271.md	https://github.com/dmwm/CRABClient/issues/5271	dmwm/CRABClient issue #5271: valdate CRABClient v3.231101
+crabclient-pull-5272.md	https://github.com/dmwm/CRABClient/pull/5272	dmwm/CRABClient PR #5272: Fix checkdataset 5263
+crabclient-issue-5273.md	https://github.com/dmwm/CRABClient/issues/5273	dmwm/CRABClient issue #5273: resubmission of successful jobs only works when Dagman is running
+crabclient-issue-5274.md	https://github.com/dmwm/CRABClient/issues/5274	dmwm/CRABClient issue #5274: Print all Publish Containers in crab status command
+crabclient-pull-5275.md	https://github.com/dmwm/CRABClient/pull/5275	dmwm/CRABClient PR #5275: Fix help for crab resubmit. fix #5273
+crabclient-issue-5276.md	https://github.com/dmwm/CRABClient/issues/5276	dmwm/CRABClient issue #5276: preparelocal fails when `scriptArgs` is present
+crabclient-pull-5277.md	https://github.com/dmwm/CRABClient/pull/5277	dmwm/CRABClient PR #5277: create proper classAd file for local use
+crabclient-pull-5278.md	https://github.com/dmwm/CRABClient/pull/5278	dmwm/CRABClient PR #5278: Fix help for crab resubmit. fix #5273
+crabclient-issue-5279.md	https://github.com/dmwm/CRABClient/issues/5279	dmwm/CRABClient issue #5279: client v3.231101 creates bad PSet.pkl
+crabclient-issue-5280.md	https://github.com/dmwm/CRABClient/issues/5280	dmwm/CRABClient issue #5280: wrong message from checkfile command
+crabclient-pull-5281.md	https://github.com/dmwm/CRABClient/pull/5281	dmwm/CRABClient PR #5281: Use python2 for submit whenever cmsrun uses it fix #5279
+crabclient-issue-5282.md	https://github.com/dmwm/CRABClient/issues/5282	dmwm/CRABClient issue #5282: wrong byte to TB conversion in checkdataset
+crabclient-pull-5283.md	https://github.com/dmwm/CRABClient/pull/5283	dmwm/CRABClient PR #5283: correct bytes-to-GB conversion fix #5282
+crabclient-pull-5284.md	https://github.com/dmwm/CRABClient/pull/5284	dmwm/CRABClient PR #5284: fix #5280
+crabclient-issue-5285.md	https://github.com/dmwm/CRABClient/issues/5285	dmwm/CRABClient issue #5285: deprecate resubmission of successful jobs
+crabclient-pull-5286.md	https://github.com/dmwm/CRABClient/pull/5286	dmwm/CRABClient PR #5286: properly report invalid run_range in config
+crabclient-pull-5287.md	https://github.com/dmwm/CRABClient/pull/5287	dmwm/CRABClient PR #5287: preparelocal creates one json file with args for job. Fix #5276
+crabclient-issue-5288.md	https://github.com/dmwm/CRABClient/issues/5288	dmwm/CRABClient issue #5288: complete transitioning preparelocal to args via JSON
+crabclient-issue-5289.md	https://github.com/dmwm/CRABClient/issues/5289	dmwm/CRABClient issue #5289: new preparelocal is not backward compatible
+crabclient-issue-5290.md	https://github.com/dmwm/CRABClient/issues/5290	dmwm/CRABClient issue #5290: avoid interference from user local python environment
+crabclient-issue-5291.md	https://github.com/dmwm/CRABClient/issues/5291	dmwm/CRABClient issue #5291: crab checkfile bug in last commit for #5824
+crabclient-pull-5292.md	https://github.com/dmwm/CRABClient/pull/5292	dmwm/CRABClient PR #5292: Fix checkfile
+crabclient-pull-5293.md	https://github.com/dmwm/CRABClient/pull/5293	dmwm/CRABClient PR #5293: avoid python stuff in .local Fix #5290
+crabclient-issue-5294.md	https://github.com/dmwm/CRABClient/issues/5294	dmwm/CRABClient issue #5294: Block publishing a new CRABClient until v3.240322
+crabclient-issue-5295.md	https://github.com/dmwm/CRABClient/issues/5295	dmwm/CRABClient issue #5295: improve help for crab recover
+crabclient-issue-5296.md	https://github.com/dmwm/CRABClient/issues/5296	dmwm/CRABClient issue #5296: Make sure checkwrite create unique LFN path
+crabclient-pull-5297.md	https://github.com/dmwm/CRABClient/pull/5297	dmwm/CRABClient PR #5297: Add suffix uuid string to filename and subdir
+crabclient-issue-5298.md	https://github.com/dmwm/CRABClient/issues/5298	dmwm/CRABClient issue #5298: crab status must still print info even w/o Rucio client
+crabclient-issue-5299.md	https://github.com/dmwm/CRABClient/issues/5299	dmwm/CRABClient issue #5299: make it clear when user's config has an error
+crabclient-issue-5300.md	https://github.com/dmwm/CRABClient/issues/5300	dmwm/CRABClient issue #5300: CRAB incorrectly following symlink in sandbox creation
+crabclient-pull-5301.md	https://github.com/dmwm/CRABClient/pull/5301	dmwm/CRABClient PR #5301: do not put objs-* in sandbox. Fix #5300
+crabclient-pull-5302.md	https://github.com/dmwm/CRABClient/pull/5302	dmwm/CRABClient PR #5302: do not crash on Rucio unavailable. Fix #5298
+crabclient-issue-5303.md	https://github.com/dmwm/CRABClient/issues/5303	dmwm/CRABClient issue #5303: adapt to list of authorized retrievers having a `:`
+crabclient-pull-5304.md	https://github.com/dmwm/CRABClient/pull/5304	dmwm/CRABClient PR #5304: allow : in DN of myproxy retrievers. Fix #5303
+crabclient-issue-5305.md	https://github.com/dmwm/CRABClient/issues/5305	dmwm/CRABClient issue #5305: improve error handling on getoutput
+crabclient-issue-5306.md	https://github.com/dmwm/CRABClient/issues/5306	dmwm/CRABClient issue #5306: improve JSON report from crab status
+crabclient-issue-5307.md	https://github.com/dmwm/CRABClient/issues/5307	dmwm/CRABClient issue #5307: add --json option to all CRAB commands
+crabclient-issue-5308.md	https://github.com/dmwm/CRABClient/issues/5308	dmwm/CRABClient issue #5308: allow to specify both inputDataset and userInputFiles in crabConfig
+crabclient-issue-5309.md	https://github.com/dmwm/CRABClient/issues/5309	dmwm/CRABClient issue #5309: optional string configuration param should default to None, not `''`
+crabclient-issue-5310.md	https://github.com/dmwm/CRABClient/issues/5310	dmwm/CRABClient issue #5310: do not fail on spurious gfal-copy errors
+crabclient-pull-5311.md	https://github.com/dmwm/CRABClient/pull/5311	dmwm/CRABClient PR #5311: check gfal-copy exit status first. Fix #5310
+crabclient-pull-5312.md	https://github.com/dmwm/CRABClient/pull/5312	dmwm/CRABClient PR #5312: use None as default for optional string config param. Fix #5309
+crabclient-pull-5313.md	https://github.com/dmwm/CRABClient/pull/5313	dmwm/CRABClient PR #5313: allow inputDataset and userInputFiles at same time. Fix #5308
+crabclient-issue-5314.md	https://github.com/dmwm/CRABClient/issues/5314	dmwm/CRABClient issue #5314: crab client bash completions do not respect custom sorting order
+crabclient-pull-5315.md	https://github.com/dmwm/CRABClient/pull/5315	dmwm/CRABClient PR #5315: completions - generate_completions script works in py3
+crabclient-issue-5316.md	https://github.com/dmwm/CRABClient/issues/5316	dmwm/CRABClient issue #5316: do not use REST to make HTC calls
+crabclient-pull-5317.md	https://github.com/dmwm/CRABClient/pull/5317	dmwm/CRABClient PR #5317: do not call HTV via REST. Fix #5316
+crabclient-pull-5318.md	https://github.com/dmwm/CRABClient/pull/5318	dmwm/CRABClient PR #5318: Fix 5316
+crabclient-issue-5319.md	https://github.com/dmwm/CRABClient/issues/5319	dmwm/CRABClient issue #5319: add instructions to crab-completion.sh
+crabclient-pull-5320.md	https://github.com/dmwm/CRABClient/pull/5320	dmwm/CRABClient PR #5320: Fix typos in output messages and subsection TWiki link for cmsenv
+crabclient-issue-5321.md	https://github.com/dmwm/CRABClient/issues/5321	dmwm/CRABClient issue #5321: avoid `nosort` option in crab command completion
+crabclient-pull-5322.md	https://github.com/dmwm/CRABClient/pull/5322	dmwm/CRABClient PR #5322: Fix autocompletion
+crabclient-issue-5323.md	https://github.com/dmwm/CRABClient/issues/5323	dmwm/CRABClient issue #5323: avoid comparing cms.uint32 with int
+crabclient-pull-5324.md	https://github.com/dmwm/CRABClient/pull/5324	dmwm/CRABClient PR #5324: fix #5323
+crabclient-issue-5325.md	https://github.com/dmwm/CRABClient/issues/5325	dmwm/CRABClient issue #5325: crab report fails to produce failedLumis.json
+crabclient-pull-5326.md	https://github.com/dmwm/CRABClient/pull/5326	dmwm/CRABClient PR #5326: report - fix bug in --recovery=failed
+crabclient-issue-5327.md	https://github.com/dmwm/CRABClient/issues/5327	dmwm/CRABClient issue #5327: crab report wrongly reports lumis as both failed and successful for Autom.Split
+crabclient-issue-5328.md	https://github.com/dmwm/CRABClient/issues/5328	dmwm/CRABClient issue #5328: crab report wrongly reports lumis as both failed and successful for Autom.Split
+crabclient-pull-5329.md	https://github.com/dmwm/CRABClient/pull/5329	dmwm/CRABClient PR #5329: Dryrun as preparelocal
+crabclient-issue-5330.md	https://github.com/dmwm/CRABClient/issues/5330	dmwm/CRABClient issue #5330: add FileSplitting to use cases covered by `crab recovery`
+crabclient-issue-5331.md	https://github.com/dmwm/CRABClient/issues/5331	dmwm/CRABClient issue #5331: refuse to submit if myproxy validity is < 5 days
+crabclient-issue-5332.md	https://github.com/dmwm/CRABClient/issues/5332	dmwm/CRABClient issue #5332: reorganize sandbox structure
+crabclient-pull-5333.md	https://github.com/dmwm/CRABClient/pull/5333	dmwm/CRABClient PR #5333: Fix message does not print when rucio avaiable space is not enough
+crabclient-pull-5334.md	https://github.com/dmwm/CRABClient/pull/5334	dmwm/CRABClient PR #5334: reorganize sandbox, fix #5332
+crabclient-pull-5335.md	https://github.com/dmwm/CRABClient/pull/5335	dmwm/CRABClient PR #5335: make it clear in log if using Singularity
+crabclient-pull-5336.md	https://github.com/dmwm/CRABClient/pull/5336	dmwm/CRABClient PR #5336: Adding WAITING status in checkstatusLoop
+crabclient-issue-5337.md	https://github.com/dmwm/CRABClient/issues/5337	dmwm/CRABClient issue #5337: add support for CRAB3_CACHE_FILE=/dev/null
+crabclient-pull-5338.md	https://github.com/dmwm/CRABClient/pull/5338	dmwm/CRABClient PR #5338: respect CRAB3_CACHE_FILE=/dev/null Fix #5337
+crabclient-issue-5339.md	https://github.com/dmwm/CRABClient/issues/5339	dmwm/CRABClient issue #5339: client v3.240930 does not work with production TW v3.240904
+crabclient-issue-5340.md	https://github.com/dmwm/CRABClient/issues/5340	dmwm/CRABClient issue #5340: add support for tarballs in S3, not on webdir
+crabclient-pull-5341.md	https://github.com/dmwm/CRABClient/pull/5341	dmwm/CRABClient PR #5341: support for tarballs in S3. Fix #5340
+crabclient-issue-5342.md	https://github.com/dmwm/CRABClient/issues/5342	dmwm/CRABClient issue #5342: crab recover "fail w/o reason"
+crabclient-pull-5343.md	https://github.com/dmwm/CRABClient/pull/5343	dmwm/CRABClient PR #5343: report failing reason to log and console. FIx #5342
+crabclient-issue-5344.md	https://github.com/dmwm/CRABClient/issues/5344	dmwm/CRABClient issue #5344: bad logic in recover
+crabclient-pull-5345.md	https://github.com/dmwm/CRABClient/pull/5345	dmwm/CRABClient PR #5345: recover should succeed if all lumis are pub. Fix #5344
+crabclient-issue-5346.md	https://github.com/dmwm/CRABClient/issues/5346	dmwm/CRABClient issue #5346: crab client does not respect X509_USER_PROXY
+crabclient-pull-5347.md	https://github.com/dmwm/CRABClient/pull/5347	dmwm/CRABClient PR #5347: make --dryrun work again with TW v3.2411xx
+crabclient-pull-5348.md	https://github.com/dmwm/CRABClient/pull/5348	dmwm/CRABClient PR #5348: make --dryrun work again with TW v3.2411xx
+crabclient-pull-5349.md	https://github.com/dmwm/CRABClient/pull/5349	dmwm/CRABClient PR #5349: cred in myproxy must be valid for 5 days. Fix #5331
+crabclient-pull-5350.md	https://github.com/dmwm/CRABClient/pull/5350	dmwm/CRABClient PR #5350: Python3.12 support: Use importlib instead of deprecated imp module
+crabclient-issue-5351.md	https://github.com/dmwm/CRABClient/issues/5351	dmwm/CRABClient issue #5351: Potential problems getting country groups in ProxyInteractions.py
+crabclient-pull-5352.md	https://github.com/dmwm/CRABClient/pull/5352	dmwm/CRABClient PR #5352: Typo fixed: import load_source from CRABClient
+crabclient-issue-5353.md	https://github.com/dmwm/CRABClient/issues/5353	dmwm/CRABClient issue #5353: avoid syntax warnings with python 3.12
+crabclient-issue-5354.md	https://github.com/dmwm/CRABClient/issues/5354	dmwm/CRABClient issue #5354: CMSSW_15_0 and above: Support for CMSSW x86-64-v3 as default micro-arch 
+crabclient-issue-5355.md	https://github.com/dmwm/CRABClient/issues/5355	dmwm/CRABClient issue #5355: crab recover should not fail if issued before task completed
+crabclient-pull-5356.md	https://github.com/dmwm/CRABClient/pull/5356	dmwm/CRABClient PR #5356: recover should not report FAILED when there is nothing to do. Fix #5355
+crabclient-pull-5357.md	https://github.com/dmwm/CRABClient/pull/5357	dmwm/CRABClient PR #5357: always prepend r to regextp strings. Fix #5353
+crabclient-issue-5358.md	https://github.com/dmwm/CRABClient/issues/5358	dmwm/CRABClient issue #5358: add support for microarchitecture requirement
+crabclient-issue-5359.md	https://github.com/dmwm/CRABClient/issues/5359	dmwm/CRABClient issue #5359: publication status not correctly reported for automatic splitting
+crabclient-pull-5360.md	https://github.com/dmwm/CRABClient/pull/5360	dmwm/CRABClient PR #5360: Pass projdir to interall called commands 5337
+crabclient-pull-5361.md	https://github.com/dmwm/CRABClient/pull/5361	dmwm/CRABClient PR #5361: handle failed probe jobs for pub.status fix #5359
+crabclient-pull-5362.md	https://github.com/dmwm/CRABClient/pull/5362	dmwm/CRABClient PR #5362: add support for SCRAM_MIN_SUPPORTED_MICROARCH. Fix #5354
+crabclient-issue-5363.md	https://github.com/dmwm/CRABClient/issues/5363	dmwm/CRABClient issue #5363: crab report should make it clear that list of read event/files are from successful jobs
+crabclient-pull-5364.md	https://github.com/dmwm/CRABClient/pull/5364	dmwm/CRABClient PR #5364: make it explicit that report is from successful jobs. Fix #5363
+crabclient-issue-5365.md	https://github.com/dmwm/CRABClient/issues/5365	dmwm/CRABClient issue #5365: add list of OK/fail files to crab report output
+crabclient-pull-5366.md	https://github.com/dmwm/CRABClient/pull/5366	dmwm/CRABClient PR #5366: add list of files to crab report. Fix #5365
+crabclient-pull-5367.md	https://github.com/dmwm/CRABClient/pull/5367	dmwm/CRABClient PR #5367: Add file splitting to recover 5330
+crabclient-issue-5368.md	https://github.com/dmwm/CRABClient/issues/5368	dmwm/CRABClient issue #5368: crab report should get tarballs from S3, not WEB_DIR
+crabclient-issue-5369.md	https://github.com/dmwm/CRABClient/issues/5369	dmwm/CRABClient issue #5369: deprecate `--numcores` option for crab resubmit
+crabclient-pull-5370.md	https://github.com/dmwm/CRABClient/pull/5370	dmwm/CRABClient PR #5370: Use json file for job args 5288
+crabclient-issue-5371.md	https://github.com/dmwm/CRABClient/issues/5371	dmwm/CRABClient issue #5371: fix list of valid task statuses for preparelocal
+crabclient-pull-5372.md	https://github.com/dmwm/CRABClient/pull/5372	dmwm/CRABClient PR #5372: fix #5371
+crabclient-pull-5373.md	https://github.com/dmwm/CRABClient/pull/5373	dmwm/CRABClient PR #5373: deprecate numcores option from crab resubmit
+crabclient-issue-5374.md	https://github.com/dmwm/CRABClient/issues/5374	dmwm/CRABClient issue #5374: make crab recover py2 compatible
+crabclient-issue-5375.md	https://github.com/dmwm/CRABClient/issues/5375	dmwm/CRABClient issue #5375: clean up client HTTP 500 error message in general and also when task not found in database.
+crabclient-issue-5376.md	https://github.com/dmwm/CRABClient/issues/5376	dmwm/CRABClient issue #5376: scriptExe is not available via crab server UI any more
+crabclient-pull-5377.md	https://github.com/dmwm/CRABClient/pull/5377	dmwm/CRABClient PR #5377: put scriptExe in /debug folder. FIx #5376
+crabclient-issue-5378.md	https://github.com/dmwm/CRABClient/issues/5378	dmwm/CRABClient issue #5378: latest client v3.250217 is broken for `submit` on CMSSW < 12
+crabclient-pull-5379.md	https://github.com/dmwm/CRABClient/pull/5379	dmwm/CRABClient PR #5379: make recover.py syntax py2-compliant. Fix #5378
+crabclient-issue-5380.md	https://github.com/dmwm/CRABClient/issues/5380	dmwm/CRABClient issue #5380: crab --version requires cmssw env
+crabclient-issue-5381.md	https://github.com/dmwm/CRABClient/issues/5381	dmwm/CRABClient issue #5381: crab recover fail with "task QUEUE" during check kill step
+crabclient-pull-5382.md	https://github.com/dmwm/CRABClient/pull/5382	dmwm/CRABClient PR #5382: make crab --version work also w/o cmsenv. Fix #5380
+crabclient-issue-5383.md	https://github.com/dmwm/CRABClient/issues/5383	dmwm/CRABClient issue #5383: crab submit --dryrun fails with No such file or directory: 'JobArgs-1.json'
+crabclient-pull-5384.md	https://github.com/dmwm/CRABClient/pull/5384	dmwm/CRABClient PR #5384: make submit dryrun work with TW v3.250401 Fix #5383
+crabclient-issue-5385.md	https://github.com/dmwm/CRABClient/issues/5385	dmwm/CRABClient issue #5385: add config param Data.lumisPerFile
+crabclient-pull-5386.md	https://github.com/dmwm/CRABClient/pull/5386	dmwm/CRABClient PR #5386: add Data.lumisPerFile  fix #5385
+crabclient-issue-5387.md	https://github.com/dmwm/CRABClient/issues/5387	dmwm/CRABClient issue #5387: in crab status change "Exit Code" to "Last Exit Code"
+crabclient-pull-5388.md	https://github.com/dmwm/CRABClient/pull/5388	dmwm/CRABClient PR #5388: adjust fields in status long. Fix #5387
+crabclient-issue-5389.md	https://github.com/dmwm/CRABClient/issues/5389	dmwm/CRABClient issue #5389: odd error from crab status
+crabclient-issue-5390.md	https://github.com/dmwm/CRABClient/issues/5390	dmwm/CRABClient issue #5390: Check argument is integer for run_job.sh
+crabclient-pull-5391.md	https://github.com/dmwm/CRABClient/pull/5391	dmwm/CRABClient PR #5391: Warn when accessing old tasks 4943
+crabclient-pull-5392.md	https://github.com/dmwm/CRABClient/pull/5392	dmwm/CRABClient PR #5392: ensure that a valid jobId is passed to run_job.sh. Fix #5390
+crabclient-issue-5393.md	https://github.com/dmwm/CRABClient/issues/5393	dmwm/CRABClient issue #5393: crab preparelocal should use new `tm_uploaded` flag in Task table
+crabclient-issue-5394.md	https://github.com/dmwm/CRABClient/issues/5394	dmwm/CRABClient issue #5394: undefined 'failingTaskPublish' in `recover`
+crabclient-pull-5395.md	https://github.com/dmwm/CRABClient/pull/5395	dmwm/CRABClient PR #5395: take care of bug in commit 8b8da2a. Fix #5394
+crabclient-pull-5396.md	https://github.com/dmwm/CRABClient/pull/5396	dmwm/CRABClient PR #5396: deprecate resubmission of successful jobs. Fix #5285
+crabclient-pull-5397.md	https://github.com/dmwm/CRABClient/pull/5397	dmwm/CRABClient PR #5397: better reporting of exceptions. Fix #5299
+crabclient-pull-5398.md	https://github.com/dmwm/CRABClient/pull/5398	dmwm/CRABClient PR #5398: Improve recover help 5295
+crabclient-issue-5399.md	https://github.com/dmwm/CRABClient/issues/5399	dmwm/CRABClient issue #5399: remove dag nodes parsing from crab status
+crabclient-issue-5400.md	https://github.com/dmwm/CRABClient/issues/5400	dmwm/CRABClient issue #5400: enforce users to specify SiteWhitelis for data w/o location
+crabclient-pull-5401.md	https://github.com/dmwm/CRABClient/pull/5401	dmwm/CRABClient PR #5401: enforce sitewhitelist when using userInputFiles. Fix #5400
+crabclient-issue-5402.md	https://github.com/dmwm/CRABClient/issues/5402	dmwm/CRABClient issue #5402: config.General.instance is not obeyed anymore
+crabclient-pull-5403.md	https://github.com/dmwm/CRABClient/pull/5403	dmwm/CRABClient PR #5403: make instance in config. file work again and add comment
+crabclient-pull-5404.md	https://github.com/dmwm/CRABClient/pull/5404	dmwm/CRABClient PR #5404: Pull input files and lumis list from S3. Fix #5368
+crabclient-pull-5405.md	https://github.com/dmwm/CRABClient/pull/5405	dmwm/CRABClient PR #5405: do not allow recovery=failed with aut.split. fix #5328
+crabclient-pull-5406.md	https://github.com/dmwm/CRABClient/pull/5406	dmwm/CRABClient PR #5406: Fix #5393
+crabclient-issue-5407.md	https://github.com/dmwm/CRABClient/issues/5407	dmwm/CRABClient issue #5407: add file size in human units to checkfile
+crabclient-pull-5408.md	https://github.com/dmwm/CRABClient/pull/5408	dmwm/CRABClient PR #5408: add file size in human units. Fix #5407
+crabclient-issue-5409.md	https://github.com/dmwm/CRABClient/issues/5409	dmwm/CRABClient issue #5409: make client compatible with new tarball format
+crabclient-pull-5410.md	https://github.com/dmwm/CRABClient/pull/5410	dmwm/CRABClient PR #5410: Make compatible with new tarballs 5409
+crabclient-issue-5411.md	https://github.com/dmwm/CRABClient/issues/5411	dmwm/CRABClient issue #5411: remove unused `cacheSSL` and `filecacheurl` variables/args
+crabclient-pull-5412.md	https://github.com/dmwm/CRABClient/pull/5412	dmwm/CRABClient PR #5412: Rest Interface curl parsing allowing HTTP2
+crabclient-issue-5413.md	https://github.com/dmwm/CRABClient/issues/5413	dmwm/CRABClient issue #5413: crab report fails for automatic splitting
+crabclient-issue-5414.md	https://github.com/dmwm/CRABClient/issues/5414	dmwm/CRABClient issue #5414: Improve how we initialize vocmshtcondor
+crabclient-issue-5415.md	https://github.com/dmwm/CRABClient/issues/5415	dmwm/CRABClient issue #5415: report to users result of automatic splitting probe jobs.
+crabclient-issue-5416.md	https://github.com/dmwm/CRABClient/issues/5416	dmwm/CRABClient issue #5416: changed for http2 in #5412 do not work on SL6
+crabclient-pull-5417.md	https://github.com/dmwm/CRABClient/pull/5417	dmwm/CRABClient PR #5417: Print result of probe jobs. Fix #5415
+crabclient-pull-5418.md	https://github.com/dmwm/CRABClient/pull/5418	dmwm/CRABClient PR #5418: py2 compatible HTTPStatus imported.
+crabclient-pull-5419.md	https://github.com/dmwm/CRABClient/pull/5419	dmwm/CRABClient PR #5419: remove filecacheurl. Fix #5411
+crabclient-issue-5420.md	https://github.com/dmwm/CRABClient/issues/5420	dmwm/CRABClient issue #5420: improvements to CRAB recovery
+crabclient-issue-5421.md	https://github.com/dmwm/CRABClient/issues/5421	dmwm/CRABClient issue #5421: adapt crab submit --dryrun to new arguments passing
+crabclient-pull-5422.md	https://github.com/dmwm/CRABClient/pull/5422	dmwm/CRABClient PR #5422: use --jobId as arg for CMSRunAnalysis. Fix #5241
+crabclient-pull-5423.md	https://github.com/dmwm/CRABClient/pull/5423	dmwm/CRABClient PR #5423: No dag node parsing in client anymore 5399
+crabclient-issue-5424.md	https://github.com/dmwm/CRABClient/issues/5424	dmwm/CRABClient issue #5424: replace optprase with argparse [PEP389]
+crabclient-pull-5425.md	https://github.com/dmwm/CRABClient/pull/5425	dmwm/CRABClient PR #5425: [PEP389] introduce argparse deprecate optparse
+crabclient-issue-5426.md	https://github.com/dmwm/CRABClient/issues/5426	dmwm/CRABClient issue #5426: deprecate distutils module to be able to support py3.12++
+crabclient-issue-5427.md	https://github.com/dmwm/CRABClient/issues/5427	dmwm/CRABClient issue #5427: crab report undercounts files/events when UserFiles input LFNs are replaced by DummyLFN
+crabclient-pull-5428.md	https://github.com/dmwm/CRABClient/pull/5428	dmwm/CRABClient PR #5428: add some comments
+crabclient-pull-5429.md	https://github.com/dmwm/CRABClient/pull/5429	dmwm/CRABClient PR #5429: Fix #5427 handle case of incorrect file counting from FJR
+crabclient-issue-5430.md	https://github.com/dmwm/CRABClient/issues/5430	dmwm/CRABClient issue #5430: crab recover fails on split-by-lumi-no-publication
+crabclient-commit-653bafe0f37f.md	https://github.com/dmwm/CRABClient/commit/653bafe0f37f50459b3d785eb76be361b7fc6acd	dmwm/CRABClient commit 653bafe: make --dryrun work again with TW v3.2411xx (#5347)
+crabclient-history-bin_crab.md	https://github.com/dmwm/CRABClient/commits/master/bin/crab	dmwm/CRABClient: commit history of bin/crab
+crabclient-history-bin_crab.py.md	https://github.com/dmwm/CRABClient/commits/master/bin/crab.py	dmwm/CRABClient: commit history of bin/crab.py
+crabclient-history-src_python_CRABClient_Commands_resubmit.py.md	https://github.com/dmwm/CRABClient/commits/master/src/python/CRABClient/Commands/resubmit.py	dmwm/CRABClient: commit history of src/python/CRABClient/Commands/resubmit.py
+crabclient-history-src_python_CRABClient_Commands_submit.py.md	https://github.com/dmwm/CRABClient/commits/master/src/python/CRABClient/Commands/submit.py	dmwm/CRABClient: commit history of src/python/CRABClient/Commands/submit.py
+crabclient-commit-bf347bd46487.md	https://github.com/dmwm/CRABClient/commit/bf347bd46487754cc4388af7a8c77a835496df44	dmwm/CRABClient commit bf347bd: deprecate numcores option (#5373)
+crabclient-commit-64a0834f9914.md	https://github.com/dmwm/CRABClient/commit/64a0834f99144640d9d9ec2321781b6cac64c6b6	dmwm/CRABClient commit 64a0834: Use python2 for submit whenever cmsrun uses it fix #5279 (#5281)
+crabclient-commit-47e15311f5c1.md	https://github.com/dmwm/CRABClient/commit/47e15311f5c16cb4589843fa02b0a28d98de72ee	dmwm/CRABClient commit 47e1531: proper way to use py3 from CMSSW_10_2 onward. Fix #5264 (#5266)
+crabclient-commit-33cc58d2b73a.md	https://github.com/dmwm/CRABClient/commit/33cc58d2b73a40fc97bde58271ac8163663f7f3c	dmwm/CRABClient commit 33cc58d: Use python3 and rucio client with cmssw 10 (#5238)

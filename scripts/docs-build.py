@@ -18,7 +18,9 @@ by it and every answer cites it). The URL comes from the file name:
   CMSPublic_CRAB3FAQ.md -> .../bin/view/CMSPublic/CRAB3FAQ
 
 (--url-template changes the pattern; --urls FILE maps odd names explicitly, one
-`<file name><TAB><url>` per line.) When one page exists in several formats, one
+`<file name><TAB><url>[<TAB><title>]` per line; the optional title replaces the
+one read from the file, for snapshots of code or pages whose first heading is
+not a title.) When one page exists in several formats, one
 is kept: md, then html, then pdf. A file is refused (and listed in the report
 with the reason) when it has no URL, is empty or under --min-chars, or looks
 like a CERN login page. E-mail addresses are replaced by <email> unless
@@ -224,17 +226,20 @@ def tidy(text):
 # ------------------------------------------------------------------ build ----
 
 def load_url_map(path):
-    out = {}
+    """({file name: url}, {file name: title}) from a TSV of <file name><TAB><url>[<TAB><title>]."""
+    urls, titles = {}, {}
     if not path:
-        return out
+        return urls, titles
     for n, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip() or line.startswith("#"):
             continue
         parts = line.split("\t")
         if len(parts) < 2 or not parts[1].startswith(("http://", "https://")):
-            sys.exit("%s:%d: expected <file name><TAB><url>" % (path, n))
-        out[parts[0].strip()] = parts[1].strip()
-    return out
+            sys.exit("%s:%d: expected <file name><TAB><url>[<TAB><title>]" % (path, n))
+        urls[parts[0].strip()] = parts[1].strip()
+        if len(parts) > 2 and parts[2].strip():
+            titles[parts[0].strip()] = parts[2].strip()
+    return urls, titles
 
 
 def main(argv=None):
@@ -242,7 +247,9 @@ def main(argv=None):
     ap.add_argument("--src", required=True, help="folder of .md/.html/.pdf files (not recursive)")
     ap.add_argument("--out", required=True, help="output dir, e.g. deployments/archi-crab/data/docs/twiki-sanitized")
     ap.add_argument("--url-template", default=DEFAULT_TEMPLATE, help="default: %(default)s")
-    ap.add_argument("--urls", help="TSV of <file name><TAB><url> for names the template cannot map")
+    ap.add_argument("--urls", help="TSV of <file name><TAB><url>[<TAB><title>] for names the template cannot map")
+    ap.add_argument("--exclude", help="TSV of <url><TAB><reason>: pages left out on purpose (e.g. the leakage audit "
+                    "hit them); recorded in build.json `excluded` so a rebuild keeps them out")
     ap.add_argument("--site-name", default="twiki.cern.ch")
     ap.add_argument("--min-chars", type=int, default=200)
     ap.add_argument("--webs", help="keep only these TWiki webs, e.g. CMSPublic (comma-separated). A source declared "
@@ -257,7 +264,13 @@ def main(argv=None):
     src, out = Path(a.src).expanduser(), Path(a.out)
     if not src.is_dir():
         sys.exit("--src %s is not a directory" % src)
-    url_map = load_url_map(a.urls)
+    url_map, title_map = load_url_map(a.urls)
+    exclude = {}
+    if a.exclude:
+        for line in Path(a.exclude).read_text(encoding="utf-8").splitlines():
+            if line.strip() and not line.startswith("#"):
+                parts = re.split(r"\t|\s{2,}", line.strip(), maxsplit=1)   # TAB, or 2+ spaces (a pasted file)
+                exclude[parts[0].strip()] = (parts[1].strip() if len(parts) > 1 else "excluded")
     webs = {w.strip() for w in a.webs.split(",") if w.strip()} if a.webs else None
     rows, pages = [], {}
     entries = sorted(p for p in src.iterdir() if not p.name.startswith("."))
@@ -270,7 +283,8 @@ def main(argv=None):
         row = {"file": path.name, "web": "", "topic": "", "url": "", "format": fmt or path.suffix, "chars": 0, "status": "", "note": ""}
         rows.append(row)
         if not fmt:
-            row["status"] = "unsupported"
+            # the harvest scripts' own files next to the pages are not refusals
+            row["status"] = "sidecar" if path.name in ("urls.tsv", "manifest.json") else "unsupported"
             continue
         m = NAME_RE.match(path.stem)
         if m:
@@ -283,6 +297,9 @@ def main(argv=None):
             row["status"], row["note"] = "unmapped", "name is not <Web>_<Topic>; add it to --urls"
             continue
         row["url"] = url
+        if url in exclude:
+            row["status"], row["note"] = "excluded", exclude[url]
+            continue
         try:
             title, body, note = READERS[fmt](path)
         except Exception as exc:  # noqa: BLE001 -- report and go on
@@ -302,7 +319,7 @@ def main(argv=None):
         if len(body.strip()) < a.min_chars:
             row["status"] = "too_short"
             continue
-        rec = {"url": url, "title": (title or row["topic"] or path.stem).strip(), "site_name": a.site_name,
+        rec = {"url": url, "title": (title_map.get(path.name) or title or row["topic"] or path.stem).strip(), "site_name": a.site_name,
                "path": "%s/%s" % (row["web"], row["topic"]) if m else path.stem, "body": body}
         prev = pages.get(url)
         if prev and PRECEDENCE[prev[0]] <= PRECEDENCE[fmt]:
@@ -330,7 +347,7 @@ def main(argv=None):
     print("kept by web: %s  -- every web here must be public for a `sensitivity: public` source" % (
         ", ".join("%s=%d" % kv for kv in sorted(by_web.items())) or "none"))
     for r in rows:
-        if r["status"] not in ("kept", "shadowed", "web_filtered"):
+        if r["status"] not in ("kept", "shadowed", "web_filtered", "sidecar"):
             print("  %-12s %s  %s" % (r["status"], r["file"], r["note"]))
     if overlap:
         print("also in the curated raw TWiki (%s): %d page(s), e.g. %s -- the same page would be ingested twice "
@@ -356,9 +373,10 @@ def main(argv=None):
             "tool": "scripts/docs-build.py", "source_dir": src.name, "pages": len(records), "files": len(rows),
             "statuses": counts, "url_template": a.url_template, "emails_redacted": not a.keep_emails,
             "pdf_extractor": sorted(EXTRACTORS), "webs": sorted(webs) if webs else "all",
+            "excluded": {r["url"]: r["note"] for r in rows if r["status"] == "excluded"},
         }, indent=1, sort_keys=True) + "\n", encoding="utf-8")
         print("wrote %d page(s) to %s/records.json" % (len(records), out))
-    refused = sum(v for k, v in counts.items() if k not in ("kept", "shadowed", "subdir_skipped", "web_filtered"))
+    refused = sum(v for k, v in counts.items() if k not in ("kept", "shadowed", "subdir_skipped", "web_filtered", "excluded", "sidecar"))
     return 1 if (a.strict and refused) else 0
 
 

@@ -95,7 +95,7 @@ okg:
         native: 1b34dbcb8fd7a7767bbb5eaf5354c46051c050b9
         compat: ""
         since: "2026-10-19"
-        note: "adapter b: + git-history lane (PR #36). NOT USABLE: every e2e ingest with it hangs (git-history/git-files race; runs 39167115435, 39174857032 cancelled at 45 min). Reverted on main; no instance uses it"
+        note: "adapter b: + git-history lane (PR #36, retried in #46). Proven by ingest: e2e run 39179362482 (okg ingest 54 min + smoke ok; provision --publish-once 48 min), ~3x the time without the lane; D, F"
 
 
   # WEEKLY DEV BUILDS, served by the slot `dev` (releases/matrix.yaml, /releases/dev/mcp). One id per weekly pin,

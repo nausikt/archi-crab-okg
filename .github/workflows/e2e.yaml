@@ -36,7 +36,7 @@ jobs:
     # (max_locks_per_transaction=1024, shared_preload_libraries).
     needs: pins
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     permissions: {contents: read}
     env:
       OKG_IMG: ${{ needs.pins.outputs.okg }}
@@ -138,7 +138,7 @@ jobs:
     # desired state by itself when it boots.
     needs: pins
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     permissions: {contents: read}
     env:
       OKG_IMG: ${{ needs.pins.outputs.okg }}

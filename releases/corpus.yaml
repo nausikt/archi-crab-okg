@@ -60,12 +60,26 @@ corpora:
       v2/archi-e6609f8f: {documents: null, chunks: null, raw_bytes: null, built: "2026-10-05"}
 
   v0.2.0-rc1:
-    status: pending
-    note: >-
-      Waiting for the sources list and docs. Drop them into sources/archi-crab.yaml and
-      deployments/archi-crab/data/ on main, then cut the tag (docs/RELEASES.md, phase 2).
-      Decide cmssw-releases first: it needs okg#3317 + archi-okg#32, so engine 43f459c6 (B)
-      could not publish a corpus that includes it.
+    status: released
+    released: "2026-10-19"
     tag: corpus/v0.2.0-rc1
-    commit: ""
-    fingerprint: ""
+    # = PR #39's merge commit on main. Built from the gold-dataset reviews at
+    # archi-crab-gold-dataset v0.3.0-rc2 (7c54f58): public sources only; internal material
+    # (SSO pages, CMS-internal announcements, the private notes repo) is phase 5.
+    commit: 3881cdbffa789318cf1168d8bf51df6d14273a2f
+    fingerprint: "sha256:fbb1e58fa42e09402888e745273d589b253e7e8fbd0a897cb5e821fbd32c8afc"  # release.py fingerprint 3881cdb
+    summary: >-
+      Tiers 10+20 enabled, 29 sources rendered (24 git repositories + 5 docs-files), 10 pending.
+      New since v0.1.0: git cms-docker, cmssw-osenv, cmssw-wm-tools, nanoaod-tools,
+      cms-cat-cmssw-lxplus (public GitLab); docs-files code-snapshots (53 files pinned by sha or
+      tag), public-web-docs (26 public pages fetched 2026-10-18), github-threads-crabserver
+      (1,946), github-threads-crabclient (252), github-threads-other (17); 17 threads that link,
+      quote or name a gold ticket's thread are excluded by URL (data/docs/<id>/exclude.tsv).
+      twiki-sanitized 285 -> 283 (CRAB2 SWGuideCrabFaq, SWGuideCrabMonteCarlo dropped).
+      cms-crab-docs (cloned at HEAD at build time) holds the 31 proposed FAQ pages from
+      master ebaa0eb (2026-10-19): every build must clone at or after it. leakage-audit 0 hits
+      (2,577 records). cmssw-releases stays retired.
+    # Git history: a lane of the ADAPTER, not of this corpus. Instances on engine v0.2.0-rc2 get
+    # it only if adapter b (engines.yaml) is usable and the instance is rendered from a commit
+    # carrying it; A, C, dev and v2 never have it.
+    materialized: {}

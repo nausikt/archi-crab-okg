@@ -29,7 +29,7 @@ postgresql:
 runtime:
   storage:
     size: 75Gi
-    storageClassName: cinder-standard   # the build checkout; the queries hit Postgres
+    storageClassName: cinder-io1-delete   # the build checkout; the queries hit Postgres
 secrets:
   existingSecret: okg-archi-crab   # scripts/okg-run-secret.sh
   # okg's lock-headroom gate honours deployment.yaml's raised publisher cap (7200 s) only with this

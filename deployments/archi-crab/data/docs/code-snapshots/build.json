@@ -1,0 +1,14 @@
+{
+ "emails_redacted": true,
+ "files": 55,
+ "pages": 53,
+ "pdf_extractor": [],
+ "source_dir": "pages (fetched by scripts/harvest-fetch.py from snapshots.tsv; bytes not committed, sha256 per file in pages/manifest.json)",
+ "statuses": {
+  "kept": 53,
+  "unsupported": 2
+ },
+ "tool": "scripts/docs-build.py",
+ "url_template": "https://twiki.cern.ch/twiki/bin/view/{web}/{topic}",
+ "webs": "all"
+}

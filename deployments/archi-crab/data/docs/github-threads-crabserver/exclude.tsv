@@ -1,0 +1,12 @@
+# <url><TAB><reason> -- scripts/docs-build.py --exclude; leakage-audit hits 2026-10-19 (gold v0.3.0-rc2)
+https://github.com/dmwm/CRABServer/issues/7120	carries a gold ticket's task name
+https://github.com/dmwm/CRABServer/issues/7571	links the cms-talk thread of a gold ticket, carries its task names and quotes its text
+https://github.com/dmwm/CRABServer/issues/7857	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/issues/8098	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/issues/8147	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/issues/8622	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/issues/8654	links the cms-talk thread of a gold ticket and carries its task name
+https://github.com/dmwm/CRABServer/issues/8731	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/issues/8904	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/pull/7180	links the cms-talk thread of a gold ticket
+https://github.com/dmwm/CRABServer/pull/8099	links the cms-talk thread of a gold ticket

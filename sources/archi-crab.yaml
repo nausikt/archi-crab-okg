@@ -328,6 +328,111 @@ sources:
     dir: rucio-documentation
     about: Rucio user and operator documentation ("how do I"; the rucio repo is "where in the code")
 
+  # ==== 20: corpus/v0.2.0-rc1 (2026-10-18): what the gold-dataset reviews found missing ====
+  # Public GitHub only. Every entry is `sensitivity: public` by host or by declaration;
+  # internal material (CMS-web TWiki, private GitLab notes) stays out of this file (the
+  # posture is public_reference_demo) and goes to the governed instance later.
+  # File counts: blobless clones on 2026-10-18.
+  cms-docker:
+    tier: 20
+    group: extras/containers
+    kind: git
+    git: https://github.com/cms-sw/cms-docker.git
+    branch: master
+    dir: cms-docker
+    about: cms-sw container images (cmssw-el7/el8/el9 Dockerfiles, locale and tool choices behind "command not found" in a container)
+    # 213 files. Dockerfiles have no extension: older okg builds and v2's GitScraper may skip them (parity gap, recorded in docs/RELEASES.md).
+
+  cmssw-osenv:
+    tier: 20
+    group: extras/containers
+    kind: git
+    git: https://github.com/cms-sw/cmssw-osenv.git
+    branch: master
+    dir: cmssw-osenv
+    about: the cmssw-env wrapper behind cmssw-el7/el8/el9 (apptainer, bind mounts, LC_ALL, --command-to-run)
+    # 20 files. `cmssw-env` has no extension: a pinned copy is also in code-snapshots so every engine holds its text.
+
+  cmssw-wm-tools:
+    tier: 20
+    group: extras/cms_analysis_sw
+    kind: git
+    git: https://github.com/cms-sw/cmssw-wm-tools.git
+    branch: master
+    dir: cmssw-wm-tools
+    about: edm_pset_tweak and the other scripts WMCore/CRAB use to rewrite a PSet at runtime
+    # 25 files
+
+  nanoaod-tools:
+    tier: 20
+    group: extras/cms_analysis_sw
+    kind: git
+    git: https://github.com/cms-nanoAOD/nanoAOD-tools.git
+    branch: master
+    dir: nanoAOD-tools
+    about: NanoAODTools post-processor (crab/ example, crabhelper.py, fwkJobReport handling)
+    # 370 files
+
+  cms-cat-cmssw-lxplus:
+    tier: 20
+    group: gitlab
+    kind: git
+    git: https://gitlab.cern.ch/cms-cat/cmssw-lxplus.git
+    auth: none               # project visibility Public: cloned WITHOUT a token (probe from lxplus9 2026-10-18: ok, master@607a9d0e4e, 7 files)
+    about: cms-cat/cmssw-lxplus -- running CMSSW on lxplus9 for pre-el9 releases
+
+  code-snapshots:
+    tier: 20
+    group: 20_code_snapshots
+    kind: docs-files
+    sensitivity: public
+    data: data/docs/code-snapshots    # records.json; identity = raw.githubusercontent.com URL pinned to a sha or tag
+    about: Pinned files (cmssw, CRABClient, WMCore, ROOT, xrootd) no engine holds otherwise; see snapshots.tsv
+
+  public-web-docs:
+    tier: 20
+    group: 20_public_web_docs
+    kind: docs-files
+    sensitivity: public
+    data: data/docs/public-web-docs   # records.json; identity = the live public URL (same page v2 fetches)
+    # 26 pages fetched anonymously on lxplus9 2026-10-18 (list: pages.tsv). SSO pages (lxplusdoc,
+    # cmsdmops.docs) are refused by harvest-fetch and stay out: not public, phase-5 material.
+    about: Public web pages the reviews cite (CERN batch/linux, OSG, apptainer, cms-sw, uscms LPC)
+
+  # GitHub issue/PR threads and named commits as docs-files records: okg has no connector for
+  # forum or issue threads (only the github_issue_ref URL-mention extractor), and its git-history
+  # lane carries commits, not discussions. Built by scripts/harvest-gh-threads.py on 2026-10-19;
+  # identity = the canonical github.com URL (what a github_issue_ref mention carries). Threads
+  # that link, quote or name a gold-dataset ticket's cms-talk thread stay out:
+  # data/docs/<id>/exclude.tsv (scripts/docs-build.py --exclude), scripts/leakage-audit.py 0 hits.
+  # A refresh is a diff from pages/manifest.json highest_number.
+  github-threads-crabserver:
+    tier: 20
+    group: 20_github_threads
+    kind: docs-files
+    sensitivity: public
+    data: data/docs/github-threads-crabserver   # 1,946 pages: issues/PRs since 2023-01-01 (+17 named older), 4 commits, 4 file histories; 11 excluded
+    about: dmwm/CRABServer issues and PRs since 2023, named older threads, commits, file histories
+
+  github-threads-crabclient:
+    tier: 20
+    group: 20_github_threads
+    kind: docs-files
+    sensitivity: public
+    data: data/docs/github-threads-crabclient   # 252 pages: issues/PRs since 2023-01-01, 5 commits, 4 file histories; 6 excluded
+    about: dmwm/CRABClient issues and PRs since 2023, named commits and file histories
+
+  github-threads-other:
+    tier: 20
+    group: 20_github_threads
+    kind: docs-files
+    sensitivity: public
+    # 17 pages: cmssw PRs 38017/38622/38678, cmssw-osenv#17, cms-docker#186, nanoAOD-tools#249,
+    # cmsdist#8566, and 10 named commits (cms-docker, cmssw-osenv, cmsdist, WMCore, lpc-scripts)
+    data: data/docs/github-threads-other
+    about: named issues, PRs and commits of cmssw, cmssw-osenv, cms-docker, cmsdist, nanoAOD-tools, WMCore
+
+
   # ==== 30: large upstreams, ingested only in part ===========================
   # Each needs `scope`: whole, they are 5k-80k files. Scope needs an engine that
   # can restrict a repo to globs, and that is not verified for the pinned okg

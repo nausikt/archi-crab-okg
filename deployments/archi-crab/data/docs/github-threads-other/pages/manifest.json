@@ -1,0 +1,55 @@
+{
+ "fetched_at": "2026-10-18T23:09:50Z",
+ "repos": {
+  "FNALLPC/lpc-scripts": {
+   "commits": 1,
+   "highest_number": 0,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 0
+  },
+  "cms-nanoAOD/nanoAOD-tools": {
+   "commits": 0,
+   "highest_number": 249,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 1
+  },
+  "cms-sw/cms-docker": {
+   "commits": 6,
+   "highest_number": 186,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 1
+  },
+  "cms-sw/cmsdist": {
+   "commits": 1,
+   "highest_number": 8566,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 1
+  },
+  "cms-sw/cmssw": {
+   "commits": 0,
+   "highest_number": 38678,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 3
+  },
+  "cms-sw/cmssw-osenv": {
+   "commits": 1,
+   "highest_number": 17,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 1
+  },
+  "dmwm/WMCore": {
+   "commits": 1,
+   "highest_number": 0,
+   "histories": 0,
+   "skipped_bots": 0,
+   "threads": 0
+  }
+ },
+ "tool": "scripts/harvest-gh-threads.py"
+}

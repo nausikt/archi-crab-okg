@@ -1,0 +1,27 @@
+# <file name><TAB><url>[<TAB><title>]  -- written by scripts/harvest-fetch.py; docs-build.py --urls input
+batchdocs.web.cern.ch_local_submit.html	https://batchdocs.web.cern.ch/local/submit.html	CERN Batch Docs: Submitting jobs (local HTCondor) -- OS choice (+WantOS / MY.WantOS), +JobFlavour, +MaxRuntime
+batchdocs.web.cern.ch_local_quick.html	https://batchdocs.web.cern.ch/local/quick.html	CERN Batch Docs: Quick start (local HTCondor)
+linux.web.cern.ch_which.html	https://linux.web.cern.ch/which/	CERN Linux: which Linux (AlmaLinux 9 / RHEL / CentOS Stream; CentOS 7 end of life 2024-06-30)
+linux.web.cern.ch_index.html	https://linux.web.cern.ch/	CERN Linux: supported distributions overview
+osg-htc.org_docs_worker-node_install-apptainer.html	https://osg-htc.org/docs/worker-node/install-apptainer/	OSG docs: Install Apptainer on worker nodes (unprivileged user namespaces, cvmfs-provided apptainer)
+osg-htc.org_docs_worker-node_install-wn.html	https://osg-htc.org/docs/worker-node/install-wn/	OSG docs: Install the worker node client
+osg-htc.org_docs_worker-node_install-wn-oasis.html	https://osg-htc.org/docs/worker-node/install-wn-oasis/	OSG docs: Worker node client from OASIS (CVMFS)
+osg-htc.org_docs_worker-node_using-wn.html	https://osg-htc.org/docs/worker-node/using-wn/	OSG docs: Using the worker node client
+osg-htc.org_docs_worker-node_install-cvmfs.html	https://osg-htc.org/docs/worker-node/install-cvmfs/	OSG docs: Install CVMFS on worker nodes
+apptainer.org_docs_user_latest_environment_and_metadata.html	https://apptainer.org/docs/user/latest/environment_and_metadata.html	Apptainer user guide: Environment and metadata (APPTAINERENV_*, --cleanenv, --env, $PATH handling)
+apptainer.org_docs_user_latest_bind_paths_and_mounts.html	https://apptainer.org/docs/user/latest/bind_paths_and_mounts.html	Apptainer user guide: Bind paths and mounts (--bind, system default binds, /tmp /home)
+apptainer.org_docs_user_latest_cli_apptainer_exec.html	https://apptainer.org/docs/user/latest/cli/apptainer_exec.html	Apptainer CLI: apptainer exec
+cms-sw.github.io_singularity.html	https://cms-sw.github.io/singularity.html	cms-sw: Running CMSSW in containers (cmssw-el7/el8/el9, cmssw-cc7, apptainer, --command-to-run, bind mounts)
+cms-sw.github.io_index.html	https://cms-sw.github.io/	cms-sw: CMSSW software site front page (release/architecture tables, FAQ links)
+cms-sw.github.io_faq.html	https://cms-sw.github.io/faq.html	cms-sw: CMSSW git/development FAQ
+cms-sw.github.io_tutorial.html	https://cms-sw.github.io/tutorial.html	cms-sw: CMSSW git tutorial (cmsrel, git cms-addpkg, scram b)
+cmssdt.cern.ch_SDT_releases.map.txt	https://cmssdt.cern.ch/SDT/releases.map	CMSSW releases.map: every release with its architecture (SCRAM_ARCH), type (Production/Development), state and prodarch flag
+uscms.org_computing_getstarted_index.html	https://uscms.org/uscms_at_work/computing/getstarted/index.shtml	US CMS LPC: Getting started with computing at the LPC (accounts, lpc-howto list, cmslpc)
+uscms.org_computing_getstarted_getaccount.html	https://uscms.org/uscms_at_work/computing/getstarted/getaccount.shtml	US CMS LPC: Getting a cmslpc account (Kerberos, ssh)
+uscms.org_computing_getstarted_uaf.html	https://uscms.org/uscms_at_work/computing/getstarted/uaf.shtml	US CMS LPC: cmslpc user analysis facility (interactive nodes, OS, scram arch)
+uscms.org_computing_setup_diskusage.html	https://uscms.org/uscms_at_work/computing/setup/diskusage.shtml	US CMS LPC: disk usage and quotas (home, nobackup, EOS)
+uscms.org_computing_setup_batch_systems.html	https://uscms.org/uscms_at_work/computing/setup/batch_systems.shtml	US CMS LPC: batch systems (HTCondor at the LPC, condor_submit, condor_q, +DesiredOS)
+uscms.org_computing_setup_setup_software.html	https://uscms.org/uscms_at_work/computing/setup/setup_software.shtml	US CMS LPC: setting up CMSSW software at the LPC (cmsenv, cmssw-el7/el8)
+uscms.org_computing_LPC_usingEOSAtLPC.html	https://uscms.org/uscms_at_work/computing/LPC/usingEOSAtLPC.shtml	US CMS LPC: Using EOS at the LPC (xrdcp, eosls, quotas, root://cmseos.fnal.gov)
+cmssst.web.cern.ch_siteStatus_summary.html	https://cmssst.web.cern.ch/siteStatus/summary.html	CMS Site Support Team: site status summary (the column legend: Life/Prod/CRAB status, SAM, HammerCloud, downtime)
+cmssst.web.cern.ch_siteStatus_detail.html	https://cmssst.web.cern.ch/siteStatus/detail.html	CMS Site Support Team: site status detail

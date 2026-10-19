@@ -1,0 +1,23 @@
+{
+ "emails_redacted": true,
+ "excluded": {
+  "https://github.com/dmwm/CRABClient/issues/5276": "links the cms-talk thread of a gold ticket",
+  "https://github.com/dmwm/CRABClient/issues/5279": "links the cms-talk thread of a gold ticket",
+  "https://github.com/dmwm/CRABClient/issues/5290": "links the cms-talk thread of a gold ticket",
+  "https://github.com/dmwm/CRABClient/issues/5323": "links the cms-talk thread of a gold ticket",
+  "https://github.com/dmwm/CRABClient/issues/5363": "links the cms-talk thread of a gold ticket and carries its task name",
+  "https://github.com/dmwm/CRABClient/pull/5286": "links the cms-talk thread of a gold ticket"
+ },
+ "files": 260,
+ "pages": 252,
+ "pdf_extractor": [],
+ "source_dir": "pages",
+ "statuses": {
+  "excluded": 6,
+  "kept": 252,
+  "sidecar": 2
+ },
+ "tool": "scripts/docs-build.py",
+ "url_template": "https://twiki.cern.ch/twiki/bin/view/{web}/{topic}",
+ "webs": "all"
+}

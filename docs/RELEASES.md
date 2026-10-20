@@ -111,7 +111,9 @@ python3 scripts/release.py engine-entry dev-<week> engine/dev-<week>     # an en
   volumes and Secret are deleted; the tag `okg-run1` stays as the record.
 
 **okg, prod:** `archi-crab-okg.cern.ch/mcp` serves **F**. F is its own instance of D's pair
-(engine `v0.2.0-rc2` × corpus `v0.2.0-rc1`), in namespace `archi-crab`. It comes later.
+(engine `v0.2.0-rc2` × corpus `v0.2.0-rc1`), in namespace `archi-crab`. **Live since 2026-10-20**, frozen
+(gen `a5f9db135635`, 539,212 / 1,569,394), tag `okg/prod/v0.2.0-rc2/v0.2.0-rc1`. Its proxy needed a selective
+Argo sync: prod's `site-status` (`sha256:TODO`) had blocked every later sync wave since 2026-09-14.
 
 **archi v2, staging** (`archi-crab-v2.cern.ch`; engine `archi-e6609f8f` for both)
 

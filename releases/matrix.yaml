@@ -147,7 +147,7 @@ prod:
   okg:
     engine: v0.2.0-rc2
     corpus: v0.2.0-rc1
-    status: building
+    status: live
     host: archi-crab-okg.cern.ch      # listener commented out today; cert + LanDB alias needed
     namespace: archi-crab
     release: archi-crab-okg

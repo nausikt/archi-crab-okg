@@ -37,9 +37,9 @@ secrets:
   extraEnv:
     - {name: OKG_PUBLISH_LOCK_HEADROOM_ALLOW_RAISED_TIMEOUT, key: allow-raised-timeout, targets: [bootstrap, worker]}
 repositorySync:
-  revision: "5b4510b7dc7dc7f7de7738f177cfab3fdac9f934"
+  revision: "3c849e8dcde67a09ac1fd98d4f2d23d92de7611f"
 bootstrap:
-  approvedRevision: "5b4510b7dc7dc7f7de7738f177cfab3fdac9f934"  # MUST equal repositorySync.revision
+  approvedRevision: "3c849e8dcde67a09ac1fd98d4f2d23d92de7611f"  # MUST equal repositorySync.revision
 frozen:
   enabled: false
 mcp:

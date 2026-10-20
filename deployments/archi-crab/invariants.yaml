@@ -1,11 +1,15 @@
 # archi-crab invariants — CRAB-truthful core floor (bundle + code graph).
+# timeout_ms 120000 (was 5000): each floor is count(*) over okg.v_nodes GROUP BY subtype,
+# 539k nodes on corpus v0.2.0-rc1; on the testbed's Cinder volumes it ran past 5 s at the
+# end of D's publish four times on 2026-10-20 (publish_proof refused, bootstrap restarted,
+# 3 h each). F passed by luck. docs/DEPLOYMENT-NOTES.md.
 # Replaces the generator's cern_team_core_pages_floor, which requires
 # documentation_page and jira_issue — subtypes this instance does not produce.
 invariants:
   - name: archi_crab_core_floor
     severity: error
     scope: cross
-    timeout_ms: 5000
+    timeout_ms: 120000
     description: >-
       Core archi-crab subtypes must have at least one live row each:
       source_file / code_symbol (code graph), document_chunk (doc-corpus),
@@ -23,7 +27,7 @@ invariants:
   - name: archi_crab_docs_floor
     severity: error
     scope: cross
-    timeout_ms: 5000
+    timeout_ms: 120000
     description: >-
       The documentation sources (twiki-sanitized, ...) must have at least one live
       documentation_page. Its own floor, so a docs failure names itself.

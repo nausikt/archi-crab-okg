@@ -101,6 +101,11 @@ okg:
         compat: ""
         since: "2026-10-19"
         note: "adapter b2 = b + deployment.yaml publisher.hard_statement_timeout_seconds 7200 (D/F first publish hit okg's 900 s cap); D, F"
+      - fingerprint: "sha256:6a29250122a5e5b27cb76c7a5648a3c4169d8140b8fa40915e49a7346b1696bd"
+        native: b64990ea092028544e504c3514da6a21d05a15e7
+        compat: ""
+        since: "2026-10-20"
+        note: "adapter b3 = b2 + invariants.yaml floor timeout_ms 120000 (D's publish proof timed out at 5 s on corpus v0.2.0-rc1, 4x); D"
 
 
   # WEEKLY DEV BUILDS, served by the slot `dev` (releases/matrix.yaml, /releases/dev/mcp). One id per weekly pin,

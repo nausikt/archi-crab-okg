@@ -18,6 +18,7 @@ tags, never `main`:
 | dev (slot) | okg `dev`, re-pinned weekly (`dev-2026w42` first) | newest released: `v0.1.0`, then `v0.2.0-rc1` | `/releases/dev/mcp` | live, frozen: `dev-2026w42` = okg `b9ad2b92` + archi-okg `e1c2886` (gen `4082f4504b2d`, 326421 / 419368) |
 
 - run1 is retired. The ToolHive operator is paused (0); the dev slot's proxy `okg-dev` exists.
+- Building something? Read docs/DEPLOYMENT-NOTES.md (dated problems, rules, `scripts/instance-watch.sh`).
 - A and C share their corpus and adapter (fingerprints `3d37187c…` and `46227d04…`); only the
   engine differs.
 - `okg status` on a FROZEN instance exits 1 with `permission denied for table node_facts`. Only
@@ -110,7 +111,9 @@ python3 scripts/release.py engine-entry dev-<week> engine/dev-<week>     # an en
   volumes and Secret are deleted; the tag `okg-run1` stays as the record.
 
 **okg, prod:** `archi-crab-okg.cern.ch/mcp` serves **F**. F is its own instance of D's pair
-(engine `v0.2.0-rc2` × corpus `v0.2.0-rc1`), in namespace `archi-crab`. It comes later.
+(engine `v0.2.0-rc2` × corpus `v0.2.0-rc1`), in namespace `archi-crab`. **Live since 2026-10-20**, frozen
+(gen `a5f9db135635`, 539,212 / 1,569,394), tag `okg/prod/v0.2.0-rc2/v0.2.0-rc1`. Its proxy needed a selective
+Argo sync: prod's `site-status` (`sha256:TODO`) had blocked every later sync wave since 2026-09-14.
 
 **archi v2, staging** (`archi-crab-v2.cern.ch`; engine `archi-e6609f8f` for both)
 

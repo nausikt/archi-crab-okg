@@ -82,4 +82,10 @@ corpora:
     # Git history: a lane of the ADAPTER, not of this corpus. Instances on engine v0.2.0-rc2 get
     # it only if adapter b (engines.yaml) is usable and the instance is rendered from a commit
     # carrying it; A, C, dev and v2 never have it.
-    materialized: {}
+    materialized:
+      # F: prod's own instance of okg v0.2.0-rc2 + adapter b2 (git-history lanes, publish cap 7200 s),
+      # built 2026-10-19/20 in namespace archi-crab (Postgres 12Gi after 16:58 UTC; runtime volume on
+      # cinder-io1-delete). Bootstrap published ~20:45 UTC; the worker re-published at 00:00 UTC
+      # before the freeze, so the frozen generation is the midnight one (git sources at that
+      # day's HEAD). Tag okg/prod/v0.2.0-rc2/v0.2.0-rc1. D and v2 follow when live.
+      prod/v0.2.0-rc2: {generation: "okg:archi-crab:branch:default:gen:20261020T000035239072Z:a5f9db135635", nodes: 539212, edges: 1569394, built: "2026-10-20"}
